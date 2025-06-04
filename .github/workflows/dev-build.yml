@@ -17,8 +17,10 @@ jobs:
   #     image-tag: ${{ jobs.setup.outputs.image_tag }}
 
   lint:
-    uses: osru-leu/platform-github-actions/.github/workflows/lint-go.yml@feature/workflows
-    with: ${{ inputs }}
+    uses: osru-leu/platform-github-actions/.github/workflows/lint-${{ inputs.language }}.yml@feature/workflows
+    with:
+      language: ${{ inputs.language }}
+      app-name: ${{ inputs.app-name }}
 
   # test:
   #   uses: osru-leu/platform-github-actions/.github/workflows/test-${{ inputs.language }}.yml@v1
