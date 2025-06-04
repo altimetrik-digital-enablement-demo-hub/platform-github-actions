@@ -1,3 +1,31 @@
-# add staticcheck? 
-# remove unnecessary lines - needs to be adjusted for the workflow
+name: Lint Go Code
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        required: true
+        type: string
+      app-name:
+        required: true
+        type: string
+
+jobs:
+  lint:
+    name: Staticcheck Golang
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: false
+
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@v1.3.0
+        with:
+          working-directory: ${{ inputs.app-name }}
+          install-go: false
 
