@@ -1,0 +1,69 @@
+name: "CodeQL"
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        required: true
+        type: string
+      app-name:
+        required: true
+        type: string
+
+jobs:
+  analyze:
+    name: Analyze with CodeQL
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up language matrix
+        id: lang-matrix
+        run: |
+          LANGS="${{ inputs.languages }}"
+          echo "matrix=$echo $LANGS | tr ',' '\n' | jq -R -s -c 'split("\n") | map(select(length > 0))')"  >> $GITHUB_OUTPUT
+
+      - name: Debug matrix
+        run: echo "${{ steps.lang-matrix.outputs.matrix }}"
+
+  scan:
+    needs: analyze
+    runs-on: unbuntu-latest
+    strategy:
+      matrix:
+        language: ${{ fromJsonm(needs.analyze.outputs.matrix)  }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Initialize CodeQL
+        uses:  github/codeql-action/init@v3
+        with: 
+          language: ${{ matrix.language }}
+
+      - name: Build
+        run: |
+          if [[ "${{ matrix.language }}" == "go" || "${{ matrix.language }}" == "golang" ]]; then
+            go build ./...
+          elif [[ "${{ matrix.language }}" == "python" ]]; then
+            echo "No build needed for Python"
+          elif [[ "${{ matrix.language }}" == "csharp" ]]; then
+            dotnet build
+          elif [[ "${{ matrix.language }}"]] ==  "javascript" ]]; then
+            npm ci
+            mpm run build || true
+          else
+            echo "Unsupported language: ${{ matrix.language }}"
+            exit 1
+          fi
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
