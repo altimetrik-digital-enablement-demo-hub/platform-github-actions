@@ -19,7 +19,7 @@ jobs:
   setup:
     uses: osru-leu/platform-github-actions/.github/workflows/setup-image-tag.yml@v1
     outputs:
-      image-tag: ${{ jobs.set-tag.outputs.image_tag }}
+      image-tag: ${{ jobs.setup.outputs.image_tag }}
 
   lint:
     uses: osru-leu/platform-github-actions/.github/workflows/lint-${{ inputs.language }}.yml@v1
