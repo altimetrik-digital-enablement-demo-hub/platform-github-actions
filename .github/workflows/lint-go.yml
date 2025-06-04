@@ -26,6 +26,5 @@ jobs:
       - name: Run staticcheck
         uses: dominikh/staticcheck-action@v1.3.0
         with:
-          working-directory: ${{ inputs.app-name }}
           install-go: false
 
