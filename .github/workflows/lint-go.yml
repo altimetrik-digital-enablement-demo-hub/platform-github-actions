@@ -27,4 +27,5 @@ jobs:
         uses: dominikh/staticcheck-action@v1.3.0
         with:
           install-go: false
+          output-format: stylish
 
