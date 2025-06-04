@@ -6,9 +6,6 @@ on:
       language:
         required: true
         type: string
-      app-name:
-        required: true
-        type: string
 
 jobs:
   lint:
