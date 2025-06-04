@@ -3,10 +3,10 @@ name: "CodeQL"
 on:
   workflow_call:
     inputs:
-      language:
+      image-name:
         required: true
         type: string
-      app-name:
+      image-tag:
         required: true
         type: string
 
@@ -35,10 +35,10 @@ jobs:
 
   scan:
     needs: analyze
-    runs-on: unbuntu-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        language: ${{ fromJsonm(needs.analyze.outputs.matrix)  }}
+        language: ${{ fromJson(needs.analyze.outputs.matrix)  }}
 
     steps:
       - name: Checkout
@@ -57,9 +57,9 @@ jobs:
             echo "No build needed for Python"
           elif [[ "${{ matrix.language }}" == "csharp" ]]; then
             dotnet build
-          elif [[ "${{ matrix.language }}"]] ==  "javascript" ]]; then
+          elif [[ "${{ matrix.language }}" ==  "javascript" ]]; then
             npm ci
-            mpm run build || true
+            npm run build || true
           else
             echo "Unsupported language: ${{ matrix.language }}"
             exit 1
@@ -67,3 +67,5 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+
+  # container-scan:
