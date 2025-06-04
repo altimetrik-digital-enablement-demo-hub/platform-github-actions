@@ -9,11 +9,6 @@ on:
       app-name:
         required: true
         type: string
-  push:
-    branches-ignore:
-      - 'release/**'
-    tags-ignore:
-      - '**'
 
 jobs:
   # setup:
