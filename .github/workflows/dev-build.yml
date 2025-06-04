@@ -22,13 +22,13 @@ jobs:
       language: ${{ inputs.language }}
 
   test:
-    uses: osru-leu/platform-github-actions/.github/workflows/test-go.yml@v1
+    uses: osru-leu/platform-github-actions/.github/workflows/test-go.yml@feature/workflows
     needs: lint
     with:
       language: ${{ inputs.language }}}
 
   build:
-    uses: osru-leu/platform-github-actions/.github/workflows/build-go.yml@v1
+    uses: osru-leu/platform-github-actions/.github/workflows/build-go.yml@feature/workflows
     needs: test
     with:
       language: ${{ inputs.language }}
