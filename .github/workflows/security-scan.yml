@@ -9,11 +9,16 @@ on:
       image-tag:
         required: true
         type: string
+      languages:
+        required: true
+        type: string
 
 jobs:
   analyze:
     name: Analyze with CodeQL
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.lang-matrix.outputs.matrix }}
 
     permissions:
       security-events: write
@@ -28,7 +33,7 @@ jobs:
         id: lang-matrix
         run: |
           LANGS="${{ inputs.languages }}"
-          echo "matrix=$echo $LANGS | tr ',' '\n' | jq -R -s -c 'split("\n") | map(select(length > 0))')"  >> $GITHUB_OUTPUT
+          echo "matrix=$(echo $LANGS | tr ',' '\n' | jq -R -s -c 'split(\"\n\") | map(select(length > 0))')" >> $GITHUB_OUTPUT
 
       - name: Debug matrix
         run: echo "${{ steps.lang-matrix.outputs.matrix }}"
