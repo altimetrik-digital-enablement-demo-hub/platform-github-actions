@@ -48,9 +48,9 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: ${{ inputs.app-name }}:${{ inputs.image-tag }}
-          outputs: type=oci,dest=/tmp/${{ inputs.app-name }}.tar
+          outputs: type=docker,dest=/tmp/${{ inputs.app-name }}.tar
 
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
