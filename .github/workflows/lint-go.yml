@@ -6,10 +6,13 @@ on:
       language:
         required: true
         type: string
+    #   version:
+    #     required: true
+    #     type: string
 
 jobs:
   lint:
-    name: Staticcheck Golang
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,10 +20,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24' 
+          go-version: '1.24' # make dynamic ${{ inputs.version }}
           cache: false
 
-      - name: Run staticcheck
+      - name: Run StaticCheck
         uses: dominikh/staticcheck-action@v1.3.0
         with:
           install-go: false

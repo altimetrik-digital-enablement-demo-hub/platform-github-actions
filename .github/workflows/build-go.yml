@@ -36,7 +36,7 @@ jobs:
         run: |
           go build -o app ./cmd
         # run: |
-        #   go build -o ${{ inputs.app-name }} ./...
+        #   go build -o ${{ inputs.app-name }} {{inputs.directory }}
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
