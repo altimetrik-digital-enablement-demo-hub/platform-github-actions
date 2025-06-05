@@ -32,6 +32,7 @@ jobs:
     needs: test
     with:
       language: ${{ inputs.language }}
+      app-name: ${{ inputs.app-name }}
 
   # package:
   #   uses: osru-leu/platform-github-actions/.github/workflows/package-${{ inputs.language }}.yml@v1

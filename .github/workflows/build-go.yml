@@ -6,6 +6,9 @@ on:
       language:
         required: true
         type: string
+      app-name:
+        required: true
+        type: string
 
 jobs:
   build:
@@ -18,7 +21,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          # go-version: '1.24.2'
+          go-version-file: 'go.mod'
 
       - name: Go version
         run: go version
@@ -31,9 +35,13 @@ jobs:
       - name: Build binary
         run: |
           go build -o app ./...
+        # run: |
+        #   go build -o ${{ inputs.app-name }} ./...
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: go-binary
           path: app
+          # name: ${{ inputs.app-name }}-binary
+          # path: ${{ inputs.app-name }}
