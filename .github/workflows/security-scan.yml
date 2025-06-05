@@ -33,7 +33,14 @@ jobs:
         id: lang-matrix
         run: |
           LANGS="${{ inputs.languages }}"
-          echo "matrix=$(echo $LANGS | tr ',' '\n' | jq -R -s -c 'split(\"\n\") | map(select(length > 0))')" >> $GITHUB_OUTPUT
+          # Handle single language or comma-separated languages
+          if [[ "$LANGS" == *","* ]]; then
+            # Multiple languages
+            echo "matrix=$(echo $LANGS | tr ',' '\n' | jq -R -s -c 'split(\"\n\") | map(select(length > 0))')" >> $GITHUB_OUTPUT
+          else
+            # Single language
+            echo "matrix=[\"$LANGS\"]" >> $GITHUB_OUTPUT
+          fi
 
       - name: Debug matrix
         run: echo "${{ steps.lang-matrix.outputs.matrix }}"
