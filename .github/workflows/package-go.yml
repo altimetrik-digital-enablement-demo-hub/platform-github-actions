@@ -26,6 +26,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug inputs
+        run: |
+          echo "app-name: ${{ inputs.app-name }}"
+          echo "image-tag: ${{ inputs.image-tag }}"
+          echo "language: ${{ inputs.language }}"
+
       - name: Download binary artifact
         uses: actions/download-artifact@v4
         with:
