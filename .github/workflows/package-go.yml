@@ -50,7 +50,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           tags: ${{ inputs.app-name }}:${{ inputs.image-tag }}
-          outputs: type=docker,dest=/tmp/${{ inputs.app-name }}.tar
+          outputs: type=oci,dest=/tmp/${{ inputs.app-name }}.tar
 
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
