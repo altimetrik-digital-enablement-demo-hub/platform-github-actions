@@ -42,7 +42,7 @@ jobs:
 
   security:
     uses: osru-leu/platform-github-actions/.github/workflows/security-scan.yml@feature/workflows
-    needs: package
+    needs: [package, setup]
     with:
       image-name: ${{ inputs.app-name }}
       image-tag: ${{ needs.setup.outputs.image-tag }}
