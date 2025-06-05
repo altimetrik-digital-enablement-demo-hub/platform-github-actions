@@ -99,11 +99,20 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
 
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
+      # For public repos or organization repos - uncomment below
+      # - name: Upload Trivy scan results to GitHub Security
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
+
+      # For private repos - use artifact upload instead
+      - name: Upload security scan results as artifact
+        uses: actions/upload-artifact@v4
         with:
-          sarif_file: 'trivy-results.sarif'
+          name: security-scan-results
+          path: trivy-results.sarif
 
       - name: Generate security report
         run: |
           echo "Container security scan completed for ${{ inputs.image-name }}:${{ inputs.image-tag }}"
+          echo "Results saved as workflow artifact: security-scan-results"
