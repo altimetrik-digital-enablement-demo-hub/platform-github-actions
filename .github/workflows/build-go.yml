@@ -34,7 +34,7 @@ jobs:
 
       - name: Build binary
         run: |
-          go build -o app ./...
+          go build -o app ./cmd
         # run: |
         #   go build -o ${{ inputs.app-name }} ./...
 
