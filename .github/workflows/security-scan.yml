@@ -86,7 +86,8 @@ jobs:
       - name: Run Trivy vulnerability scanner on OCI archive
         uses: aquasecurity/trivy-action@master
         with:
-          input: /tmp/${{ inputs.image-name }}.tar
+          scan-type: 'image'
+          image-ref: 'oci-archive:/tmp/${{ inputs.image-name }}.tar'
           format: 'sarif'
           output: 'trivy-results.sarif'
 
