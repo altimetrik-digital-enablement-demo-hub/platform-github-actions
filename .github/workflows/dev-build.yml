@@ -38,7 +38,7 @@ jobs:
     with:
       language: ${{ inputs.language }}
       app-name: ${{ inputs.app-name }}
-      image-tag: ${{ needs.setup.outputs.image_tag }}
+      image-tag: ${{ needs.setup.outputs.image-tag }}
   # security:
   #   uses: osru-leu/platform-github-actions/.github/workflows/security-scan.yml@v1
   #   needs: package
