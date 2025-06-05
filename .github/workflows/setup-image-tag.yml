@@ -1,3 +1,5 @@
+name: Setup Image Tag
+
 on:
   workflow_call:
     outputs:
