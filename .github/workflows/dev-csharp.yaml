@@ -47,7 +47,7 @@ jobs:
       - uses: jenseng/dynamic-uses@v1
         with:
           # now you can use expressions 🥳
-          uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/${dotnet-linter}@composites
+          uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/${{inputs.dotnet-linter}}@composites
           # the `with` needs to be converted to a valid json string
           with: '{ "app-name": ${{ inputs.app-name }} }'
           
