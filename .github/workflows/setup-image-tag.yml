@@ -24,5 +24,4 @@ jobs:
           TAG="${BRANCH_LOWER}-${DATE}.${{ github.run_number }}"
           echo "Generated tag: $TAG"
           echo "image_tag=$TAG" >> $GITHUB_OUTPUT
-
-echo "image-tag: ${{ inputs.image-tag }}"
+          echo "image-tag: $TAG" >> $GITHUB_OUTPUT
