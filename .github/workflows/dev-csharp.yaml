@@ -1,0 +1,51 @@
+name: build
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: 'Programming language of the application'
+        required: true
+        default: 'csharp'
+        type: string
+      app-name:
+        description: 'Name of the application to package'
+        default: 'netwebapi'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      app-name:
+        required: true
+        type: string
+      language:
+        required: true
+        type: string
+        default: 'csharp'
+      git-fetch-depth:
+        required: false
+        type: string
+        default: '1'
+      dotnet-version:
+        required: false
+        type: string
+        default: '9.0.300'
+      dotnet-tools-restore:
+        required: false
+        type: boolean
+        default: true
+      dotnet-linter:
+        required: false
+        type: string  
+        default: 'csharpier'
+
+jobs:
+  lint:
+    if: ${{ inputs.language == 'csharp' }}
+    name: Lint C# code
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
+        with:
+          app-name: ${{ inputs.app-name }}
+          
+    
