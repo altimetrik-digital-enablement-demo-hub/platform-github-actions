@@ -61,7 +61,7 @@ jobs:
         with: 
           languages: ${{ matrix.language }}
 
-      - name: Build
+      - name: Build # Download the binary artifact from the build job instead of building here
         run: |
           if [[ "${{ matrix.language }}" == "go" ]]; then
             go build ./...
