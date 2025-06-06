@@ -9,6 +9,10 @@ on:
       app-name:
         required: true
         type: string
+      # main-directory:
+      #   required: false
+      #   type: string
+      #   default: "./cmd"
 
 jobs:
   build:
@@ -36,7 +40,7 @@ jobs:
         run: |
           go build -o app ./cmd
         # run: |
-        #   go build -o ${{ inputs.app-name }} {{inputs.directory }}
+        #   go build -o ${{ inputs.app-name }} {{inputs.main-directory }}
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
