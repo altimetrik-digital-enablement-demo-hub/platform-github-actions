@@ -1,0 +1,163 @@
+name: Deploy to Kubernetes
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+      image-tag:
+        required: true
+        type: string
+      namespace:
+        required: false
+        type: string
+        default: "default"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Set up Kubernetes config
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Create namespace if it doesn't exist
+        run: |
+          kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Download container image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.app-name }}-image
+          path: /tmp/
+
+      - name: Load and push image to registry
+        run: |
+          # Load the image
+          docker load -i /tmp/${{ inputs.app-name }}.tar
+          
+          # Tag for registry (assumes you have a registry URL in secrets)
+          docker tag ${{ inputs.app-name }}:${{ inputs.image-tag }} ${{ secrets.REGISTRY_URL }}/${{ inputs.app-name }}:${{ inputs.image-tag }}
+          
+          # Login and push to registry
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ${{ secrets.REGISTRY_URL }} -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+          docker push ${{ secrets.REGISTRY_URL }}/${{ inputs.app-name }}:${{ inputs.image-tag }}
+
+      - name: Generate Kubernetes manifests
+        run: |
+          mkdir -p k8s-manifests
+          
+          # Create deployment manifest
+          cat > k8s-manifests/deployment.yaml << EOF
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ${{ inputs.app-name }}
+            namespace: ${{ inputs.namespace }}
+            labels:
+              app: ${{ inputs.app-name }}
+              environment: ${{ inputs.environment }}
+          spec:
+            replicas: 2
+            selector:
+              matchLabels:
+                app: ${{ inputs.app-name }}
+            template:
+              metadata:
+                labels:
+                  app: ${{ inputs.app-name }}
+                  environment: ${{ inputs.environment }}
+              spec:
+                containers:
+                - name: ${{ inputs.app-name }}
+                  image: ${{ secrets.REGISTRY_URL }}/${{ inputs.app-name }}:${{ inputs.image-tag }}
+                  ports:
+                  - containerPort: 8080
+                  env:
+                  - name: ENVIRONMENT
+                    value: "${{ inputs.environment }}"
+                  resources:
+                    requests:
+                      memory: "64Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "128Mi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: 8080
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /ready
+                      port: 8080
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+          EOF
+          
+          # Create service manifest
+          cat > k8s-manifests/service.yaml << EOF
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ${{ inputs.app-name }}-service
+            namespace: ${{ inputs.namespace }}
+            labels:
+              app: ${{ inputs.app-name }}
+              environment: ${{ inputs.environment }}
+          spec:
+            selector:
+              app: ${{ inputs.app-name }}
+            ports:
+            - protocol: TCP
+              port: 80
+              targetPort: 8080
+            type: ClusterIP
+          EOF
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s-manifests/deployment.yaml
+          kubectl apply -f k8s-manifests/service.yaml
+
+      - name: Wait for deployment to be ready
+        run: |
+          kubectl rollout status deployment/${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s
+
+      - name: Get deployment status
+        run: |
+          echo "=== Deployment Status ==="
+          kubectl get deployment ${{ inputs.app-name }} -n ${{ inputs.namespace }}
+          echo "=== Pod Status ==="
+          kubectl get pods -l app=${{ inputs.app-name }} -n ${{ inputs.namespace }}
+          echo "=== Service Status ==="
+          kubectl get service ${{ inputs.app-name }}-service -n ${{ inputs.namespace }}
+
+      - name: Get application URL
+        run: |
+          echo "Application deployed successfully!"
+          echo "Service: ${{ inputs.app-name }}-service.${{ inputs.namespace }}.svc.cluster.local"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Image: ${{ secrets.REGISTRY_URL }}/${{ inputs.app-name }}:${{ inputs.image-tag }}"

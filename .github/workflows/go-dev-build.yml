@@ -1,11 +1,8 @@
-name: Dev Build Pipeline
+name: Go Dev Build Pipeline
 
 on:
   workflow_call:
     inputs:
-      language:
-        required: true
-        type: string
       app-name:
         required: true
         type: string
@@ -17,36 +14,38 @@ jobs:
   lint:
     uses: osru-leu/platform-github-actions/.github/workflows/lint-go.yml@feature/workflows
     with:
-      language: ${{ inputs.language }}
+      language: go
+      app-name: ${{ inputs.app-name }}
 
   test:
     uses: osru-leu/platform-github-actions/.github/workflows/test-go.yml@feature/workflows
     needs: lint
     with:
-      language: ${{ inputs.language }}
+      language: go
+      app-name: ${{ inputs.app-name }}
 
   build:
     uses: osru-leu/platform-github-actions/.github/workflows/build-go.yml@feature/workflows
     needs: test
     with:
-      language: ${{ inputs.language }}
+      language: go
       app-name: ${{ inputs.app-name }}
 
   package:
     uses: osru-leu/platform-github-actions/.github/workflows/package-go.yml@feature/workflows
     needs: [build, setup]
     with:
-      language: ${{ inputs.language }}
+      language: go
       app-name: ${{ inputs.app-name }}
-      image-tag: ${{ needs.setup.outputs.image-tag }}
+      image-tag: ${{ needs.setup.outputs.image_tag }}
 
   security:
     uses: osru-leu/platform-github-actions/.github/workflows/security-scan.yml@feature/workflows
     needs: [package, setup]
     with:
       image-name: ${{ inputs.app-name }}
-      image-tag: ${{ needs.setup.outputs.image-tag }}
-      languages: ${{ inputs.language }}
+      image-tag: ${{ needs.setup.outputs.image_tag }}
+      languages: go
 
   deploy:
     uses: osru-leu/platform-github-actions/.github/workflows/deploy.yml@feature/workflows
@@ -54,4 +53,4 @@ jobs:
     with:
       app-name: ${{ inputs.app-name }}
       environment: dev
-      image-tag: ${{ needs.setup.outputs.image_tag }}
+      image-tag: ${{ needs.setup.outputs.image_tag }} 
