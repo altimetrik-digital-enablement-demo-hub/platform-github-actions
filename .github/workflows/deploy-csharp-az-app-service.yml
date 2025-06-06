@@ -48,12 +48,12 @@ jobs:
           echo "Azure Web App Name: ${{ inputs.azure_webapp_name }}"
           echo "Azure Web App Package Path: ${{ inputs.azure_webapp_package_path }}"
           echo "Dotnet Version: ${{ inputs.dotnet_version }}"
-          echo "Publish Profile Secret: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" # For debugging purposes only, remove in production
+          echo "Publish Profile Secret: ${{ inputs.azure_webapp_publish_profile }}" # For debugging purposes only, remove in production
       
       # Deploy to Azure Web apps
       - name: 'Run Azure webapp deploy action using publish profile credentials'
         uses: azure/webapps-deploy@v3
         with: 
-          app-name: ${{ inputs.azure_webapp_name }} # Replace with your app name
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE  }}
+          app-name: ${{ inputs.azure_webapp_name }} 
+          publish-profile: ${{ inputs.azure_webapp_publish_profile }} 
           package: '${{ inputs.azure_webapp_package_path }}/${{inputs.azure_webapp_name}}'
