@@ -18,7 +18,7 @@ on:
         required: true
         type: string
       language:
-        required: true
+        required: false
         type: string
         default: 'csharp'
       git-fetch-depth:
@@ -44,8 +44,16 @@ jobs:
     name: Lint C# code
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
+      - uses: jenseng/dynamic-uses@v1
         with:
-          app-name: ${{ inputs.app-name }}
+          # now you can use expressions 🥳
+          uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/${dotnet-linter}@composites
+          # the `with` needs to be converted to a valid json string
+          with: '{ "app-name": ${{ inputs.app-name }} }'
+          
+          
+      # - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
+      #   with:
+      #     app-name: ${{ inputs.app-name }}
           
     
