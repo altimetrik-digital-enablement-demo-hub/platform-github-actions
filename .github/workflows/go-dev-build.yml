@@ -35,14 +35,14 @@ jobs:
     with:
       language: go
       app-name: ${{ inputs.app-name }}
-      image-tag: ${{ needs.setup.outputs.image_tag }}
+      image-tag: ${{ needs.setup.outputs.image-tag }}
 
   security:
     uses: osru-leu/platform-github-actions/.github/workflows/security-scan.yml@feature/workflows
     needs: [package, setup]
     with:
       image-name: ${{ inputs.app-name }}
-      image-tag: ${{ needs.setup.outputs.image_tag }}
+      image-tag: ${{ needs.setup.outputs.image-tag }}
       languages: go
 
   deploy:
@@ -51,4 +51,4 @@ jobs:
     with:
       app-name: ${{ inputs.app-name }}
       environment: dev
-      image-tag: ${{ needs.setup.outputs.image_tag }} 
+      image-tag: ${{ needs.setup.outputs.image-tag }} 
