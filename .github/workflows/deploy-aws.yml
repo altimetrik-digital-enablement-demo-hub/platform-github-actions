@@ -1,0 +1,155 @@
+name: Deploy to AWS
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+      image-tag:
+        required: true
+        type: string
+      aws-region:
+        required: false
+        type: string
+        default: "us-east-1"
+
+jobs:
+  deploy-aws:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Download container image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.app-name }}-image
+          path: /tmp/
+
+      - name: Load and push image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ inputs.app-name }}
+          IMAGE_TAG: ${{ inputs.image-tag }}
+        run: |
+          # Load the image
+          docker load -i /tmp/${{ inputs.app-name }}.tar
+          
+          # Create ECR repository if it doesn't exist
+          aws ecr describe-repositories --repository-names $ECR_REPOSITORY --region ${{ inputs.aws-region }} || \
+          aws ecr create-repository --repository-name $ECR_REPOSITORY --region ${{ inputs.aws-region }}
+          
+          # Tag and push to ECR
+          docker tag ${{ inputs.app-name }}:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag ${{ inputs.app-name }}:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          echo "image-uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create App Runner service configuration
+        run: |
+          cat > apprunner.yaml << EOF
+          version: 1.0
+          runtime: docker
+          build:
+            commands:
+              build:
+                - echo "No build needed, using pre-built image"
+          run:
+            runtime-version: latest
+            command: /go-sample-app
+            network:
+              port: 8080
+              env:
+                - name: ENVIRONMENT
+                  value: ${{ inputs.environment }}
+                - name: PORT
+                  value: "8080"
+            env:
+              - name: APP_NAME
+                value: ${{ inputs.app-name }}
+          EOF
+
+      - name: Deploy to AWS App Runner
+        run: |
+          SERVICE_NAME="${{ inputs.app-name }}-${{ inputs.environment }}"
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ inputs.app-name }}:${{ inputs.image-tag }}"
+          
+          # Check if service exists
+          if aws apprunner describe-service --service-arn "arn:aws:apprunner:${{ inputs.aws-region }}:${{ secrets.AWS_ACCOUNT_ID }}:service/$SERVICE_NAME" 2>/dev/null; then
+            echo "Service exists, updating..."
+            
+            # Update existing service
+            aws apprunner start-deployment \
+              --service-arn "arn:aws:apprunner:${{ inputs.aws-region }}:${{ secrets.AWS_ACCOUNT_ID }}:service/$SERVICE_NAME"
+              
+          else
+            echo "Service doesn't exist, creating..."
+            
+            # Create new service
+            aws apprunner create-service \
+              --service-name "$SERVICE_NAME" \
+              --source-configuration '{
+                "ImageRepository": {
+                  "ImageIdentifier": "'$IMAGE_URI'",
+                  "ImageConfiguration": {
+                    "Port": "8080",
+                    "RuntimeEnvironmentVariables": {
+                      "ENVIRONMENT": "${{ inputs.environment }}",
+                      "APP_NAME": "${{ inputs.app-name }}"
+                    }
+                  },
+                  "ImageRepositoryType": "ECR"
+                },
+                "AutoDeploymentsEnabled": false
+              }' \
+              --instance-configuration '{
+                "Cpu": "0.25 vCPU",
+                "Memory": "0.5 GB"
+              }' \
+              --tags Key=Environment,Value=${{ inputs.environment }} Key=Application,Value=${{ inputs.app-name }}
+          fi
+
+      - name: Wait for deployment to complete
+        run: |
+          SERVICE_NAME="${{ inputs.app-name }}-${{ inputs.environment }}"
+          
+          echo "Waiting for deployment to complete..."
+          aws apprunner wait service-running \
+            --service-arn "arn:aws:apprunner:${{ inputs.aws-region }}:${{ secrets.AWS_ACCOUNT_ID }}:service/$SERVICE_NAME"
+
+      - name: Get service information
+        run: |
+          SERVICE_NAME="${{ inputs.app-name }}-${{ inputs.environment }}"
+          
+          # Get service details
+          SERVICE_INFO=$(aws apprunner describe-service \
+            --service-arn "arn:aws:apprunner:${{ inputs.aws-region }}:${{ secrets.AWS_ACCOUNT_ID }}:service/$SERVICE_NAME")
+          
+          SERVICE_URL=$(echo $SERVICE_INFO | jq -r '.Service.ServiceUrl')
+          SERVICE_STATUS=$(echo $SERVICE_INFO | jq -r '.Service.Status')
+          
+          echo "=== Deployment Complete ==="
+          echo "Service: $SERVICE_NAME"
+          echo "Status: $SERVICE_STATUS"
+          echo "URL: https://$SERVICE_URL"
+          echo "Region: ${{ inputs.aws-region }}"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Image: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.app-name }}:${{ inputs.image-tag }}" 

@@ -45,8 +45,16 @@ jobs:
       image-tag: ${{ needs.setup.outputs.image-tag }}
       languages: go
 
-  deploy:
+  deploy-k8s:
     uses: osru-leu/platform-github-actions/.github/workflows/deploy.yml@feature/workflows
+    needs: security
+    with:
+      app-name: ${{ inputs.app-name }}
+      environment: dev
+      image-tag: ${{ needs.setup.outputs.image-tag }}
+
+  deploy-aws:
+    uses: osru-leu/platform-github-actions/.github/workflows/deploy-aws.yml@feature/workflows
     needs: security
     with:
       app-name: ${{ inputs.app-name }}

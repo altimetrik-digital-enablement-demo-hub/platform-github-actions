@@ -63,7 +63,7 @@ jobs:
 
       - name: Build
         run: |
-          if [[ "${{ matrix.language }}" == "go" || "${{ matrix.language }}" == "golang" ]]; then
+          if [[ "${{ matrix.language }}" == "go" ]]; then
             go build ./...
           elif [[ "${{ matrix.language }}" == "python" ]]; then
             echo "No build needed for Python"
