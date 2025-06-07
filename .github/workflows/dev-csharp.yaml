@@ -49,7 +49,7 @@ jobs:
           # now you can use expressions 🥳
           uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/${{inputs.dotnet-linter}}@composites
           # the `with` needs to be converted to a valid json string
-          with: '{ "app-name": ${{ inputs.app-name }} }'
+          with: '{ "app-name": ${{ inputs.app-name }}, "restore": ${{ inputs.dotnet-tools-restore }}, "dotnet-version": "${{ inputs.dotnet-version }}", "git-fetch-depth": "${{ inputs.git-fetch-depth }}" }'
           
           
       # - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
