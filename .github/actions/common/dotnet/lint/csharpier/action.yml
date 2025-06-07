@@ -35,7 +35,7 @@ runs:
       run: |
         echo "installing csharpier tool"
         dotnet tool install --global csharpier
-        dotnet csharpier check .
+        csharpier check .
 
     - name: Lint ${{ inputs.app-name }}
       if: ${{ inputs.restore == 'true' }}
