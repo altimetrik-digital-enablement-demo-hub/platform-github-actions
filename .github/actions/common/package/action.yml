@@ -24,6 +24,13 @@ inputs:
     description: Docker build context
     required: false
     default: '.'
+  registry-url:
+    description: Container registry URL (e.g., AWS ECR)
+    required: false
+  push-to-registry:
+    description: Whether to push to registry instead of saving as tar
+    required: false
+    default: 'false'
 
 outputs:
   image-tag:
@@ -54,7 +61,29 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Build Docker image
+    - name: Configure AWS credentials (if using ECR)
+      if: inputs.push-to-registry == 'true' && contains(inputs.registry-url, 'amazonaws.com')
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ env.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      if: inputs.push-to-registry == 'true' && contains(inputs.registry-url, 'amazonaws.com')
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and push to registry
+      if: inputs.push-to-registry == 'true'
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ inputs.docker-context }}
+        file: ${{ inputs.dockerfile-path }}
+        platforms: linux/amd64
+        tags: ${{ inputs.registry-url }}/${{ inputs.app-name }}:${{ inputs.image-tag }}
+        push: true
+
+    - name: Build Docker image (tar output)
+      if: inputs.push-to-registry != 'true'
       uses: docker/build-push-action@v5
       with:
         context: ${{ inputs.docker-context }}
@@ -64,6 +93,7 @@ runs:
         outputs: type=docker,dest=/tmp/${{ inputs.app-name }}.tar
 
     - name: Upload Docker image artifact
+      if: inputs.push-to-registry != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.app-name }}-image
