@@ -51,9 +51,6 @@ runs:
       run: |
         git config --local user.email "gituser@github.com"
         git config --local user.name "Git User"
-        
-        echo "debugging version info"
-        git log --oneline | head -n 5
 
     - name: Versionize Release
       id: versionize
