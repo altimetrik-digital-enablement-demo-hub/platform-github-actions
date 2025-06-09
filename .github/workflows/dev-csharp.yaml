@@ -68,7 +68,7 @@ jobs:
     needs: [setup, lint]
     runs-on: 'ubuntu-latest'     
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/test@composites
+      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
         with:
           verbosity: 'normal'
       # - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
