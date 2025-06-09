@@ -63,7 +63,6 @@ runs:
         
         echo "debugging version info"
         git log --oneline | head -n 5
-        cat /home/runner/work/NetWebApi/NetWebApi/src/NetWebApi.API/NetWebApi.API.csproj
 
     - name: Versionize Release
       id: versionize
