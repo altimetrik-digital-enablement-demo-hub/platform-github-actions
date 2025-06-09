@@ -1,0 +1,42 @@
+name: dotnet-setup
+description: Setup .NET environment
+
+inputs:
+  app-name:
+    description: Application name
+    required: true
+  dotnet-version:
+    description: The .NET SDK version to use
+    required: false
+    default: '9.0.300'
+  git-fetch-depth:
+    description: The depth of the git fetch
+    required: false
+    default: "1"
+  
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: ${{ inputs.git-fetch-depth }}
+    - name: debug working dir 
+      shell: bash
+      run: |
+        echo "Working directory: ${{ github.workspace }}"
+        echo "Current directory: $(pwd)"
+        ls -al
+        echo "Contents of the application directory:"
+        ls -l ./${{ inputs.app-name }}
+        
+    - name: Set up .NET Core
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+        cache: true
+        cache-dependency-path: '**/packages.lock.json'
+    - name: install dependencies
+      shell: bash
+      run: |
+        echo "Restoring dependencies for ${{ inputs.app-name }}"
+        dotnet restore
