@@ -83,4 +83,11 @@ jobs:
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/package@composites
         with:
+          language: ${{ inputs.language }}
           app-name: ${{ inputs.app-name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          context: src/NetWebApi.API
+          docker-file: src/NetWebApi.API/Dockerfile
+          image-tag: dev
+          push: true
+          
