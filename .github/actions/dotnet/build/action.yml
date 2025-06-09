@@ -46,6 +46,7 @@ runs:
     - name: Install Versionize
       shell: bash
       run: dotnet tool install --global Versionize
+      
     - name: Setup git
       shell: bash
       run: |

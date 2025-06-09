@@ -31,43 +31,49 @@ on:
         default: false
 
 jobs:     
-  lint:
-    name: Lint C# code
-    if: ${{ inputs.language == 'csharp' }}
-    runs-on: 'ubuntu-latest'
-    steps:
-      - name: csharpier
-        if: ${{ inputs.dotnet-linter-csharpier == true }}
-        uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/csharpier@composites
-        with:
-          app-name: ${{ inputs.app-name }}
-          dotnet-version: ${{ inputs.dotnet-version }}
-      - name: roslynator
-        if: ${{ inputs.dotnet-linter-roslynator == true }}
-        uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/roslynator@composites
-        with:
-          app-name: ${{ inputs.app-name }}
-          dotnet-version: ${{ inputs.dotnet-version }}
-          restore: ${{ inputs.dotnet-tools-restore }}
+  # lint:
+  #   name: Lint C# code
+  #   if: ${{ inputs.language == 'csharp' }}
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - name: csharpier
+  #       if: ${{ inputs.dotnet-linter-csharpier == true }}
+  #       uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/csharpier@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}
+  #         dotnet-version: ${{ inputs.dotnet-version }}
+  #     - name: roslynator
+  #       if: ${{ inputs.dotnet-linter-roslynator == true }}
+  #       uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/roslynator@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}
+  #         dotnet-version: ${{ inputs.dotnet-version }}
+  #         restore: ${{ inputs.dotnet-tools-restore }}
 
-  test:
-    name: Test ${{ inputs.app-name }}
-    needs: lint
-    runs-on: 'ubuntu-latest'     
-    steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
-        with:
-          verbosity: 'normal'
-  build:
-    name: Build ${{ inputs.app-name }}
-    needs: test
+  # test:
+  #   name: Test ${{ inputs.app-name }}
+  #   needs: lint
+  #   runs-on: 'ubuntu-latest'     
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
+  #       with:
+  #         verbosity: 'normal'
+  # build:
+  #   name: Build ${{ inputs.app-name }}
+  #   needs: test
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/build@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}
+  #         language: ${{ inputs.language }}
+  #         dotnet-version: ${{ inputs.dotnet-version }}
+  #         git-fetch-depth: ${{ inputs.git-fetch-depth }}   
+  #         token: ${{ secrets.GITHUB_TOKEN }}  
+  codeql:
+    name: CodeQL Analysis for ${{ inputs.app-name }}
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/build@composites
+      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
         with:
-          app-name: ${{ inputs.app-name }}
-          language: ${{ inputs.language }}
-          dotnet-version: ${{ inputs.dotnet-version }}
-          git-fetch-depth: ${{ inputs.git-fetch-depth }}   
-          token: ${{ secrets.GITHUB_TOKEN }}     
-    
+          app-name: ${{ inputs.app-name }}  
