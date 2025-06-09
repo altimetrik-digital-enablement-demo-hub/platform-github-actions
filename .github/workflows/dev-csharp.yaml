@@ -74,6 +74,6 @@ jobs:
     name: CodeQL Analysis for ${{ inputs.app-name }}
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
+      - uses: dgeorgievski/.github/actions/dotnet/codeql@composites
         with:
           app-name: ${{ inputs.app-name }}  
