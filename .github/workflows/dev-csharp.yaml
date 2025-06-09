@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/setup@composites
         with:
-          app-name: ${{ inputs.app-name }}
+          app-name: ./${{ inputs.app-name }}
           dotnet-version: ${{ inputs.dotnet-version }}
           git-fetch-depth: ${{ inputs.git-fetch-depth }}
           
