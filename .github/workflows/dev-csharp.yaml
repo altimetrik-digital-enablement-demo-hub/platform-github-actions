@@ -88,6 +88,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           context: src/NetWebApi.API
           docker-file: src/NetWebApi.API/Dockerfile
-          image-tag: dev
+          image-tag: '1.3.0'
           push: true
           
