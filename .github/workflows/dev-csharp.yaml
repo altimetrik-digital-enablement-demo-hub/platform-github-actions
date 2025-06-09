@@ -50,16 +50,14 @@ jobs:
           dotnet-version: ${{ inputs.dotnet-version }}
           restore: ${{ inputs.dotnet-tools-restore }}
 
-  # # lint:
-  # test:
-  #   if: ${{ inputs.language == 'csharp' }}
-  #   name: Test C# code
-  #   needs: [setup, lint]
-  #   runs-on: 'ubuntu-latest'     
-  #   steps:
-  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
-  #       with:
-  #         verbosity: 'detailed'
+  test:
+    name: Test ${{ inputs.app-name }}
+    needs: lint
+    runs-on: 'ubuntu-latest'     
+    steps:
+      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
+        with:
+          verbosity: 'normal'
   # build:
   #   if: ${{ inputs.language == 'csharp' }}
   #   name: Build C# code
