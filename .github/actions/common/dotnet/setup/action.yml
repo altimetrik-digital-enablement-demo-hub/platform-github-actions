@@ -35,6 +35,7 @@ runs:
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
         cache: true
+        cache-dependency-path: '**/packages.lock.json'
     - name: install dependencies
       shell: bash
       run: |
