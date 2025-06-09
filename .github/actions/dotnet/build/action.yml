@@ -20,6 +20,10 @@ inputs:
   token:
     description: 'A Github PAT'
     required: true
+outputs:
+    app_version: 
+      description: SemVer application
+      value: ${{ steps.versionize.outputs.app_version }}
   
 runs:
   using: composite
@@ -46,7 +50,7 @@ runs:
     - name: Install Versionize
       shell: bash
       run: dotnet tool install --global Versionize
-      
+
     - name: Setup git
       shell: bash
       run: |
