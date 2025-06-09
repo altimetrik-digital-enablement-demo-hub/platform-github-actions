@@ -6,7 +6,8 @@ description: |
 inputs:
   language:
     description: Programming language used in the application
-    required: true
+    required: false
+    default: 'csharp'
   app-name:
     description: Application name
     required: true

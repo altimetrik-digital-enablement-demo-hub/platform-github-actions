@@ -70,10 +70,17 @@ jobs:
   #         dotnet-version: ${{ inputs.dotnet-version }}
   #         git-fetch-depth: ${{ inputs.git-fetch-depth }}   
   #         token: ${{ secrets.GITHUB_TOKEN }}  
-  codeql:
-    name: CodeQL Analysis for ${{ inputs.app-name }}
+  # codeql:
+  #   name: CodeQL Analysis for ${{ inputs.app-name }}
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}  
+  package:
+    name: Package ${{ inputs.app-name }}
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
+      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/package@composites
         with:
-          app-name: ${{ inputs.app-name }}  
+          app-name: ${{ inputs.app-name }}
