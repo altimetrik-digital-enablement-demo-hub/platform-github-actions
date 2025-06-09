@@ -35,7 +35,7 @@ runs:
       run: |
         echo "PWD: $(pwd)"
         ls -al
-        cd ./${{ inputs.app-name }}
+        cd /${{ inputs.app-name }}
         echo "installing csharpier tool"
         dotnet tool install --global csharpier
         csharpier check .
@@ -46,7 +46,7 @@ runs:
       run: |
         echo "PWD: $(pwd)"
         ls -al
-        cd ./${{ inputs.app-name }}
+        cd /${{ inputs.app-name }}
         echo "Restoring project tools"
         dotnet tool restore
         dotnet csharpier check .
