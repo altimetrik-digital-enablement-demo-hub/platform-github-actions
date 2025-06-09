@@ -43,7 +43,7 @@ runs:
         image: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.image-tag }}
         args: --file=${{ inputs.dockerFile }} 
       env:
-        SNYK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SNYK_TOKEN: ${{ inputs.token }}
 
     # - name: Upload Snyk report as sarif 📦
     #   uses: github/codeql-action/upload-sarif@v3
