@@ -1,0 +1,23 @@
+name: Lint Go Code
+description: Runs static code analysis on Go code using staticcheck
+
+inputs:
+  go-version:
+    description: Go version to use
+    required: false
+    default: '1.24'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: false
+
+    - name: Run StaticCheck
+      uses: dominikh/staticcheck-action@v1.3.0
+      with:
+        install-go: false
+        output-format: stylish

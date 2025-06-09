@@ -1,0 +1,29 @@
+name: Unit Test Go Code
+description: Runs Go unit tests with race detection
+
+inputs:
+  go-version:
+    description: Go version to use
+    required: false
+    default: '1.24'
+  test-flags:
+    description: Additional flags to pass to go test
+    required: false
+    default: '-race ./...'
+  working-directory:
+    description: Directory to run tests from
+    required: false
+    default: '.'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Run tests
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: go test ${{ inputs.test-flags }}

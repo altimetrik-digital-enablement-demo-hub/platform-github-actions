@@ -1,0 +1,167 @@
+name: Deploy Application
+description: Deploys application to Kubernetes and/or AWS App Runner
+
+inputs:
+  app-name:
+    description: Name of the application
+    required: true
+  environment:
+    description: Target environment (dev, staging, prod)
+    required: true
+  image-tag:
+    description: Docker image tag to deploy
+    required: true
+  deploy-k8s:
+    description: Whether to deploy to Kubernetes
+    required: false
+    default: 'true'
+  deploy-aws:
+    description: Whether to deploy to AWS App Runner
+    required: false
+    default: 'false'
+  k8s-namespace:
+    description: Kubernetes namespace
+    required: false
+    default: 'default'
+  k8s-replicas:
+    description: Number of Kubernetes replicas
+    required: false
+    default: '2'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Debug inputs
+      shell: bash
+      run: |
+        echo "app-name: ${{ inputs.app-name }}"
+        echo "environment: ${{ inputs.environment }}"
+        echo "image-tag: ${{ inputs.image-tag }}"
+        echo "deploy-k8s: ${{ inputs.deploy-k8s }}"
+        echo "deploy-aws: ${{ inputs.deploy-aws }}"
+
+    # Kubernetes Deployment
+    - name: Deploy to Kubernetes
+      if: inputs.deploy-k8s == 'true'
+      shell: bash
+      run: |
+        echo "Deploying ${{ inputs.app-name }}:${{ inputs.image-tag }} to Kubernetes..."
+        
+        # Generate Kubernetes manifests
+        cat <<EOF > k8s-deployment.yaml
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${{ inputs.app-name }}
+          namespace: ${{ inputs.k8s-namespace }}
+          labels:
+            app: ${{ inputs.app-name }}
+            environment: ${{ inputs.environment }}
+        spec:
+          replicas: ${{ inputs.k8s-replicas }}
+          selector:
+            matchLabels:
+              app: ${{ inputs.app-name }}
+          template:
+            metadata:
+              labels:
+                app: ${{ inputs.app-name }}
+                environment: ${{ inputs.environment }}
+            spec:
+              containers:
+              - name: ${{ inputs.app-name }}
+                image: ${{ inputs.app-name }}:${{ inputs.image-tag }}
+                ports:
+                - containerPort: 8080
+                env:
+                - name: ENVIRONMENT
+                  value: ${{ inputs.environment }}
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${{ inputs.app-name }}-service
+          namespace: ${{ inputs.k8s-namespace }}
+        spec:
+          selector:
+            app: ${{ inputs.app-name }}
+          ports:
+          - port: 80
+            targetPort: 8080
+          type: LoadBalancer
+        EOF
+        
+        echo "Generated Kubernetes manifests:"
+        cat k8s-deployment.yaml
+        
+        # Apply manifests (requires kubectl and cluster access)
+        # kubectl apply -f k8s-deployment.yaml
+        echo "Note: kubectl apply commented out - requires cluster credentials"
+
+    - name: Upload Kubernetes manifests
+      if: inputs.deploy-k8s == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: k8s-manifests-${{ inputs.environment }}
+        path: k8s-deployment.yaml
+
+    # AWS App Runner Deployment  
+    - name: Deploy to AWS App Runner
+      if: inputs.deploy-aws == 'true'
+      shell: bash
+      run: |
+        echo "Deploying ${{ inputs.app-name }}:${{ inputs.image-tag }} to AWS App Runner..."
+        
+        # Generate App Runner configuration
+        cat <<EOF > apprunner-config.json
+        {
+          "ServiceName": "${{ inputs.app-name }}-${{ inputs.environment }}",
+          "SourceConfiguration": {
+            "ImageRepository": {
+              "ImageIdentifier": "${{ inputs.app-name }}:${{ inputs.image-tag }}",
+              "ImageConfiguration": {
+                "Port": "8080",
+                "RuntimeEnvironmentVariables": {
+                  "ENVIRONMENT": "${{ inputs.environment }}"
+                }
+              },
+              "ImageRepositoryType": "ECR"
+            },
+            "AutoDeploymentsEnabled": true
+          },
+          "InstanceConfiguration": {
+            "Cpu": "0.25 vCPU",
+            "Memory": "0.5 GB"
+          }
+        }
+        EOF
+        
+        echo "Generated App Runner configuration:"
+        cat apprunner-config.json
+        
+        # Deploy to App Runner (requires AWS CLI and credentials)
+        # aws apprunner create-service --cli-input-json file://apprunner-config.json
+        echo "Note: AWS App Runner deployment commented out - requires AWS credentials"
+
+    - name: Upload App Runner config
+      if: inputs.deploy-aws == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: apprunner-config-${{ inputs.environment }}
+        path: apprunner-config.json
+
+    - name: Deployment Summary
+      shell: bash
+      run: |
+        echo "Deployment Summary:"
+        echo "==================="
+        echo "Application: ${{ inputs.app-name }}"
+        echo "Environment: ${{ inputs.environment }}"
+        echo "Image Tag: ${{ inputs.image-tag }}"
+        if [[ "${{ inputs.deploy-k8s }}" == "true" ]]; then
+          echo "✓ Kubernetes manifests generated"
+        fi
+        if [[ "${{ inputs.deploy-aws }}" == "true" ]]; then
+          echo "✓ App Runner configuration generated"
+        fi
+        echo "Check workflow artifacts for deployment configurations"

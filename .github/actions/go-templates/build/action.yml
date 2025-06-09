@@ -1,0 +1,48 @@
+name: Go Build
+description: Builds a Go application and uploads the binary as an artifact
+
+inputs:
+  app-name:
+    description: Name of the application
+    required: true
+  go-version:
+    description: Go version to use
+    required: false
+    default: '1.24'
+  main-directory:
+    description: Directory containing main.go
+    required: false
+    default: './cmd'
+  binary-name:
+    description: Name of the output binary
+    required: false
+    default: 'app'
+
+runs:
+  using: 'composite'  
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Go version
+      shell: bash
+      run: go version
+        
+    - name: Install dependencies and tidy
+      shell: bash
+      run: |
+        go mod download
+        go mod tidy
+
+    - name: Build binary
+      shell: bash
+      run: |
+        go build -o ${{ inputs.binary-name }} ${{ inputs.main-directory }}
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.app-name }}-binary
+        path: ${{ inputs.binary-name }}
