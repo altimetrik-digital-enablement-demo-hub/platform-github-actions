@@ -75,8 +75,11 @@ jobs:
     name: Build ${{ inputs.app-name }}
     needs: test
     runs-on: 'ubuntu-latest'
+    outputs:
+      app_version: ${{ steps.build.outputs.app_version }}
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/build@composites
+        id: build
         with:
           app-name: ${{ inputs.app-name }}
           language: ${{ inputs.language }}
