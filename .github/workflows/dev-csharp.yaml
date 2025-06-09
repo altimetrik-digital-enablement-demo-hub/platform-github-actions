@@ -43,7 +43,7 @@ jobs:
     name: Setup .NET environment
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/setup@composites
+      - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/setup@composites
         with:
 
           dotnet-version: ${{ inputs.dotnet-version }}
