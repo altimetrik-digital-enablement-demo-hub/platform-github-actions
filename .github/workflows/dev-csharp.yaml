@@ -70,7 +70,7 @@ jobs:
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
         with:
-          verbosity: 'normal'
+          verbosity: 'detailed'
       # - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
       #   with:
       #     app-name: ${{ inputs.app-name }}

@@ -13,6 +13,9 @@ runs:
     - name: Run unit tests
       shell: bash
       run: |
-        echo "Running unit tests"
+        echo "Running unit tests in ${{ github.workspace}}"
+        echo "PWD: $(pwd)"
+        ls -al 
+
         dotnet test --verbosity ${{ inputs.verbosity }}
         echo "Unit tests completed"
