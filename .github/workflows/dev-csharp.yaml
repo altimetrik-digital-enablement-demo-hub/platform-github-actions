@@ -62,7 +62,15 @@ jobs:
           # the `with` needs to be converted to a valid json string
           with: '{ "app-name": ${{ inputs.app-name }}, "restore": ${{ inputs.dotnet-tools-restore }}, "dotnet-version": "${{ inputs.dotnet-version }}", "git-fetch-depth": "${{ inputs.git-fetch-depth }}" }'
           
-          
+  test:
+    if: ${{ inputs.language == 'csharp' }}
+    name: Test C# code
+    needs: [setup, lint]
+    runs-on: 'ubuntu-latest'     
+    steps:
+      - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/test@composites
+        with:
+          verbosity: 'normal'
       # - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
       #   with:
       #     app-name: ${{ inputs.app-name }}

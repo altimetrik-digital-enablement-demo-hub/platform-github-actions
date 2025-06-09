@@ -21,3 +21,6 @@ runs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
+    - name: install dependencies
+      shell: bash
+      run: dotnet restore
