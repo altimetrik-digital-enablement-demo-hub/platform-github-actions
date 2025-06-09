@@ -1,17 +1,5 @@
 name: build
 on:
-  workflow_dispatch:
-    inputs:
-      language:
-        description: 'Programming language of the application'
-        required: true
-        default: 'csharp'
-        type: string
-      app-name:
-        description: 'Name of the application to package'
-        default: 'netwebapi'
-        required: true
-        type: string
   workflow_call:
     inputs:
       app-name:
@@ -33,54 +21,66 @@ on:
         required: false
         type: boolean
         default: true
-      dotnet-linter:
+      dotnet-linter-csharpier:
         required: false
-        type: string  
-        default: 'csharpier'
+        type: boolean  
+        default: true
+      dotnet-linter-roslynator:
+        required: false
+        type: boolean  
+        default: false
 
 jobs:
   setup:
     name: Setup .NET environment
+    if: ${{ inputs.language == 'csharp' }}
     runs-on: 'ubuntu-latest'
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/setup@composites
         with:
+          app-name: ${{ inputs.app-name }}
           dotnet-version: ${{ inputs.dotnet-version }}
           git-fetch-depth: ${{ inputs.git-fetch-depth }}
           
-  lint:
-    if: ${{ inputs.language == 'csharp' }}
-    name: Lint C# code
-    needs: setup
-    runs-on: 'ubuntu-latest'
-    steps:
-      - uses: jenseng/dynamic-uses@v1
-        with:
-          # now you can use expressions 🥳
-          uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/${{inputs.dotnet-linter}}@composites
-          # the `with` needs to be converted to a valid json string
-          with: '{ "app-name": ${{ inputs.app-name }}, "restore": ${{ inputs.dotnet-tools-restore }}, "dotnet-version": "${{ inputs.dotnet-version }}", "git-fetch-depth": "${{ inputs.git-fetch-depth }}" }'
-          
-  test:
-    if: ${{ inputs.language == 'csharp' }}
-    name: Test C# code
-    needs: [setup, lint]
-    runs-on: 'ubuntu-latest'     
-    steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
-        with:
-          verbosity: 'detailed'
-  build:
-    if: ${{ inputs.language == 'csharp' }}
-    name: Build C# code
-    needs: test
-    runs-on: 'ubuntu-latest'
-    steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/build@composites
-        with:
-          app-name: ${{ inputs.app-name }}
-          dotnet-version: ${{ inputs.dotnet-version }}
-          git-fetch-depth: ${{ inputs.git-fetch-depth }}    
+  # lint:
+  #   name: Lint C# code
+  #   needs: setup
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - name: csharpier
+  #       if: ${{ inputs.dotnet-linter-csharpier == true }}
+  #       uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}
+  #         dotnet-version: ${{ inputs.dotnet-version }}
+  #     - name: roslynator
+  #       if: ${{ inputs.dotnet-linter-roslynator == true }}
+  #       uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/roslynator@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}
+  #         dotnet-version: ${{ inputs.dotnet-version }}
+  #         restore: ${{ inputs.dotnet-tools-restore }}
+  # # lint:
+  # test:
+  #   if: ${{ inputs.language == 'csharp' }}
+  #   name: Test C# code
+  #   needs: [setup, lint]
+  #   runs-on: 'ubuntu-latest'     
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
+  #       with:
+  #         verbosity: 'detailed'
+  # build:
+  #   if: ${{ inputs.language == 'csharp' }}
+  #   name: Build C# code
+  #   needs: test
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/build@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}
+  #         dotnet-version: ${{ inputs.dotnet-version }}
+  #         git-fetch-depth: ${{ inputs.git-fetch-depth }}    
 
       # - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
       #   with:

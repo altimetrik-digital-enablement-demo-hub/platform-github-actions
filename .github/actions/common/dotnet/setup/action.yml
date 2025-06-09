@@ -2,6 +2,9 @@ name: dotnet-setup
 description: Setup .NET environment
 
 inputs:
+  app-name:
+    description: Application name
+    required: true
   dotnet-version:
     description: The .NET SDK version to use
     required: false
@@ -16,7 +19,15 @@ runs:
   steps:
     - uses: actions/checkout@v3
       with:
+        path: ./${{ inputs.app-name }}
         fetch-depth: ${{ inputs.git-fetch-depth }}
+    - name: debug working dir 
+      shell: bash
+      run: |
+        echo "Working directory: ${{ github.workspace }}"
+        echo "Current directory: $(pwd)"
+        ls -al
+        
     - name: Set up .NET Core
       uses: actions/setup-dotnet@v3
       with:
