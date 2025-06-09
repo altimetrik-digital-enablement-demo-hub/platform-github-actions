@@ -52,6 +52,7 @@ jobs:
   lint:
     if: ${{ inputs.language == 'csharp' }}
     name: Lint C# code
+    needs: setup
     runs-on: 'ubuntu-latest'
     steps:
       - uses: jenseng/dynamic-uses@v1
