@@ -58,20 +58,15 @@ jobs:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
         with:
           verbosity: 'normal'
-  # build:
-  #   if: ${{ inputs.language == 'csharp' }}
-  #   name: Build C# code
-  #   needs: test
-  #   runs-on: 'ubuntu-latest'
-  #   steps:
-  #     - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/build@composites
-  #       with:
-  #         app-name: ${{ inputs.app-name }}
-  #         dotnet-version: ${{ inputs.dotnet-version }}
-  #         git-fetch-depth: ${{ inputs.git-fetch-depth }}    
-
-      # - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
-      #   with:
-      #     app-name: ${{ inputs.app-name }}
-          
+  build:
+    name: Build ${{ inputs.app-name }}
+    needs: test
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/build@composites
+        with:
+          app-name: ${{ inputs.app-name }}
+          language: ${{ inputs.language }}
+          dotnet-version: ${{ inputs.dotnet-version }}
+          git-fetch-depth: ${{ inputs.git-fetch-depth }}           
     

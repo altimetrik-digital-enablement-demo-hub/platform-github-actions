@@ -5,6 +5,10 @@ inputs:
   app-name:
     description: Application name
     required: true
+  language:
+    description: Programming language used in the application
+    required: false
+    default: 'csharp'
   dotnet-version:
     description: The .NET SDK version to use
     required: false
@@ -27,6 +31,11 @@ runs:
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
 
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ inputs.language }}
+
     - name: install dependencies
       shell: bash
       run: dotnet restore
@@ -35,6 +44,10 @@ runs:
       shell: bash
       run: |
         dotnet build --configuration Release --no-restore
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      continue-on-error: true
 
     - name: Install Versionize
       shell: bash
@@ -61,6 +74,7 @@ runs:
         versionize --exit-insignificant-commits
         echo "app_version=$(versionize inspect)" >> $GITHUB_OUTPUT
       continue-on-error: true
+
     - name: Check versionize result
       if: steps.versionize.outcome == 'success'
       id: check_versionize
