@@ -95,3 +95,6 @@ jobs:
           image-tag: ${{ needs.setup.outputs.image-tag }}
           deploy-k8s: 'true'
           deploy-aws: 'false'
+          deploy-azure: 'true'
+          azure-resource-group: 'rg-container-apps'
+          azure-location: 'eastus'

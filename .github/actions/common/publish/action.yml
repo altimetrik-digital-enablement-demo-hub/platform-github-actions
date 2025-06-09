@@ -1,5 +1,5 @@
 name: Deploy Application
-description: Deploys application to Kubernetes and/or AWS App Runner
+description: Deploys application to Kubernetes, AWS App Runner, and/or Azure Container Apps
 
 inputs:
   app-name:
@@ -19,6 +19,10 @@ inputs:
     description: Whether to deploy to AWS App Runner
     required: false
     default: 'false'
+  deploy-azure:
+    description: Whether to deploy to Azure Container Apps
+    required: false
+    default: 'false'
   k8s-namespace:
     description: Kubernetes namespace
     required: false
@@ -27,6 +31,14 @@ inputs:
     description: Number of Kubernetes replicas
     required: false
     default: '2'
+  azure-resource-group:
+    description: Azure Resource Group name
+    required: false
+    default: 'rg-container-apps'
+  azure-location:
+    description: Azure location/region
+    required: false
+    default: 'eastus'
 
 runs:
   using: 'composite'
@@ -39,6 +51,7 @@ runs:
         echo "image-tag: ${{ inputs.image-tag }}"
         echo "deploy-k8s: ${{ inputs.deploy-k8s }}"
         echo "deploy-aws: ${{ inputs.deploy-aws }}"
+        echo "deploy-azure: ${{ inputs.deploy-azure }}"
 
     # Kubernetes Deployment
     - name: Deploy to Kubernetes
@@ -150,18 +163,111 @@ runs:
         name: apprunner-config-${{ inputs.environment }}
         path: apprunner-config.json
 
+    # Azure Container Apps Deployment
+    - name: Deploy to Azure Container Apps
+      if: inputs.deploy-azure == 'true'
+      shell: bash
+      run: |
+        echo "Deploying ${{ inputs.app-name }}:${{ inputs.image-tag }} to Azure Container Apps..."
+        
+        # Generate Azure Container App configuration
+        cat <<EOF > azure-containerapp.yaml
+        apiVersion: 2023-05-01
+        type: Microsoft.App/containerApps
+        name: ${{ inputs.app-name }}-${{ inputs.environment }}
+        location: ${{ inputs.azure-location }}
+        properties:
+          managedEnvironmentId: /subscriptions/{subscription-id}/resourceGroups/${{ inputs.azure-resource-group }}/providers/Microsoft.App/managedEnvironments/${{ inputs.app-name }}-env
+          configuration:
+            ingress:
+              external: true
+              targetPort: 8080
+              allowInsecure: false
+            secrets: []
+          template:
+            containers:
+            - name: ${{ inputs.app-name }}
+              image: ${{ inputs.app-name }}:${{ inputs.image-tag }}
+              env:
+              - name: ENVIRONMENT
+                value: ${{ inputs.environment }}
+              resources:
+                cpu: 0.25
+                memory: 0.5Gi
+            scale:
+              minReplicas: 0
+              maxReplicas: 3
+        EOF
+        
+        # Generate Azure CLI deployment script
+        cat <<EOF > deploy-azure.sh
+        #!/bin/bash
+        
+        # Create resource group if it doesn't exist
+        az group create --name ${{ inputs.azure-resource-group }} --location ${{ inputs.azure-location }}
+        
+        # Create Container Apps environment if it doesn't exist
+        az containerapp env create \\
+          --name ${{ inputs.app-name }}-env \\
+          --resource-group ${{ inputs.azure-resource-group }} \\
+          --location ${{ inputs.azure-location }}
+        
+        # Deploy Container App
+        az containerapp create \\
+          --name ${{ inputs.app-name }}-${{ inputs.environment }} \\
+          --resource-group ${{ inputs.azure-resource-group }} \\
+          --environment ${{ inputs.app-name }}-env \\
+          --image ${{ inputs.app-name }}:${{ inputs.image-tag }} \\
+          --target-port 8080 \\
+          --ingress external \\
+          --env-vars ENVIRONMENT=${{ inputs.environment }} \\
+          --cpu 0.25 --memory 0.5Gi \\
+          --min-replicas 0 --max-replicas 3
+        EOF
+        
+        chmod +x deploy-azure.sh
+        
+        echo "Generated Azure Container App configuration:"
+        cat azure-containerapp.yaml
+        echo ""
+        echo "Generated Azure CLI deployment script:"
+        cat deploy-azure.sh
+        
+        # Deploy to Azure (requires Azure CLI and authentication)
+        # ./deploy-azure.sh
+        echo "Note: Azure deployment commented out - requires Azure CLI authentication"
+
+    - name: Upload Azure Container App configs
+      if: inputs.deploy-azure == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: azure-containerapp-config-${{ inputs.environment }}
+        path: |
+          azure-containerapp.yaml
+          deploy-azure.sh
+
     - name: Deployment Summary
       shell: bash
       run: |
-        echo "Deployment Summary:"
-        echo "==================="
+        echo "==================================="
+        echo "        DEPLOYMENT SUMMARY"
+        echo "==================================="
         echo "Application: ${{ inputs.app-name }}"
         echo "Environment: ${{ inputs.environment }}"
         echo "Image Tag: ${{ inputs.image-tag }}"
+        echo ""
         if [[ "${{ inputs.deploy-k8s }}" == "true" ]]; then
-          echo "✓ Kubernetes manifests generated"
+          echo "✅ Kubernetes manifests generated"
+          echo "   └── Artifact: k8s-manifests-${{ inputs.environment }}"
         fi
         if [[ "${{ inputs.deploy-aws }}" == "true" ]]; then
-          echo "✓ App Runner configuration generated"
+          echo "✅ AWS App Runner configuration generated"
+          echo "   └── Artifact: apprunner-config-${{ inputs.environment }}"
         fi
-        echo "Check workflow artifacts for deployment configurations"
+        if [[ "${{ inputs.deploy-azure }}" == "true" ]]; then
+          echo "✅ Azure Container Apps configuration generated"
+          echo "   └── Artifact: azure-containerapp-config-${{ inputs.environment }}"
+        fi
+        echo ""
+        echo "📋 Check workflow artifacts for deployment configurations"
+        echo "🚀 Uncomment deployment commands when ready to deploy"
