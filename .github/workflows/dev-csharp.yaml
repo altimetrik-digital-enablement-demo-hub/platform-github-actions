@@ -29,6 +29,11 @@ on:
         required: false
         type: boolean  
         default: false
+      azure_webapp_package_path:
+        required: false
+        type: string
+        default: '.'
+      
 
 jobs:     
   # lint:
@@ -102,4 +107,15 @@ jobs:
           image-tag: '1.3.0'
           dockerFile: src/NetWebApi.API/Dockerfile
           token: ${{ secrets.GITHUB_TOKEN }}
+  deploy:
+    name: Deploy ${{ inputs.app-name }}
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/azure-app-web-services@composites
+        with:
+          azure_webapp_name: ${{ inputs.app-name }}
+          azure_webapp_package_path: ${{ inputs.azure_webapp_package_path }}
+          azure_webapp_publish_profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          dotnet_version: ${{ inputs.dotnet-version }}
+
           
