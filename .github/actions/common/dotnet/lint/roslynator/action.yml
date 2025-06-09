@@ -33,6 +33,7 @@ runs:
       if: ${{ inputs.restore == 'false' }}
       shell: bash
       run: |
+        cd ${{ inputs.app-name }}
         ls -al
         echo "installing roslynator tool"
         dotnet tool install --global roslynator.dotnet.cli
@@ -44,6 +45,7 @@ runs:
       if: ${{ inputs.restore == 'true' }}
       shell: bash
       run: |
+        cd ${{ inputs.app-name }}
         echo "Restoring project tools"
         dotnet tool restore
         dotnet roslynator analyze

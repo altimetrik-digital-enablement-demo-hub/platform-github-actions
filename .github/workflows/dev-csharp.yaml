@@ -42,24 +42,24 @@ jobs:
           dotnet-version: ${{ inputs.dotnet-version }}
           git-fetch-depth: ${{ inputs.git-fetch-depth }}
           
-  # lint:
-  #   name: Lint C# code
-  #   needs: setup
-  #   runs-on: 'ubuntu-latest'
-  #   steps:
-  #     - name: csharpier
-  #       if: ${{ inputs.dotnet-linter-csharpier == true }}
-  #       uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
-  #       with:
-  #         app-name: ${{ inputs.app-name }}
-  #         dotnet-version: ${{ inputs.dotnet-version }}
-  #     - name: roslynator
-  #       if: ${{ inputs.dotnet-linter-roslynator == true }}
-  #       uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/roslynator@composites
-  #       with:
-  #         app-name: ${{ inputs.app-name }}
-  #         dotnet-version: ${{ inputs.dotnet-version }}
-  #         restore: ${{ inputs.dotnet-tools-restore }}
+  lint:
+    name: Lint C# code
+    needs: setup
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: csharpier
+        if: ${{ inputs.dotnet-linter-csharpier == true }}
+        uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/csharpier@composites
+        with:
+          app-name: ${{ inputs.app-name }}
+          dotnet-version: ${{ inputs.dotnet-version }}
+      - name: roslynator
+        if: ${{ inputs.dotnet-linter-roslynator == true }}
+        uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/roslynator@composites
+        with:
+          app-name: ${{ inputs.app-name }}
+          dotnet-version: ${{ inputs.dotnet-version }}
+          restore: ${{ inputs.dotnet-tools-restore }}
   # # lint:
   # test:
   #   if: ${{ inputs.language == 'csharp' }}

@@ -33,7 +33,7 @@ runs:
       if: ${{ inputs.restore == 'false' }}
       shell: bash
       run: |
-        cd ${{ github.workspace }}/${{ inputs.app-name }}
+        cd ${{ inputs.app-name }}
         echo "installing csharpier tool"
         dotnet tool install --global csharpier
         csharpier check .
@@ -42,7 +42,7 @@ runs:
       if: ${{ inputs.restore == 'true' }}
       shell: bash
       run: |
-        cd ${{ github.workspace }}/${{ inputs.app-name }}
+        cd ${{ inputs.app-name }}
         echo "Restoring project tools"
         dotnet tool restore
         dotnet csharpier check .
