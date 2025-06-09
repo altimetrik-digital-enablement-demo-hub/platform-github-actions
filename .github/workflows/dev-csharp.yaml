@@ -96,17 +96,17 @@ jobs:
   #         image-tag: '1.3.0'
   #         push: true
   
-  security:
-    name: Security Scan for ${{ inputs.app-name }}
-    runs-on: 'ubuntu-latest'
-    steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/security-scan@composites
-        with:
-          registry: ghcr.io
-          image-name: ${{ inputs.app-name }}
-          image-tag: '1.3.0'
-          dockerFile: src/NetWebApi.API/Dockerfile
-          token: ${{ secrets.GITHUB_TOKEN }}
+  # security:
+  #   name: Security Scan for ${{ inputs.app-name }}
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/security-scan@composites
+  #       with:
+  #         registry: ghcr.io
+  #         image-name: ${{ inputs.app-name }}
+  #         image-tag: '1.3.0'
+  #         dockerFile: src/NetWebApi.API/Dockerfile
+  #         token: ${{ secrets.GITHUB_TOKEN }}
   deploy:
     name: Deploy ${{ inputs.app-name }}
     runs-on: 'ubuntu-latest'
