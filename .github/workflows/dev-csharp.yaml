@@ -77,17 +77,29 @@ jobs:
   #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
   #       with:
   #         app-name: ${{ inputs.app-name }}  
-  package:
-    name: Package ${{ inputs.app-name }}
+  # package:
+  #   name: Package ${{ inputs.app-name }}
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/package@composites
+  #       with:
+  #         language: ${{ inputs.language }}
+  #         app-name: ${{ inputs.app-name }}
+  #         token: ${{ secrets.GITHUB_TOKEN }}
+  #         context: src/NetWebApi.API
+  #         docker-file: src/NetWebApi.API/Dockerfile
+  #         image-tag: '1.3.0'
+  #         push: true
+  
+  security:
+    name: Security Scan for ${{ inputs.app-name }}
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/package@composites
+      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/security-scan@composites
         with:
-          language: ${{ inputs.language }}
-          app-name: ${{ inputs.app-name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          context: src/NetWebApi.API
-          docker-file: src/NetWebApi.API/Dockerfile
+          registry: ghcr.io
+          image-name: ${{ inputs.app-name }}
           image-tag: '1.3.0'
-          push: true
+          dockerFile: src/NetWebApi.API/Dockerfile
+          token: ${{ secrets.GITHUB_TOKEN }}
           
