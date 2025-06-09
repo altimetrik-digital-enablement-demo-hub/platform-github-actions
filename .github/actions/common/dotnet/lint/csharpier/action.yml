@@ -33,7 +33,9 @@ runs:
       if: ${{ inputs.restore == 'false' }}
       shell: bash
       run: |
-        cd ${{ inputs.app-name }}
+        echo "PWD: $(pwd)"
+        ls -al
+        cd ./${{ inputs.app-name }}
         echo "installing csharpier tool"
         dotnet tool install --global csharpier
         csharpier check .
