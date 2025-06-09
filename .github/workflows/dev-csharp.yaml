@@ -39,6 +39,16 @@ on:
         default: 'csharpier'
 
 jobs:
+  setup:
+    name: Setup .NET environment
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: dgeorgievski/my-github-actions/.github/actions/common/dotnet/lint/setup@composites
+        with:
+
+          dotnet-version: ${{ inputs.dotnet-version }}
+          git-fetch-depth: ${{ inputs.git-fetch-depth }}
+          
   lint:
     if: ${{ inputs.language == 'csharp' }}
     name: Lint C# code
