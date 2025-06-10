@@ -1,0 +1,101 @@
+name: Deploy to Kubernetes
+description: Deploys application to Kubernetes cluster
+
+inputs:
+  app-name:
+    description: Name of the application
+    required: true
+  environment:
+    description: Target environment (dev, staging, prod)
+    required: true
+  image-tag:
+    description: Docker image tag to deploy
+    required: true
+  namespace:
+    description: Kubernetes namespace
+    required: false
+    default: 'default'
+  replicas:
+    description: Number of replicas
+    required: false
+    default: '2'
+  container-port:
+    description: Container port
+    required: false
+    default: '8080'
+  service-port:
+    description: Service port
+    required: false
+    default: '80'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate Kubernetes manifests
+      shell: bash
+      run: |
+        echo "Generating Kubernetes manifests for ${{ inputs.app-name }}:${{ inputs.image-tag }}..."
+        
+        cat <<EOF > k8s-deployment.yaml
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${{ inputs.app-name }}
+          namespace: ${{ inputs.namespace }}
+          labels:
+            app: ${{ inputs.app-name }}
+            environment: ${{ inputs.environment }}
+        spec:
+          replicas: ${{ inputs.replicas }}
+          selector:
+            matchLabels:
+              app: ${{ inputs.app-name }}
+          template:
+            metadata:
+              labels:
+                app: ${{ inputs.app-name }}
+                environment: ${{ inputs.environment }}
+            spec:
+              containers:
+              - name: ${{ inputs.app-name }}
+                image: ${{ inputs.app-name }}:${{ inputs.image-tag }}
+                ports:
+                - containerPort: ${{ inputs.container-port }}
+                env:
+                - name: ENVIRONMENT
+                  value: ${{ inputs.environment }}
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${{ inputs.app-name }}-service
+          namespace: ${{ inputs.namespace }}
+        spec:
+          selector:
+            app: ${{ inputs.app-name }}
+          ports:
+          - port: ${{ inputs.service-port }}
+            targetPort: ${{ inputs.container-port }}
+          type: LoadBalancer
+        EOF
+        
+        echo "Generated Kubernetes manifests:"
+        cat k8s-deployment.yaml
+
+    - name: Deploy to cluster (if configured)
+      shell: bash
+      run: |
+        if command -v kubectl &> /dev/null && kubectl cluster-info &> /dev/null; then
+          echo "✅ kubectl configured - applying manifests..."
+          kubectl apply -f k8s-deployment.yaml
+          echo "🚀 Deployment applied successfully!"
+        else
+          echo "⚠️  kubectl not configured - skipping deployment"
+          echo "💡 Upload manifests as artifact for manual deployment"
+        fi
+
+    - name: Upload Kubernetes manifests
+      uses: actions/upload-artifact@v4
+      with:
+        name: k8s-manifests-${{ inputs.app-name }}-${{ inputs.environment }}
+        path: k8s-deployment.yaml 

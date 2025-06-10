@@ -19,6 +19,21 @@ on:
         type: boolean
         default: false
         description: 'Push to registry instead of saving as tar'
+      deploy-k8s:
+        required: false
+        type: boolean
+        default: false
+        description: 'Deploy to Kubernetes'
+      deploy-aws:
+        required: false
+        type: boolean
+        default: true
+        description: 'Deploy to AWS App Runner'
+      deploy-azure:
+        required: false
+        type: boolean
+        default: false
+        description: 'Deploy to Azure Container Apps'
 
 permissions:
   actions: read
@@ -102,18 +117,53 @@ jobs:
           app-name: ${{ inputs.app-name }}
           image-tag: ${{ needs.setup.outputs.image-tag }}
 
-  deploy:
+  deploy-k8s:
     runs-on: ubuntu-latest
     needs: [security, setup]
+    if: inputs.deploy-k8s
     steps:
-      - name: Deploy application
-        uses: osru-leu/platform-github-actions/.github/actions/common/publish@feature/workflows
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Deploy to Kubernetes
+        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-k8s@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           environment: dev
           image-tag: ${{ needs.setup.outputs.image-tag }}
-          deploy-k8s: 'true'
-          deploy-aws: 'false'
-          deploy-azure: 'true'
-          azure-resource-group: 'rg-container-apps'
-          azure-location: 'eastus'
+          namespace: default
+          replicas: 2
+
+  deploy-aws:
+    runs-on: ubuntu-latest
+    needs: [security, setup]
+    if: inputs.deploy-aws
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Deploy to AWS App Runner
+        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-aws-apprunner@feature/workflows
+        with:
+          app-name: ${{ inputs.app-name }}
+          environment: dev
+          image-tag: ${{ needs.setup.outputs.image-tag }}
+          image-repository: ${{ inputs.registry-url }}
+
+  deploy-azure:
+    runs-on: ubuntu-latest
+    needs: [security, setup]
+    if: inputs.deploy-azure
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Deploy to Azure Container Apps
+        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-azure-containerapp@feature/workflows
+        with:
+          app-name: ${{ inputs.app-name }}
+          environment: dev
+          image-tag: ${{ needs.setup.outputs.image-tag }}
+          image-repository: ${{ inputs.registry-url }}
+          resource-group: 'rg-container-apps'
+          location: 'eastus'
