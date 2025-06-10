@@ -119,7 +119,7 @@ jobs:
         if: ${{ inputs.security-trivy == true }}
         with:
           registry: ghcr.io
-          image-name: ${{ inputs.app-name }}
+          image-name: dgeorgievski/${{ inputs.app-name }}
           image-tag: ${{ needs.build.outputs.app_version }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
