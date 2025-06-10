@@ -63,67 +63,67 @@ jobs:
         with:
           verbosity: 'normal'
 
-  codeql:
-    name: CodeQL Analysis for ${{ inputs.app-name }}
-    needs: lint
-    runs-on: 'ubuntu-latest'
-    steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
-        with:
-          app-name: ${{ inputs.app-name }}  
-  build:
-    name: Build ${{ inputs.app-name }}
-    needs: test
-    runs-on: 'ubuntu-latest'
-    outputs:
-      app_version: ${{ steps.build.outputs.app_version }}
-    steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/build@composites
-        id: build
-        with:
-          app-name: ${{ inputs.app-name }}
-          language: ${{ inputs.language }}
-          dotnet-version: ${{ inputs.dotnet-version }}
-          git-fetch-depth: ${{ inputs.git-fetch-depth }}   
-          token: ${{ secrets.GITHUB_TOKEN }}  
+  # codeql:
+  #   name: CodeQL Analysis for ${{ inputs.app-name }}
+  #   needs: lint
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}  
+  # build:
+  #   name: Build ${{ inputs.app-name }}
+  #   needs: test
+  #   runs-on: 'ubuntu-latest'
+  #   outputs:
+  #     app_version: ${{ steps.build.outputs.app_version }}
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/build@composites
+  #       id: build
+  #       with:
+  #         app-name: ${{ inputs.app-name }}
+  #         language: ${{ inputs.language }}
+  #         dotnet-version: ${{ inputs.dotnet-version }}
+  #         git-fetch-depth: ${{ inputs.git-fetch-depth }}   
+  #         token: ${{ secrets.GITHUB_TOKEN }}  
   
-  package:
-    name: Package ${{ inputs.app-name }}
-    needs: build
-    runs-on: 'ubuntu-latest'
-    steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/package@composites
-        with:
-          language: ${{ inputs.language }}
-          app-name: ${{ inputs.app-name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          context: src/NetWebApi.API
-          docker-file: src/NetWebApi.API/Dockerfile
-          image-tag: ${{ needs.build.outputs.app_version }}
-          push: true
+  # package:
+  #   name: Package ${{ inputs.app-name }}
+  #   needs: build
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/package@composites
+  #       with:
+  #         language: ${{ inputs.language }}
+  #         app-name: ${{ inputs.app-name }}
+  #         token: ${{ secrets.GITHUB_TOKEN }}
+  #         context: src/NetWebApi.API
+  #         docker-file: src/NetWebApi.API/Dockerfile
+  #         image-tag: ${{ needs.build.outputs.app_version }}
+  #         push: true
   
-  security:
-    name: Security Scan for ${{ inputs.app-name }}
-    needs: [build, package]
-    runs-on: 'ubuntu-latest'
-    steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/security-scan@composites
-        with:
-          registry: ghcr.io
-          image-name: ${{ inputs.app-name }}
-          image-tag: ${{ needs.build.outputs.app_version }}
-          dockerFile: src/NetWebApi.API/Dockerfile
-          token: ${{ secrets.GITHUB_TOKEN }}
-  deploy:
-    name: Deploy ${{ inputs.app-name }}
-    needs: security
-    runs-on: 'ubuntu-latest'
-    steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/azure-app-web-services@composites
-        with:
-          azure_webapp_name: ${{ inputs.app-name }}
-          azure_webapp_package_path: ${{ inputs.azure_webapp_package_path }}
-          azure_webapp_publish_profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          dotnet_version: ${{ inputs.dotnet-version }}
+  # security:
+  #   name: Security Scan for ${{ inputs.app-name }}
+  #   needs: [build, package]
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/security-scan@composites
+  #       with:
+  #         registry: ghcr.io
+  #         image-name: ${{ inputs.app-name }}
+  #         image-tag: ${{ needs.build.outputs.app_version }}
+  #         dockerFile: src/NetWebApi.API/Dockerfile
+  #         token: ${{ secrets.GITHUB_TOKEN }}
+  # deploy:
+  #   name: Deploy ${{ inputs.app-name }}
+  #   needs: security
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/azure-app-web-services@composites
+  #       with:
+  #         azure_webapp_name: ${{ inputs.app-name }}
+  #         azure_webapp_package_path: ${{ inputs.azure_webapp_package_path }}
+  #         azure_webapp_publish_profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+  #         dotnet_version: ${{ inputs.dotnet-version }}
 
           

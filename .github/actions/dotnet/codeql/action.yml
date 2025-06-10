@@ -38,3 +38,17 @@ runs:
 
     - name: Perform CodeQL Analysis for ${{ inputs.app-name }}
       uses: github/codeql-action/analyze@v3
+
+    # This step generates a summary of the CodeQL analysis results
+    - name: CodeQL Summary
+      shell: bash
+      run: |
+        echo "## 🔐 CodeQL Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- Check [Security > Code Scanning Alerts](../../security/code-scanning) for results." >> $GITHUB_STEP_SUMMARY
+
+    # This step uploads the CodeQL summary as an artifact
+    - name: Upload ESLint Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: codeql-summary
+        path: summary.md
