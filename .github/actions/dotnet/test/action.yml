@@ -81,3 +81,14 @@ runs:
         output: both
         thresholds: "10 30"
 
+    - name: Publish test coverage
+      shell: bash 
+      run: |
+        if [[ -f ./code-coverage-results.md ]]; then
+          echo "##[notice]Code coverage report:"
+          cat ./code-coverage-results.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "##[warning]No code coverage report found."
+        fi
+
+        
