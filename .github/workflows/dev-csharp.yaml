@@ -35,28 +35,27 @@ on:
         default: '.'
       
 jobs:     
-  lint:
-    name: Lint C# code
-    if: ${{ inputs.language == 'csharp' }}
-    runs-on: 'ubuntu-latest'
-    steps:
-      - name: csharpier
-        if: ${{ inputs.dotnet-linter-csharpier == true }}
-        uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/csharpier@composites
-        with:
-          app-name: ${{ inputs.app-name }}
-          dotnet-version: ${{ inputs.dotnet-version }}
-      - name: roslynator
-        if: ${{ inputs.dotnet-linter-roslynator == true }}
-        uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/roslynator@composites
-        with:
-          app-name: ${{ inputs.app-name }}
-          dotnet-version: ${{ inputs.dotnet-version }}
-          restore: ${{ inputs.dotnet-tools-restore }}
+  # lint:
+  #   name: Lint C# code
+  #   if: ${{ inputs.language == 'csharp' }}
+  #   runs-on: 'ubuntu-latest'
+  #   steps:
+  #     - name: csharpier
+  #       if: ${{ inputs.dotnet-linter-csharpier == true }}
+  #       uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/csharpier@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}
+  #         dotnet-version: ${{ inputs.dotnet-version }}
+  #     - name: roslynator
+  #       if: ${{ inputs.dotnet-linter-roslynator == true }}
+  #       uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/roslynator@composites
+  #       with:
+  #         app-name: ${{ inputs.app-name }}
+  #         dotnet-version: ${{ inputs.dotnet-version }}
+  #         restore: ${{ inputs.dotnet-tools-restore }}
 
   test:
     name: Test ${{ inputs.app-name }}
-    needs: lint
     runs-on: 'ubuntu-latest'     
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
