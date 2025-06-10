@@ -116,6 +116,8 @@ jobs:
         with:
           app-name: ${{ inputs.app-name }}
           image-tag: ${{ needs.setup.outputs.image-tag }}
+          languages: 'go'
+          go-version: ${{ inputs.go-version }}
 
   deploy-k8s:
     runs-on: ubuntu-latest

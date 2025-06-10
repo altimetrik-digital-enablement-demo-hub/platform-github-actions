@@ -16,6 +16,18 @@ inputs:
     description: Go version for CodeQL analysis
     required: false
     default: '1.24'
+  node-version:
+    description: Node.js version for CodeQL analysis
+    required: false
+    default: '20'
+  python-version:
+    description: Python version for CodeQL analysis
+    required: false
+    default: '3.11'
+  dotnet-version:
+    description: .NET version for CodeQL analysis
+    required: false
+    default: '8.0'
 
 runs:
   using: 'composite'
@@ -38,18 +50,51 @@ runs:
       with:
         go-version: ${{ inputs.go-version }}
 
+    - name: Set up Node.js (if needed)
+      if: contains(inputs.languages, 'javascript') || contains(inputs.languages, 'typescript')
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Set up Python (if needed)
+      if: contains(inputs.languages, 'python')
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Set up .NET (if needed)
+      if: contains(inputs.languages, 'csharp')
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+
     - name: Build for CodeQL
       shell: bash
       run: |
+        echo "Building for languages: ${{ inputs.languages }}"
+        
         if [[ "${{ inputs.languages }}" == *"go"* ]]; then
+          echo "🔨 Building Go application..."
           go build ./...
-        elif [[ "${{ inputs.languages }}" == *"python"* ]]; then
-          echo "No build needed for Python"
-        elif [[ "${{ inputs.languages }}" == *"csharp"* ]]; then
+        fi
+        
+        if [[ "${{ inputs.languages }}" == *"python"* ]]; then
+          echo "🐍 Python - no build needed"
+        fi
+        
+        if [[ "${{ inputs.languages }}" == *"csharp"* ]]; then
+          echo "🔨 Building .NET application..."
           dotnet build
-        elif [[ "${{ inputs.languages }}" == *"javascript"* ]]; then
-          npm ci
-          npm run build || true
+        fi
+        
+        if [[ "${{ inputs.languages }}" == *"javascript"* ]] || [[ "${{ inputs.languages }}" == *"typescript"* ]]; then
+          echo "🔨 Building JavaScript/TypeScript application..."
+          if [ -f "package.json" ]; then
+            npm ci
+            npm run build || echo "No build script found, continuing..."
+          else
+            echo "No package.json found, skipping npm build"
+          fi
         fi
 
     - name: Perform CodeQL Analysis
