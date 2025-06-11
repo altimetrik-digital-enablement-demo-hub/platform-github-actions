@@ -148,6 +148,13 @@ jobs:
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/helm-deployment@testing
+        with:
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+          chart-path: ./charts
+          image: ghcr.io/KaranbirSinghAhluwalia/ReatApp
+          tag: ${{ needs.versioning.outputs.new_tag }}
 
   dockerScan:
     runs-on: ubuntu-latest
