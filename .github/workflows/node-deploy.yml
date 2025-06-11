@@ -27,7 +27,7 @@ jobs:
 
       - name: Docker login to GHCR
         run: |
-          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u $${{ secrets.GHCR_USERNAME }} --password-stdin
+          echo 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 | docker login ghcr.io -u karanbirsinghahluwalia --password-stdin
 
       - name: Deploy to Local CNOE Cluster
         run: |
