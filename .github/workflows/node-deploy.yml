@@ -31,7 +31,7 @@ jobs:
 
       - name: Deploy to Local CNOE Cluster
         run: |
-          helm upgrade --install reactapp ./charts/templates \
+          helm upgrade --install reactapp ./charts/reactapp \
             --namespace reactapp \
             --create-namespace \
             --set image.repository=ghcr.io/karanbirsinghahluwalia/reactapp \
