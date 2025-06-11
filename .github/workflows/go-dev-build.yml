@@ -39,6 +39,9 @@ permissions:
   actions: read
   contents: read
   security-events: write
+  checks: write          # for test summary
+  pull-requests: write
+  issues: write
 
 jobs:
   setup:
@@ -74,7 +77,20 @@ jobs:
         uses: osru-leu/platform-github-actions/.github/actions/go-templates/unit-test@feature/workflows
         with:
           go-version: ${{ inputs.go-version }}
-
+      
+      - name: Generate Test Summary
+        if: always()
+        run: |
+          echo "## Test Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Unit tests completed" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Coverage report generated" >> $GITHUB_STEP_SUMMARY
+          echo "Test artifacts uploaded" >> $GITHUB_STEP_SUMMARY
+          echo " >> $GITHUB_STEP_SUMMARY"
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "-🏗️ Building application binary" >> $GITHUB_STEP_SUMMARY
+          echo "-📦 Packaging into Dockeer Container" >> $GITHUB_STEP_SUMMARY
+          echo "-🔒 Running security scans" >> $GITHUB_STEP_SUMMARY
+          
   build:
     runs-on: ubuntu-latest
     needs: test

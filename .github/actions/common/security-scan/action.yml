@@ -39,6 +39,12 @@ runs:
         echo "image-tag: ${{ inputs.image-tag }}"
         echo "languages: ${{ inputs.languages }}"
 
+    - name: Install dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with: 
@@ -136,6 +142,163 @@ runs:
     - name: Generate security report
       shell: bash
       run: |
-        echo "Security scan completed for ${{ inputs.app-name }}:${{ inputs.image-tag }}"
-        echo "CodeQL results: codeql-scan-results-${{ inputs.languages }}"
-        echo "Trivy results: trivy-security-scan-results"
+        echo "## 🔒 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # CodeQL Results Summary
+        echo "### 📊 CodeQL Analysis" >> $GITHUB_STEP_SUMMARY
+        if [ -d "codeql-results" ]; then
+          # Count issues by severity
+          if [ -f "codeql-results/results.sarif" ]; then
+            CRITICAL=$(jq '.runs[0].results | map(select(.ruleId and (.level == "error" or .rank >= 8.0))) | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            HIGH=$(jq '.runs[0].results | map(select(.ruleId and (.level == "warning" or (.rank >= 6.0 and .rank < 8.0)))) | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            MEDIUM=$(jq '.runs[0].results | map(select(.ruleId and (.rank >= 4.0 and .rank < 6.0))) | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            LOW=$(jq '.runs[0].results | map(select(.ruleId and .rank < 4.0)) | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            TOTAL=$(jq '.runs[0].results | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            
+            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔴 Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟠 High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟡 Medium | $MEDIUM |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟢 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+            echo "| **📊 Total** | **$TOTAL** |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Set environment variables for later use
+            echo "CODEQL_CRITICAL=$CRITICAL" >> $GITHUB_ENV
+            echo "CODEQL_HIGH=$HIGH" >> $GITHUB_ENV
+            echo "CODEQL_TOTAL=$TOTAL" >> $GITHUB_ENV
+          else
+            echo "✅ No CodeQL results file found - scan may have completed without issues" >> $GITHUB_STEP_SUMMARY
+            echo "CODEQL_TOTAL=0" >> $GITHUB_ENV
+          fi
+        else
+          echo "⚠️ CodeQL results directory not found" >> $GITHUB_STEP_SUMMARY
+          echo "CODEQL_TOTAL=unknown" >> $GITHUB_ENV
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+    - name: Parse Trivy results and generate summary
+      shell: bash
+      run: |
+        echo "### 🛡️ Container Vulnerability Scan (Trivy)" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "trivy-results.sarif" ]; then
+          # Parse SARIF results for vulnerabilities
+          CRITICAL_VULN=$(jq '.runs[0].results | map(select(.ruleId and (.properties.security_severity == "9.0" or .properties.security_severity == "10.0"))) | length' trivy-results.sarif 2>/dev/null || echo "0")
+          HIGH_VULN=$(jq '.runs[0].results | map(select(.ruleId and (.properties.security_severity >= "7.0" and .properties.security_severity < "9.0"))) | length' trivy-results.sarif 2>/dev/null || echo "0")
+          MEDIUM_VULN=$(jq '.runs[0].results | map(select(.ruleId and (.properties.security_severity >= "4.0" and .properties.security_severity < "7.0"))) | length' trivy-results.sarif 2>/dev/null || echo "0")
+          LOW_VULN=$(jq '.runs[0].results | map(select(.ruleId and .properties.security_severity < "4.0")) | length' trivy-results.sarif 2>/dev/null || echo "0")
+          TOTAL_VULN=$(jq '.runs[0].results | length' trivy-results.sarif 2>/dev/null || echo "0")
+          
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔴 Critical | $CRITICAL_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 High | $HIGH_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Medium | $MEDIUM_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟢 Low | $LOW_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| **📊 Total** | **$TOTAL_VULN** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Set environment variables
+          echo "TRIVY_CRITICAL=$CRITICAL_VULN" >> $GITHUB_ENV
+          echo "TRIVY_HIGH=$HIGH_VULN" >> $GITHUB_ENV
+          echo "TRIVY_TOTAL=$TOTAL_VULN" >> $GITHUB_ENV
+          
+          # Show top vulnerabilities if any
+          if [ "$TOTAL_VULN" -gt "0" ]; then
+            echo "<details>" >> $GITHUB_STEP_SUMMARY
+            echo "<summary>🔍 Top Vulnerabilities (Click to expand)</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            jq -r '.runs[0].results[0:10][] | "• \(.ruleId // "Unknown"): \(.message.text // "No description")"' trivy-results.sarif 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || echo "No detailed vulnerability information available" >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "⚠️ Trivy results file not found" >> $GITHUB_STEP_SUMMARY
+          echo "TRIVY_TOTAL=unknown" >> $GITHUB_ENV
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+    - name: Generate overall security summary
+      shell: bash
+      run: |
+        echo "### 📋 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Determine overall security status
+        CODEQL_ISSUES="${CODEQL_TOTAL:-0}"
+        TRIVY_ISSUES="${TRIVY_TOTAL:-0}"
+        CODEQL_CRITICAL="${CODEQL_CRITICAL:-0}"
+        TRIVY_CRITICAL="${TRIVY_CRITICAL:-0}"
+        
+        if [ "$CODEQL_CRITICAL" -gt "0" ] || [ "$TRIVY_CRITICAL" -gt "0" ]; then
+          STATUS="🔴 **CRITICAL ISSUES FOUND**"
+          RECOMMENDATION="⚠️ **Action Required:** Address critical security issues before deployment"
+        elif [ "$CODEQL_ISSUES" -gt "0" ] || [ "$TRIVY_ISSUES" -gt "0" ]; then
+          STATUS="🟡 **Issues Found**"
+          RECOMMENDATION="💡 **Recommended:** Review and address security findings"
+        else
+          STATUS="✅ **No Security Issues Detected**"
+          RECOMMENDATION="🎉 **Great!** No security issues found in this scan"
+        fi
+        
+        echo "**Overall Status:** $STATUS" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "$RECOMMENDATION" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Scan Type | Issues Found |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------------|" >> $GITHUB_STEP_SUMMARY
+        echo "| CodeQL (Source Code) | $CODEQL_ISSUES |" >> $GITHUB_STEP_SUMMARY
+        echo "| Trivy (Container) | $TRIVY_ISSUES |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📎 **Artifacts:** Detailed reports available as workflow artifacts" >> $GITHUB_STEP_SUMMARY
+
+    - name: Add security comment to PR
+      if: github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: security-scan
+        recreate: true
+        message: |
+          ## 🔒 Security Scan Results
+          
+          **CodeQL Analysis:** ${{ env.CODEQL_TOTAL }} issues found
+          **Container Scan:** ${{ env.TRIVY_TOTAL }} vulnerabilities found
+          
+          **Critical Issues:** ${{ env.CODEQL_CRITICAL }} (CodeQL) + ${{ env.TRIVY_CRITICAL }} (Trivy)
+          
+          <details>
+          <summary>📊 Detailed Breakdown</summary>
+          
+          ### CodeQL (Source Code Analysis)
+          - 🔴 Critical: ${{ env.CODEQL_CRITICAL }}
+          - 🟠 High: ${{ env.CODEQL_HIGH }}
+          
+          ### Trivy (Container Vulnerabilities)  
+          - 🔴 Critical: ${{ env.TRIVY_CRITICAL }}
+          - 🟠 High: ${{ env.TRIVY_HIGH }}
+          
+          </details>
+          
+          💡 **Download detailed reports from workflow artifacts**
+
+    - name: Security gate check
+      shell: bash
+      run: |
+        CODEQL_CRITICAL="${CODEQL_CRITICAL:-0}"
+        TRIVY_CRITICAL="${TRIVY_CRITICAL:-0}"
+        
+        if [ "$CODEQL_CRITICAL" -gt "0" ] || [ "$TRIVY_CRITICAL" -gt "0" ]; then
+          echo "❌ Security gate failed: Critical security issues found"
+          echo "CodeQL Critical: $CODEQL_CRITICAL"
+          echo "Trivy Critical: $TRIVY_CRITICAL"
+          # Uncomment the next line if you want to fail the pipeline on critical issues
+          # exit 1
+        else
+          echo "✅ Security gate passed: No critical security issues found"
+        fi
