@@ -30,6 +30,7 @@ jobs:
           echo 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 | docker login ghcr.io -u karanbirsinghahluwalia --password-stdin
 
       - name: Deploy to Local CNOE Cluster
+        working-directory: ${{ github.workspace }}
         run: |
           helm upgrade --install reactapp ./charts/reactapp \
             --namespace reactapp \
