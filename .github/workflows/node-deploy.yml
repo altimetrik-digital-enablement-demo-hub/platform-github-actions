@@ -1,0 +1,33 @@
+name: Complete node Pipeline
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, local, cnoe]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: v1.29.0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.14.0
+
+      - name: Docker login to GHCR
+        run: |
+          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+
+      - name: Deploy to Local CNOE Cluster
+        run: |
+          helm upgrade --install reactapp ./charts \
+            --namespace reactapp \
+            --create-namespace \
+            --set image.repository=ghcr.io/karanbirsinghahluwalia/reactapp \
+            --set image.tag=v0.1.35
