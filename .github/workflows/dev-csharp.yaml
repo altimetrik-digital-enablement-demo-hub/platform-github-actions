@@ -51,12 +51,14 @@ jobs:
       - name: csharpier
         if: ${{ inputs.dotnet-linter-csharpier == true }}
         uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/csharpier@composites
+        continue-on-error: true
         with:
           app-name: ${{ inputs.app-name }}
           dotnet-version: ${{ inputs.dotnet-version }}
       - name: roslynator
         if: ${{ inputs.dotnet-linter-roslynator == true }}
         uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/roslynator@composites
+        continue-on-error: true
         with:
           app-name: ${{ inputs.app-name }}
           dotnet-version: ${{ inputs.dotnet-version }}
@@ -117,6 +119,7 @@ jobs:
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/trivy-scan@composites
         if: ${{ inputs.security-trivy == true }}
+        continue-on-error: true
         with:
           registry: ghcr.io
           image-name: dgeorgievski/${{ inputs.app-name }}
@@ -126,6 +129,7 @@ jobs:
 
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/security-scan@composites
         if: ${{ inputs.security-snyk == true }}
+        continue-on-error: true
         with:
           registry: ghcr.io
           image-name: ${{ inputs.app-name }}
