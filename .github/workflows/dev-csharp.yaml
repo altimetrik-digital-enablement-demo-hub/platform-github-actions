@@ -138,7 +138,7 @@ jobs:
     needs: security
     runs-on: ['self-hosted', 'macOS']
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/local-k8s@composites
+      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/local-k8s-helm@composites
         with:
           azure_webapp_name: ${{ inputs.app-name }}
           azure_webapp_package_path: ${{ inputs.azure_webapp_package_path }}
