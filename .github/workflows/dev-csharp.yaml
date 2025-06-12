@@ -135,14 +135,15 @@ jobs:
           
   deploy:
     name: Deploy ${{ inputs.app-name }}
-    needs: security
+    needs: [build, security]
     runs-on: ['self-hosted', 'macOS']
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/local-k8s-helm@composites
         with:
-          azure_webapp_name: ${{ inputs.app-name }}
-          azure_webapp_package_path: ${{ inputs.azure_webapp_package_path }}
-          azure_webapp_publish_profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          dotnet_version: ${{ inputs.dotnet-version }}
+          app_name: ${{ inputs.app-name }}
+          namespace: ${{ inputs.app-name }}
+          image-tag: ${{ needs.build.outputs.app_version }}
+          chart: 'deploy/helm/netwebapi'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
           
