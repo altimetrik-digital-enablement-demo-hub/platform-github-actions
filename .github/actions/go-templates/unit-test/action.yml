@@ -79,7 +79,7 @@ runs:
           test-results/coverage.txt
 
     - name: Publish Test Results
-      uses: dorny/test-reporter@v1 #
+      uses: dorny/test-reporter@v1 # Reads junit.xml created but gotestsum
       if: always()
       with:
         name: Go Test Results
