@@ -37,12 +37,18 @@ runs:
   steps:
     - uses: actions/checkout@v1
     - name: Deploy to local Kubernetes cluster
-      uses: 'deliverybot/helm@v1'
-      with:
-        release: ${{ inputs.app-name }}
-        namespace: ${{ inputs.namespace }}
-        chart: ${{ inputs.chart }}
-        helm: ${{ inputs.helm-version }}
-        token: '${{ github.token }}'
-        
+      shell: bash
+      run: |
+        echo "Deploying ${{ inputs.app-name }} to Kubernetes namespace ${{ inputs.namespace }}"
+        echo "Using Helm chart: ${{ inputs.chart }}"
+        echo "Image: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.image-tag }}"
+        echo "Helm version: ${{ inputs.helm-version }}"
 
+        helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart }} \
+          --namespace ${{ inputs.namespace }} \
+          --set image.repository=${{ inputs.registry }}/${{ inputs.image-name }} \
+          --set image.tag=${{ inputs.image-tag }} \
+          --set imagePullPolicy=IfNotPresent 
+          --debug
+          
+          
