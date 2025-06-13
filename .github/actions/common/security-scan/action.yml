@@ -187,18 +187,20 @@ runs:
         
         if [ -f "trivy-results.sarif" ]; then
           # Parse SARIF results for vulnerabilities
-          CRITICAL_VULN=$(jq '.runs[0].results | map(select(.ruleId and (.properties.security_severity == "9.0" or .properties.security_severity == "10.0"))) | length' trivy-results.sarif 2>/dev/null || echo "0")
-          HIGH_VULN=$(jq '.runs[0].results | map(select(.ruleId and (.properties.security_severity >= "7.0" and .properties.security_severity < "9.0"))) | length' trivy-results.sarif 2>/dev/null || echo "0")
-          MEDIUM_VULN=$(jq '.runs[0].results | map(select(.ruleId and (.properties.security_severity >= "4.0" and .properties.security_severity < "7.0"))) | length' trivy-results.sarif 2>/dev/null || echo "0")
-          LOW_VULN=$(jq '.runs[0].results | map(select(.ruleId and .properties.security_severity < "4.0")) | length' trivy-results.sarif 2>/dev/null || echo "0")
+          CRITICAL_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) == 9 or (.properties.security_severity | tonumber) == 10))) | length' trivy-results.sarif 2>/dev/null || echo "0")
+          HIGH_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) >= 7 and (.properties.security_severity | tonumber) < 9))) | length' trivy-results.sarif 2>/dev/null || echo "0")
+          MEDIUM_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) >= 4 and (.properties.security_severity | tonumber) < 7))) | length' trivy-results.sarif 2>/dev/null || echo "0")
+          LOW_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) > 0 and (.properties.security_severity | tonumber) < 4))) | length' trivy-results.sarif 2>/dev/null || echo "0")
+          UNKNOWN_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) == 0))) | length' trivy-results.sarif 2>/dev/null || echo "0")
           TOTAL_VULN=$(jq '.runs[0].results | length' trivy-results.sarif 2>/dev/null || echo "0")
           
           echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🔴 Critical | $CRITICAL_VULN |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🟠 High | $HIGH_VULN |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🟡 Medium | $MEDIUM_VULN |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🟢 Low | $LOW_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 High     | $HIGH_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Medium   | $MEDIUM_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟢 Low      | $LOW_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❓ Unknown  | $UNKNOWN_VULN |" >> $GITHUB_STEP_SUMMARY
           echo "| **📊 Total** | **$TOTAL_VULN** |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
@@ -206,6 +208,9 @@ runs:
           echo "TRIVY_CRITICAL=$CRITICAL_VULN" >> $GITHUB_ENV
           echo "TRIVY_HIGH=$HIGH_VULN" >> $GITHUB_ENV
           echo "TRIVY_TOTAL=$TOTAL_VULN" >> $GITHUB_ENV
+          echo "TRIVY_MEDIUM=$MEDIUM_VULN" >> $GITHUB_ENV
+          echo "TRIVY_LOW=$LOW_VULN" >> $GITHUB_ENV
+          echo "TRIVY_UNKNOWN=$UNKNOWN_VULN" >> $GITHUB_ENV
           
           # Show top vulnerabilities if any
           if [ "$TOTAL_VULN" -gt "0" ]; then
@@ -278,11 +283,16 @@ runs:
           ### CodeQL (Source Code Analysis)
           - 🔴 Critical: ${{ env.CODEQL_CRITICAL }}
           - 🟠 High: ${{ env.CODEQL_HIGH }}
+          - 🟡 Medium: ${{ env.CODEQL_MEDIUM }}
+          - 🟢 Low: ${{ env.CODEQL_LOW }}
+          - ❓ Unknown: ${{ env.CODEQL_UNKNOWN }}
           
           ### Trivy (Container Vulnerabilities)  
           - 🔴 Critical: ${{ env.TRIVY_CRITICAL }}
           - 🟠 High: ${{ env.TRIVY_HIGH }}
-          
+          - 🟡 Medium: ${{ env.TRIVY_MEDIUM }}
+          - 🟢 Low: ${{ env.TRIVY_LOW }}
+          - ❓ Unknown: ${{ env.TRIVY_UNKNOWN }}
           </details>
           
           💡 **Download detailed reports from workflow artifacts**

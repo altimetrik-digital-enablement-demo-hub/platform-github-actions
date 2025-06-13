@@ -101,9 +101,11 @@ jobs:
             git log --oneline --pretty=format:"- %s (%h)" >> changelog.md
           fi
           
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          cat changelog.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "changelog<<EOTCHANGELOG"
+            cat changelog.md
+            echo "EOTCHANGELOG"
+          } >> $GITHUB_OUTPUT
 
   test-before-release:
     runs-on: ubuntu-latest
