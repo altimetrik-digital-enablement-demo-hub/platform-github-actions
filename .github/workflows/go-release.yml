@@ -100,11 +100,11 @@ jobs:
             echo "### Initial release" >> changelog.md
             git log --oneline --pretty=format:"- %s (%h)" >> changelog.md
           fi
-          
+          cat changelog.md
           {
-            echo "changelog<<EOTCHANGELOG"
+            echo "changelog<<EOTCHANGELOG123"
             cat changelog.md
-            echo "EOTCHANGELOG"
+            echo "EOTCHANGELOG123"
           } >> $GITHUB_OUTPUT
 
   test-before-release:
