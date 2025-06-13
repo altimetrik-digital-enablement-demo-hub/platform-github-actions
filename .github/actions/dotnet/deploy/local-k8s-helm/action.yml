@@ -28,9 +28,6 @@ inputs:
     description: 'Helm version to use: helm or helm3. Default helm3.'
     required: false
     default: 'helm3'
-  token:
-    description: 'A Github PAT'
-    required: true
   
 runs:
   using: composite
@@ -48,7 +45,7 @@ runs:
           --namespace ${{ inputs.namespace }} \
           --set image.repository=${{ inputs.registry }}/${{ inputs.image-name }} \
           --set image.tag=${{ inputs.image-tag }} \
-          --set imagePullPolicy=IfNotPresent 
+          --set imagePullPolicy=IfNotPresent \
           --debug
           
           
