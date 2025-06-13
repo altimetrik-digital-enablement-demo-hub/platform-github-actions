@@ -85,27 +85,27 @@ jobs:
           fi
           echo "new-version=$new_version" >> $GITHUB_OUTPUT
 
-      - name: Generate changelog preview
-        id: changelog
-        run: |
-          echo "## Changelog for ${{ steps.version.outputs.new-version }}" > changelog.md
-          echo "" >> changelog.md
+      # - name: Generate changelog preview
+      #   id: changelog
+      #   run: |
+      #     echo "## Changelog for ${{ steps.version.outputs.new-version }}" > changelog.md
+      #     echo "" >> changelog.md
           
-          # Get commits since last tag
-          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
-            last_tag=$(git describe --tags --abbrev=0)
-            echo "### Changes since $last_tag:" >> changelog.md
-            git log --oneline $last_tag..HEAD --pretty=format:"- %s (%h)" >> changelog.md
-          else
-            echo "### Initial release" >> changelog.md
-            git log --oneline --pretty=format:"- %s (%h)" >> changelog.md
-          fi
-          cat changelog.md
-          {
-            echo "changelog<<EOTCHANGELOG123"
-            cat changelog.md
-            echo "EOTCHANGELOG123"
-          } >> $GITHUB_OUTPUT
+      #     # Get commits since last tag
+      #     if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+      #       last_tag=$(git describe --tags --abbrev=0)
+      #       echo "### Changes since $last_tag:" >> changelog.md
+      #       git log --oneline $last_tag..HEAD --pretty=format:"- %s (%h)" >> changelog.md
+      #     else
+      #       echo "### Initial release" >> changelog.md
+      #       git log --oneline --pretty=format:"- %s (%h)" >> changelog.md
+      #     fi
+      #     cat changelog.md
+      #     {
+      #       echo "changelog<<EOTCHANGELOG123"
+      #       cat changelog.md
+      #       echo "EOTCHANGELOG123"
+      #     } >> $GITHUB_OUTPUT
 
   test-before-release:
     runs-on: ubuntu-latest
