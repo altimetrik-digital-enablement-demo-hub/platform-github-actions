@@ -27,7 +27,7 @@ jobs:
 
       - name: Docker login to GHCR
         run: |
-          echo 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 | docker login ghcr.io -u karanbirsinghahluwalia --password-stdin
+          echo ***** | docker login ghcr.io -u karanbirsinghahluwalia --password-stdin
 
       - name: Show current directory
         working-directory: ${{ github.workspace }}
