@@ -1,4 +1,5 @@
 name: Auto Version Tag
+description: 'Automatically generate a semantic version tag based on commit messages'
 
 outputs:
   tag:
