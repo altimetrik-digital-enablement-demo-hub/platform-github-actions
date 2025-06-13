@@ -7,6 +7,11 @@ on:
         default: 'netwebapi'
         description: 'Application name to deploy'
         type: string
+      app_version:
+        required: false
+        default: '1.8.0'
+        description: 'Application version to deploy'
+        type: string
       language:
         required: false
         description: 'Programming language of the application'
@@ -17,7 +22,22 @@ on:
         description: 'Git fetch depth for the repository'
         type: string
         default: '1'
-      
+  workflow_call:
+    inputs:
+      app-name:
+        required: true
+        type: string
+      app_version:
+        required: true
+        type: string
+      registry:
+        required: false
+        type: string
+        default: 'ghcr.io'
+      chart:
+        required: false
+        type: string
+        default: 'app'
 jobs:     
   deploy:
     name: Deploy ${{ inputs.app-name }}
@@ -28,7 +48,8 @@ jobs:
         with:
           app-name: ${{ inputs.app-name }}
           namespace: ${{ inputs.app-name }}
-          registry: ghcr.io
+          registry: ${{ inputs.registry }}
           image-name: 'dgeorgievski/${{ inputs.app-name }}'
-          image-tag: '1.8.0'
-          chart: 'deploy/helm/netwebapi'
+          image-tag: ${{ inputs.app_version }}
+          chart: ${{ inputs.chart }}
+          # chart: 'deploy/helm/netwebapi'
