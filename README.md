@@ -17,8 +17,10 @@ This library aims to:
 
 ```plaintext
 .github/
-├── actions/         # Reusable custom actions
-└── workflows/       # Reusable workflow templates
+├── workflows/    # Reuseable templates
+│    ├── node-build.yml   
+│    ├── node-deploy.yml  
+└── actions/       # Reusable custom actions
     ├── common/      # Common CI/CD stages
     │   ├── codeql.yml
     │   ├── docker-build-publish.yml

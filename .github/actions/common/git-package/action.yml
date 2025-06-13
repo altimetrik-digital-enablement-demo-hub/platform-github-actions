@@ -8,17 +8,14 @@ inputs:
     description: 'Custom command for packaging (e.g., npm pack, zip, etc.)'
     required: false
     default: 'npm pack'
-    type: string
   artifact-name:
     description: 'Name of the uploaded artifact'
     required: false
     default: 'package-artifact'
-    type: string
   package-output-dir:
     description: 'Directory where the package is generated (relative to working-directory)'
     required: false
     default: '.'
-    type: string
 
 
 

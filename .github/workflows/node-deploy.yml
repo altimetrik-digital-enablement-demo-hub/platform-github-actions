@@ -2,6 +2,23 @@ name: Complete node Pipeline
 
 on:
   workflow_call:
+    inputs:
+      app-name:
+        description: 'Name of the application to deploy'
+        required: true
+        type: string
+      tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
+      chart-path:
+        description: 'Path to the Helm chart for deployment'
+        required: true
+        type: string
+      repository:
+        description: 'Docker image repository (e.g., ghcr.io/org/app)'
+        required: true
+        type: string
     secrets:
       GHCR_PAT:
         required: true
@@ -15,31 +32,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: v1.29.0
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: v3.14.0
-
       - name: Docker login to GHCR
         run: |
-          echo ***** | docker login ghcr.io -u karanbirsinghahluwalia --password-stdin
-
-      - name: Show current directory
-        working-directory: ${{ github.workspace }}
-        run: |
-          pwd
-          ls -l ./charts/reactapp
-
-      - name: Deploy to Local CNOE Cluster
-        working-directory: ${{ github.workspace }}
-        run: |
-          helm upgrade --install reactapp ./charts/reactapp \
-            --namespace reactapp \
-            --create-namespace \
-            --set image.repository=ghcr.io/karanbirsinghahluwalia/reactapp \
-            --set image.tag=v0.1.35
+          echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+          
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/helm-deployment@main
+        with:
+          app-name: ${{ inputs.app-name }}
+          tag: ${{ inputs.tag }}
+          chart-path: ${{ inputs.chart-path }}
+          repository: ${{ inputs.repository }}
