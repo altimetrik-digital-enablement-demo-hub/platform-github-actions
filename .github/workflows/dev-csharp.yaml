@@ -41,6 +41,18 @@ on:
         required: false
         type: boolean
         default: false
+      registry:
+        required: false
+        type: string
+        default: 'ghcr.io'
+      chart:
+        required: false
+        type: string
+        default: 'app'
+      helm-version:
+        required: false
+        type: string
+        default: 'helm3'
       
 jobs:     
   lint:
@@ -146,7 +158,8 @@ jobs:
         with:
           app-name: ${{ inputs.app-name }}
           namespace: ${{ inputs.app-name }}
-          registry: ghcr.io
+          registry: ${{ inputs.registry }}
           image-name: 'dgeorgievski/${{ inputs.app-name }}'
           image-tag: ${{ needs.build.outputs.app_version }}
-          chart: 'deploy/helm/netwebapi'
+          chart: ${{ inputs.chart }}
+          helm-version: ${{ inputs.helm-version }}
