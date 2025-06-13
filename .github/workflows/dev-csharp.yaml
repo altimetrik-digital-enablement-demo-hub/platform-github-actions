@@ -144,8 +144,10 @@ jobs:
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/local-k8s-helm@composites
         with:
-          app_name: ${{ inputs.app-name }}
+          app-name: ${{ inputs.app-name }}
           namespace: ${{ inputs.app-name }}
+          image-name: dgeorgievski/${{ inputs.app-name }}
+          registry: ghcr.io
           image-tag: ${{ needs.build.outputs.app_version }}
           chart: 'deploy/helm/netwebapi'
           token: ${{ secrets.GITHUB_TOKEN }}
