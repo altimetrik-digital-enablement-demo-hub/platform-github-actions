@@ -27,7 +27,7 @@ on:
       app-name:
         required: true
         type: string
-      app_version:
+      app-version:
         required: true
         type: string
       registry:
