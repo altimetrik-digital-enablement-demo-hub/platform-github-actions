@@ -42,11 +42,11 @@ runs:
         echo "Image: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.image-tag }}"
         echo "Helm version: ${{ inputs.helm-version }}"
 
-        helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart }} \
-          --namespace ${{ inputs.namespace }} \
-          --set image.repository=${{ inputs.registry }}/${{ inputs.image-name }} \
-          --set image.tag=${{ inputs.image-tag }} \
-          --set imagePullPolicy=IfNotPresent \
-          --debug
+        # helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart }} \
+        #   --namespace ${{ inputs.namespace }} \
+        #   --set image.repository=${{ inputs.registry }}/${{ inputs.image-name }} \
+        #   --set image.tag=${{ inputs.image-tag }} \
+        #   --set imagePullPolicy=IfNotPresent \
+        #   --debug
           
           
