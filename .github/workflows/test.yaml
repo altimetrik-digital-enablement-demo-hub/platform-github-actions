@@ -1,4 +1,4 @@
-name: build
+name: test CI/CD for .NET
 on:
   workflow_dispatch:
     inputs:
