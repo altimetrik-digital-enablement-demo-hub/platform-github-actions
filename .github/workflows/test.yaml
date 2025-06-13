@@ -50,6 +50,6 @@ jobs:
           namespace: ${{ inputs.app-name }}
           registry: ${{ inputs.registry }}
           image-name: 'dgeorgievski/${{ inputs.app-name }}'
-          image-tag: ${{ inputs.app_version }}
+          image-tag: ${{ inputs.app-version }}
           chart: ${{ inputs.chart }}
           # chart: 'deploy/helm/netwebapi'
