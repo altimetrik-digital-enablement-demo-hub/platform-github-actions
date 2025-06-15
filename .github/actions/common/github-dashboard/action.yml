@@ -48,7 +48,7 @@ runs:
           <h1>🔍 CI Scan Dashboard</h1>
         EOF
 
-        for file in reports/*/*.md; do
+        for file in reports/*/*.{md,txt}; do
           NAME=$(basename "$(dirname "$file")")
           echo "<section><h2>$NAME Report</h2><pre>" >> dashboard/index.html
           cat "$file" >> dashboard/index.html
