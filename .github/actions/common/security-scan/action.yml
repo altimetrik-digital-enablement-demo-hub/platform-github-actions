@@ -28,6 +28,13 @@ inputs:
     description: .NET version for CodeQL analysis
     required: false
     default: '8.0'
+  full-image-name:
+    description: Full image name with registry (e.g., ghcr.io/owner/repo/app:tag)
+    required: false
+  use-registry-image:
+    description: Whether to use registry image instead of loading from tar
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -116,20 +123,43 @@ runs:
         name: codeql-scan-results-${{ inputs.languages }}
         path: codeql-results
 
-    - name: Download container image
+    - name: Login to GitHub Container Registry (if using registry image)
+      if: inputs.use-registry-image == 'true' && contains(inputs.full-image-name, 'ghcr.io')
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Determine image reference
+      id: image-ref
+      shell: bash
+      run: |
+        if [ "${{ inputs.use-registry-image }}" == "true" ] && [ -n "${{ inputs.full-image-name }}" ]; then
+          IMAGE_REF="${{ inputs.full-image-name }}"
+          echo "Using registry image: ${IMAGE_REF}"
+        else
+          IMAGE_REF="${{ inputs.app-name }}:${{ inputs.image-tag }}"
+          echo "Using local image: ${IMAGE_REF}"
+        fi
+        echo "image-ref=${IMAGE_REF}" >> $GITHUB_OUTPUT
+
+    - name: Download container image (if not using registry)
+      if: inputs.use-registry-image != 'true'
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.app-name }}-image
         path: /tmp/
 
-    - name: Load container image
+    - name: Load container image (if not using registry)
+      if: inputs.use-registry-image != 'true'
       shell: bash
       run: docker load -i /tmp/${{ inputs.app-name }}.tar
 
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ inputs.app-name }}:${{ inputs.image-tag }}
+        image-ref: ${{ steps.image-ref.outputs.image-ref }}
         format: 'sarif'
         output: 'trivy-results.sarif'
 

@@ -13,11 +13,12 @@ on:
       registry-url:
         required: false
         type: string
-        description: 'Container registry URL (e.g., AWS ECR)'
+        description: 'Container registry URL (e.g., ghcr.io, AWS ECR)'
+        default: 'ghcr.io'
       push-to-registry:
         required: false
         type: boolean
-        default: false
+        default: true
         description: 'Push to registry instead of saving as tar'
       deploy-k8s:
         required: false
@@ -42,6 +43,7 @@ permissions:
   checks: write          # for test summary
   pull-requests: write
   issues: write
+  packages: write        # for GHCR
 
 jobs:
   setup:
@@ -107,11 +109,14 @@ jobs:
   package:
     runs-on: ubuntu-latest
     needs: [build, setup]
+    outputs:
+      full-image-name: ${{ steps.package.outputs.full-image-name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Package application
+        id: package
         uses: osru-leu/platform-github-actions/.github/actions/common/package@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
@@ -134,10 +139,13 @@ jobs:
           image-tag: ${{ needs.setup.outputs.image-tag }}
           languages: 'go'
           go-version: ${{ inputs.go-version }}
+          full-image-name: ${{ needs.package.outputs.full-image-name }}
+          use-registry-image: ${{ inputs.push-to-registry }}
 
   deploy-k8s:
-    runs-on: ubuntu-latest
-    needs: [security, setup]
+    # runs-on: ubuntu-latest
+    runs-on: [self-hosted, k8s-deployer]
+    needs: [security, setup, package]
     if: inputs.deploy-k8s
     steps:
       - name: Checkout
@@ -149,12 +157,14 @@ jobs:
           app-name: ${{ inputs.app-name }}
           environment: dev
           image-tag: ${{ needs.setup.outputs.image-tag }}
+          full-image-name: ${{ needs.package.outputs.full-image-name }}
           namespace: default
           replicas: 2
+          use-registry-image: ${{ inputs.push-to-registry }}
 
   deploy-aws:
     runs-on: ubuntu-latest
-    needs: [security, setup]
+    needs: [security, setup, package]
     if: inputs.deploy-aws
     steps:
       - name: Checkout
@@ -167,10 +177,11 @@ jobs:
           environment: dev
           image-tag: ${{ needs.setup.outputs.image-tag }}
           image-repository: ${{ inputs.registry-url }}
+          full-image-name: ${{ needs.package.outputs.full-image-name }}
 
   deploy-azure:
     runs-on: ubuntu-latest
-    needs: [security, setup]
+    needs: [security, setup, package]
     if: inputs.deploy-azure
     steps:
       - name: Checkout
@@ -185,3 +196,4 @@ jobs:
           image-repository: ${{ inputs.registry-url }}
           resource-group: 'rg-container-apps'
           location: 'eastus'
+          full-image-name: ${{ needs.package.outputs.full-image-name }}

@@ -11,6 +11,9 @@ inputs:
   image-tag:
     description: Docker image tag to deploy
     required: true
+  full-image-name:
+    description: Full image name with registry (e.g., ghcr.io/owner/repo/app:tag)
+    required: false
   namespace:
     description: Kubernetes namespace
     required: false
@@ -27,14 +30,63 @@ inputs:
     description: Service port
     required: false
     default: '80'
+  use-registry-image:
+    description: Whether to use registry image instead of loading from tar
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
   steps:
+    - name: Determine image name
+      id: image-name
+      shell: bash
+      run: |
+        if [ "${{ inputs.use-registry-image }}" == "true" ] && [ -n "${{ inputs.full-image-name }}" ]; then
+          IMAGE_NAME="${{ inputs.full-image-name }}"
+          echo "Using registry image: ${IMAGE_NAME}"
+        else
+          IMAGE_NAME="${{ inputs.app-name }}:${{ inputs.image-tag }}"
+          echo "Using local image: ${IMAGE_NAME}"
+        fi
+        echo "image-name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+
+    - name: Download and load container image (if not using registry)
+      if: inputs.use-registry-image != 'true'
+      shell: bash
+      run: |
+        echo "📦 Downloading container image artifact..."
+        # This step assumes the image artifact was uploaded in a previous job
+        # The actual download would be handled by the calling workflow
+        if [ -f "/tmp/${{ inputs.app-name }}.tar" ]; then
+          echo "Loading Docker image from tar file..."
+          docker load -i /tmp/${{ inputs.app-name }}.tar
+          echo "✅ Image loaded successfully"
+        else
+          echo "⚠️ No tar file found at /tmp/${{ inputs.app-name }}.tar"
+          echo "💡 Make sure the package job uploaded the image artifact"
+        fi
+
+    - name: Login to GitHub Container Registry (if using registry image)
+      if: inputs.use-registry-image == 'true' && contains(inputs.full-image-name, 'ghcr.io')
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Pull image from registry (if using registry)
+      if: inputs.use-registry-image == 'true'
+      shell: bash
+      run: |
+        echo "🔄 Pulling image from registry..."
+        docker pull ${{ steps.image-name.outputs.image-name }}
+        echo "✅ Image pulled successfully"
+
     - name: Generate Kubernetes manifests
       shell: bash
       run: |
-        echo "Generating Kubernetes manifests for ${{ inputs.app-name }}:${{ inputs.image-tag }}..."
+        echo "Generating Kubernetes manifests for ${{ steps.image-name.outputs.image-name }}..."
         
         cat <<EOF > k8s-deployment.yaml
         apiVersion: apps/v1
@@ -58,18 +110,28 @@ runs:
             spec:
               containers:
               - name: ${{ inputs.app-name }}
-                image: ${{ inputs.app-name }}:${{ inputs.image-tag }}
+                image: ${{ steps.image-name.outputs.image-name }}
                 ports:
                 - containerPort: ${{ inputs.container-port }}
                 env:
                 - name: ENVIRONMENT
                   value: ${{ inputs.environment }}
+                resources:
+                  requests:
+                    memory: "64Mi"
+                    cpu: "50m"
+                  limits:
+                    memory: "128Mi"
+                    cpu: "100m"
         ---
         apiVersion: v1
         kind: Service
         metadata:
           name: ${{ inputs.app-name }}-service
           namespace: ${{ inputs.namespace }}
+          labels:
+            app: ${{ inputs.app-name }}
+            environment: ${{ inputs.environment }}
         spec:
           selector:
             app: ${{ inputs.app-name }}
@@ -88,7 +150,16 @@ runs:
         if command -v kubectl &> /dev/null && kubectl cluster-info &> /dev/null; then
           echo "✅ kubectl configured - applying manifests..."
           kubectl apply -f k8s-deployment.yaml
-          echo "🚀 Deployment applied successfully!"
+          
+          echo "🔄 Waiting for deployment to be ready..."
+          kubectl rollout status deployment/${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s
+          
+          echo "📋 Deployment status:"
+          kubectl get deployment ${{ inputs.app-name }} -n ${{ inputs.namespace }}
+          kubectl get pods -l app=${{ inputs.app-name }} -n ${{ inputs.namespace }}
+          kubectl get service ${{ inputs.app-name }}-service -n ${{ inputs.namespace }}
+          
+          echo "🚀 Deployment completed successfully!"
         else
           echo "⚠️  kubectl not configured - skipping deployment"
           echo "💡 Upload manifests as artifact for manual deployment"
@@ -98,4 +169,29 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: k8s-manifests-${{ inputs.app-name }}-${{ inputs.environment }}
-        path: k8s-deployment.yaml 
+        path: k8s-deployment.yaml
+
+    - name: Generate deployment summary
+      shell: bash
+      run: |
+        echo "## 🚀 Kubernetes Deployment" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Application:** ${{ inputs.app-name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image:** \`${{ steps.image-name.outputs.image-name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Namespace:** ${{ inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Replicas:** ${{ inputs.replicas }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if command -v kubectl &> /dev/null && kubectl cluster-info &> /dev/null; then
+          echo "### ✅ Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "Deployment applied successfully to Kubernetes cluster" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Access your application:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Service: ${{ inputs.app-name }}-service" >> $GITHUB_STEP_SUMMARY
+          echo "- Port: ${{ inputs.service-port }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ⚠️ Manual Deployment Required" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl not configured - manifests uploaded as artifact" >> $GITHUB_STEP_SUMMARY
+        fi 
