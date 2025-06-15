@@ -69,13 +69,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # This job sets up Node.js and runs the lint command
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@main
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/node/setup@testing
         with:
           node-version: ${{ inputs.node-version }}
           working-directory: ${{ inputs.working-directory }}
 
       # This job sets up Node.js and runs the lint command
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/lint@main
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/node/lint@testing
         with:
           lint-command: ${{ inputs.lint-command }}
           node-version: ${{ inputs.node-version }}
