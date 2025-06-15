@@ -202,7 +202,7 @@ jobs:
       # This step builds the dashboard HTML file from the reports
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-dashboard@testing
         with:
-          token: ${{ secrets.TOKEN }}
+          token: ${{ secrets.GHCR_PAT }}
           tool: 'CI Dashboard'
           report: 'reports'
           critical_keyword: 'CRITICAL'
