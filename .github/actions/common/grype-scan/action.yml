@@ -42,20 +42,3 @@ runs:
         IMAGE=ghcr.io/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
         echo "Scanning image: $IMAGE"
         grype $IMAGE -o table > grype-report.txt
-    
-    # Upload the Grype report as an artifact
-    - name: Summarize Grype Report
-      shell: bash
-      run: |
-        CRITICAL=$(grep -c 'Critical' grype-report.txt || true)
-        HIGH=$(grep -c 'High' grype-report.txt || true)
-
-        echo "## 🛡️ Grype Scan" >> $GITHUB_STEP_SUMMARY
-        echo "- 🚨 Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
-        echo "- ⚠️ High: $HIGH" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "<details><summary>📄 View Raw Report (truncated)</summary>" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        head -n 100 grype-report.txt >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo '</details>' >> $GITHUB_STEP_SUMMARY

@@ -1,27 +1,40 @@
-name: 'GitHub Dashboard Summary'
-description: 'Combines and publishes CI dashboard summaries from multiple jobs.'
+name: "Summarize Report"
+description: "Summarize a security scan report and write to GITHUB_STEP_SUMMARY"
+
+
+inputs:
+  tool:
+    description: "Tool name (e.g., Trivy, Grype)"
+    required: true
+  report:
+    description: "Path to the report file"
+    required: true
+  critical_keyword:
+    description: "Keyword used to count critical vulnerabilities"
+    required: true
+  high_keyword:
+    description: "Keyword used to count high vulnerabilities"
+    required: true
 
 runs:
-  using: composite
+  using: "composite"
   steps:
-    # This step will download all summary files from previous jobs
-    - name: Download all summaries
-      uses: actions/download-artifact@v4
-      with:
-        path: summaries
-
-    # This step will combine all summary files into a single markdown file
-    - name: Combine summaries
-      shell: bash
+    - shell: bash
       run: |
-        echo "# 🧾 CI Dashboard Summary" > full-summary.md
-        for file in summaries/*/summary.md; do
-          cat "$file" >> full-summary.md
-          echo -e "\n---\n" >> full-summary.md
-        done
+        REPORT="${{ inputs.report }}"
+        TOOL="${{ inputs.tool }}"
+        CRIT_KEY="${{ inputs.critical_keyword }}"
+        HIGH_KEY="${{ inputs.high_keyword }}"
 
-    # This step will upload the combined summary to the GitHub step summary
-    - name: Publish combined summary
-      shell: bash
-      run: |
-        cat full-summary.md >> $GITHUB_STEP_SUMMARY
+        CRITICAL=$(grep -c "$CRIT_KEY" "$REPORT" || true)
+        HIGH=$(grep -c "$HIGH_KEY" "$REPORT" || true)
+
+        echo "## 🛡️ $TOOL Scan" >> $GITHUB_STEP_SUMMARY
+        echo "- 🚨 Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
+        echo "- ⚠️ High: $HIGH" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "<details><summary>📄 View Raw Report (truncated)</summary>" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        head -n 100 "$REPORT" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "</details>" >> $GITHUB_STEP_SUMMARY
