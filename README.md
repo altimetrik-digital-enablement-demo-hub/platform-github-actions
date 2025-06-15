@@ -3,7 +3,7 @@
 This repository contains **reusable GitHub Actions workflows** that standardize CI/CD pipelines across our organization. These workflows are centrally maintained by the Platform Engineering team and are meant to be consumed via `workflow_call` from individual service repositories.
 
 
-## Purpose
+## Goal
 
 This library aims to:
 
@@ -44,7 +44,7 @@ This library aims to:
 
 ```
 
-# Goals
+# What’s Included
 
 | Location                      | Purpose                                                  |
 |------------------------------|----------------------------------------------------------|
