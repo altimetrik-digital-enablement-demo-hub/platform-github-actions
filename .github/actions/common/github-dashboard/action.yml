@@ -48,9 +48,9 @@ runs:
           <h1>🔍 CI Scan Dashboard</h1>
         EOF
 
-        for file in reports/*/*.{md,txt}; do
+        find reports -type f \( -name "*.md" -o -name "*.txt" \) | while read -r file; do
           NAME=$(basename "$(dirname "$file")")
-          echo "<section><h2>$NAME Report</h2><pre>" >> dashboard/index.html
+          echo "<section><h2>${NAME} Report</h2><pre>" >> dashboard/index.html
           cat "$file" >> dashboard/index.html
           echo "</pre></section>" >> dashboard/index.html
         done

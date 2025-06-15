@@ -64,7 +64,7 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: trivy-summary
-        path: summary.md
+        path: trivy-summary.txt
 
     # Upload the Trivy report as an artifact
     - name: Trivy Summary
