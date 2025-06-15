@@ -60,6 +60,12 @@ runs:
           --password "${{ inputs.token }}" \
           $IMAGE | tee trivy-report.txt
 
+    - name: Upload Trivy Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy
+        path: trivy-summary.md
+
     # Upload the Trivy report as an artifact
     - name: Trivy Summary
       shell: bash
