@@ -7,11 +7,12 @@ This repository contains **reusable GitHub Actions workflows** that standardize 
 
 This library aims to:
 
-- Centralize reusable workflows for consistent CI/CD pipelines.
-- Reduce duplicated logic across services.
-- Enforce security best practices (e.g., scanning, token usage).
-- Enable faster onboarding and reliable deployments.
-- Encourage modular and testable GitHub Actions design.
+- **Centralized Workflows and Actions management:** Ensure consistent standards and best practices are followed across numerous GitHub repositories.
+- **Reduced duplication:** Eliminate the need for developers to rewrite common tasks repeatedly, saving time and reducing the risk of errors.
+- **Enforce security best practices:** Build a more secure CI/CD pipeline by embedding security checks (static code analysis, dependency scanning, container scanning, etc) into your automated workflows, allowing for continuous monitoring, early detection and rapid response to potential threats.
+- **Faster onboarding:** Enable new projects to quickly adopt CI/CD automation through using workflows tailored for their technology stacks, clear documentation, and reduced manual setup.
+- **Reliable deployments:** Introduce changes consistently across various deployment environments.
+- **Modular and testable design:** Add and test new features easily without disruping existing workflows and actions.
 
 ## Repository Structure
 
@@ -36,9 +37,14 @@ This library aims to:
         ├── lint.yml
         ├── setup.yml
         └── ...
+    ├── java/
+    ├── python/
+    ├── go
+    └── ...
+
 ```
 
-# What’s Included
+# Goals
 
 | Location                      | Purpose                                                  |
 |------------------------------|----------------------------------------------------------|
@@ -51,7 +57,7 @@ This library aims to:
 ## How to Use
 
 - All reusable workflows live under the `.github/workflows/` folder.
-- These workflows use `workflow_call` and can be referenced in service repositories via:
+- These workflows use `workflow_call` and can be referenced in service repositories via: ` uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/dev-node-build.yml@v0.0.1` 
 - You can visit [reference section](./.github/workflows/README.md) to understand complete setup.
 
 ```yaml
@@ -68,9 +74,10 @@ jobs:
 
 Each custom action must include:
 
-- A `README.md` (_optional but strongly recommended_)
+- A `README.md` (_mandatory step_)
 - An `action.yml` file with:
   - Inputs clearly described with types, defaults, and required flags
+  - **Convention over Configuration:** Use as much as possible reasonable defaults for input parameters and make them optional. 
   - `runs` section clearly defined (`composite` or `docker`)
   - Descriptive, minimal, and reusable logic
 
@@ -98,9 +105,8 @@ jobs:
     ...
 ```
 
-- Use `needs:` to enforce job dependencies
-- Keep environment setup (e.g., Node version) as shared `inputs`
-- Follow the CI/CD stages described in the **#Stages** section
+- Use `needs:` to define dependencies on other jobs
+- Keep environment setup (e.g., Node version) as `parameterized inputs`
 
 ---
 
@@ -122,14 +128,14 @@ jobs:
 
 - ❌ Never hardcode tokens or secrets  
 - ✅ Use GitHub-provided secrets (`GITHUB_TOKEN`) or GitHub Environments  
-- ✅ Only allow deployment actions if appropriate permissions and checks are in place  
+  - ✅ Allow (`GITHUB_TOKEN`) with read/write permissions for - `Actions`, `Contents`, `Deployments`, `Pages`, `Secrets` & `Workflows`
 
 ---
 
-
+# Adding new Reusable Workflows and Actions
 ## Documentation
 
-Each new addition must include:
+A new Reusable Workflow or Composite Action must include at least:
 
 - A one-liner description in the `README.md` table
 - Inputs documented (in table format if possible)
@@ -142,7 +148,9 @@ Each new addition must include:
 
 Before merging:
 
-- Check for expected input/output behavior
-- Validate YAML syntax using GitHub Actions
+- Lint YAML syntax of new Workflows and Actions.
+- Create a test Workflow to test new Reusable Workflow and Composite Actions.
+- Provide a link to test Workflow in the PR.
+- Test deployments in local Kubernetes clusters using local GitHub Runners.
 
 ---

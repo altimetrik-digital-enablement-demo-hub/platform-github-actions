@@ -6,71 +6,136 @@ We value clean, consistent, and scalable automation—thank you for helping us i
 
 ---
 
-## What Belongs Here
+## 📦 What Belongs Here
 
-This repo contains:
+This repository includes:
 
-- Reusable workflows for common CI/CD tasks (e.g., linting, testing, building)
-- Language or platform-specific variants (Node.js, Python, Java, etc.)
+- Reusable workflows for common CI/CD stages (e.g., linting, testing, building)
+- Language or platform-specific workflows (Node.js, Python, Java, etc.)
 - Utility workflows (e.g., container publishing, deployment)
 - Templates to help service teams onboard quickly
 
 ---
 
-## Repository Structure
+## 🛠️ Local Setup Instructions
 
-```text
-.github/workflows/     # Reusable workflows (marked with `workflow_call`)
-templates/             # Example workflows for consuming teams
-README.md              # Overview and usage examples
-CONTRIBUTING.md        # This file
+To contribute or test workflows locally, follow these steps to set up this project on your machine:
+
+### 1. Clone the Repository
+
+```bash
+git clone git@github.com:altimetrik-digital-enablement-demo-hub/platform-github-actions.git
+cd platform-github-actions
 ```
 
-## Workflow Requirements
+---
 
-All workflows must:
+### 2. Install Prerequisites
 
-1. Use on: workflow_call so they are reusable.
-2. Accept appropriate inputs with:
+Ensure you have the following tools installed:
 
-    - Clear naming
-    - Default values where reasonable
-    - Descriptions (via README or inline comments)
-3. Follow our naming conventions:
-    - `test-node.yml`, `lint-python.yml`, `build-java.yml`, etc.
-4. Include internal comments explaining any non-trivial logic.
-5. Avoid hardcoding secrets — use secrets input parameters.
+- **[Git](https://git-scm.com/)**
 
-## Getting Started
 
-1. Create a feature branch
+## 🧪 Setting Up GitHub Actions Runner Locally
 
-    ```bash
-    git checkout -b feat/test-python-py310
-    ```
+To setup github action runner locally:
 
-2. Make your changes
-3. Test your workflow:
-    - Push to a sandbox repo that consumes the workflow.
-    - Or use act to simulate it locally (optional).
-4. Commit using Conventional Commits:
+### Step-by-step Setup
 
-    ```bash
-    git commit -m "feat(python): add test-python workflow with version input"
-    ```
+1.  On macOS:  
+     ```bash
+     # Create a folder
+      $ mkdir actions-runner && cd actions-runner
+      # Download the latest runner package
+      $ curl -o actions-runner-osx-x64-2.325.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.325.0/actions-runner-osx-x64-2.325.0.tar.gz
+      # Extract the installer
+      $ tar xzf ./actions-runner-osx-x64-2.325.0.tar.gz
+      # Create the runner and start the configuration experience
+      $ ./config.sh --url ${{ repo_url }}$ --token ${{ github_token}}
+      # Last step, run it!
+      $ ./run.sh
+     ```
+2.  On Windows:
+     ```bash
+     # Create a folder under the drive root
+      $ mkdir actions-runner; cd actions-runner
+      # Download the latest runner package
+      $ Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v2.325.0/actions-runner-win-x64-2.325.0.zip -OutFile actions-runner-win-x64-2.325.0.zip
+      # Extract the installer
+      $ Add-Type -AssemblyName System.IO.Compression.FileSystem ; [System.IO.Compression.ZipFile]::ExtractToDirectory("$PWD/actions-runner-win-x64-2.325.0.zip", "$PWD")
+      # Create the runner and start the configuration experience
+      $ ./config.cmd --url ${{ repo_url }} --token ${{ github_token }}
+      # Run it!
+      $ ./run.cmd
+     ```
 
-5. Open a PR to main and request review
+---
 
-## Review Checklist
+## 🛠 Workflow Requirements
 
-- Uses workflow_call
+All workflows **must**:
+
+1. Use `on: workflow_call` to remain reusable.
+2. Accept well-structured inputs:
+   - Clear, concise naming
+   - Reasonable default values
+   - Descriptive documentation (via `README.md` or inline)
+3. Follow naming conventions:
+   - Examples: `test-node.yml`, `lint-python.yml`, `build-java.yml`
+4. Include internal comments for any non-obvious logic
+5. Never hardcode secrets — always use `secrets` as input parameters
+
+---
+
+## 🚀 Code Propagation Workflow
+
+To roll out changes that other repositories can use:
+
+1. **Create a feature branch**:
+   ```bash
+   git checkout -b feat/<feature-name>
+   ```
+
+2. **Make your changes**, then test them:
+   - Use a sandbox repo to consume the workflow
+   - Optionally simulate with [`act`](https://github.com/nektos/act)
+
+3. **Commit using [Conventional Commits](https://www.conventionalcommits.org/)**:
+   ```bash
+   git commit -m "feat(node): add new linting workflow"
+   ```
+
+4. **Open a Pull Request (PR)** to the `main` branch and request a review.
+
+5. **After approval and merge**, create a new **Git tag** to version your change:
+   ```bash
+   git tag v1.2.0
+   git push origin v1.2.0
+   ```
+
+6. **Consumers** can update their reusable workflows by referencing the new tag in their `uses:` path:
+   ```yaml
+   uses: your-org/platform-github-actions/.github/workflows/test-node.yml@v1.2.0
+   ```
+
+---
+
+
+## ✅ Review Checklist
+
+Ensure every PR:
+
+- Uses `workflow_call`
 - Follows naming conventions and folder structure
-- Inputs are documented, typed, and have sensible defaults
-- Steps are well-commented
-- No hardcoded secrets or org-specific values
-- Reusable across teams/projects
+- Has inputs that are typed, documented, and have defaults
+- Includes meaningful inline comments
+- Does **not** contain secrets or environment-specific values
+- Is reusable across services
 
-## Linting and Validation
+---
+
+## 🧹 Linting and Validation
 
 Before pushing:
 
@@ -78,17 +143,26 @@ Before pushing:
 yamllint .github/workflows/
 ```
 
-## Security Guidelines
+---
 
-- No secrets in code. Use:
-- secrets.MY_SECRET as input
-- GitHub Environments or repo-level secrets
-- Avoid referencing privileged infrastructure in reusable workflows
+## 🔐 Security Guidelines
 
-## Collaboration & Support
+- 🔒 **No secrets in code**. Always use:
+  - `secrets.MY_SECRET` as input
+  - GitHub Environments or repo-level secrets
 
-Need help? Ping us in the #platform-github-actions channel on Slack, or tag a CODEOWNER in your PR.
+- ⚠️ Avoid referencing privileged infrastructure in reusable workflows
 
-Let’s make CI/CD fast, safe, and delightful—for everyone.
+---
 
-Thanks for contributing!!!
+## 🤝 Collaboration & Support
+
+Need help?  
+📬 Ping us in the `#platform-github-actions` Slack channel  
+👥 Tag a `CODEOWNER` in your PR for a review
+
+---
+
+Let’s make CI/CD **fast**, **safe**, and **delightful** — for everyone.
+
+Thanks for contributing! 💙
