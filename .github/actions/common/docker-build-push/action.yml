@@ -1,12 +1,14 @@
 name: Docker Publish to GHCR
+description: 'Build and push a Docker image to GitHub Container Registry (GHCR)'
 
 inputs:
   version:
+    description: 'Version of the Docker image to build and push'
     required: true
-    type: string
   token:
+    description: 'GitHub token for authentication to GHCR'
     required: true
-    type: string
+
 
 runs:
   using: 'composite'

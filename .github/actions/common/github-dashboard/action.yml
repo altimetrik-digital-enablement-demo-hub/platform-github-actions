@@ -19,22 +19,43 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - shell: bash
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: reports
+
+    - name: Build Dashboard
+      shell: bash
       run: |
-        REPORT="${{ inputs.report }}"
-        TOOL="${{ inputs.tool }}"
-        CRIT_KEY="${{ inputs.critical_keyword }}"
-        HIGH_KEY="${{ inputs.high_keyword }}"
+        mkdir -p dashboard
+        cat <<EOF > dashboard/index.html
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <title>CI Dashboard</title>
+          <style>
+            body { font-family: sans-serif; padding: 2rem; background: #f9f9f9; }
+            h2 { color: #2c3e50; }
+            pre { background: #fff; padding: 1em; border: 1px solid #ddd; }
+            section { margin-bottom: 2em; }
+          </style>
+        </head>
+        <body>
+          <h1>🔍 CI Scan Dashboard</h1>
+        EOF
 
-        CRITICAL=$(grep -c "$CRIT_KEY" "$REPORT" || true)
-        HIGH=$(grep -c "$HIGH_KEY" "$REPORT" || true)
+        for file in reports/*/*.md; do
+          NAME=$(basename "$(dirname "$file")")
+          echo "<section><h2>$NAME Report</h2><pre>" >> dashboard/index.html
+          cat "$file" >> dashboard/index.html
+          echo "</pre></section>" >> dashboard/index.html
+        done
 
-        echo "## 🛡️ $TOOL Scan" >> $GITHUB_STEP_SUMMARY
-        echo "- 🚨 Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
-        echo "- ⚠️ High: $HIGH" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "<details><summary>📄 View Raw Report (truncated)</summary>" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        head -n 100 "$REPORT" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "</details>" >> $GITHUB_STEP_SUMMARY
+        echo "</body></html>" >> dashboard/index.html
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dashboard
