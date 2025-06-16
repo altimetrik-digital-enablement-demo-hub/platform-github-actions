@@ -45,10 +45,3 @@ runs:
       run: |
         echo "## 🔐 CodeQL Analysis" >> $GITHUB_STEP_SUMMARY
         echo "- Check [Security > Code Scanning Alerts](../../security/code-scanning) for results." >> $GITHUB_STEP_SUMMARY
-
-    # This step uploads the CodeQL summary as an artifact
-    - name: Upload ESLint Summary
-      uses: actions/upload-artifact@v4
-      with:
-        name: codeql-summary
-        path: summary.md
