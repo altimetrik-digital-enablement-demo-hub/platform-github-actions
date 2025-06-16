@@ -120,6 +120,7 @@ jobs:
   package:
     runs-on: ubuntu-latest
     needs: [build, setup]
+    if: inputs.push-to-registry
     outputs:
       full-image-name: ${{ steps.package.outputs.full-image-name }}
     steps:
