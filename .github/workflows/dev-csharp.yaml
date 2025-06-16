@@ -53,6 +53,11 @@ on:
         required: false
         type: string
         default: 'helm3'
+      target:
+        required: false
+        description: 'Deployment target platform. Default local-k8s; can be local-k8s, azure-webapp-svc, or azure-webapp-containter.'
+        type: string
+        default: 'local-k8s'
       
 jobs:     
   lint:
@@ -85,14 +90,14 @@ jobs:
         with:
           verbosity: 'normal'
 
-  # codeql:
-  #   name: CodeQL Analysis for ${{ inputs.app-name }}
-  #   needs: lint
-  #   runs-on: 'ubuntu-latest'
-  #   steps:
-  #     - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
-  #       with:
-  #         app-name: ${{ inputs.app-name }}  
+  codeql:
+    name: CodeQL Analysis for ${{ inputs.app-name }}
+    needs: lint
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
+        with:
+          app-name: ${{ inputs.app-name }}  
   build:
     name: Build ${{ inputs.app-name }}
     needs: test
@@ -112,6 +117,7 @@ jobs:
   package:
     name: Package ${{ inputs.app-name }}
     needs: build
+    if: ${{ inputs.target == 'local-k8s' || inputs.target == 'azure-webapp-container' }}
     runs-on: 'ubuntu-latest'
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/package@composites
@@ -127,6 +133,7 @@ jobs:
   security:
     name: Security Scan for ${{ inputs.app-name }}
     needs: [build, package]
+    if: ${{ inputs.target == 'local-k8s' || inputs.target == 'azure-webapp-container' }}
     runs-on: 'ubuntu-latest'
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/trivy-scan@composites
@@ -155,6 +162,7 @@ jobs:
     runs-on: ['self-hosted', 'macOS']
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/local-k8s-helm@composites
+        if: ${{ inputs.target == 'local-k8s' }}
         with:
           app-name: ${{ inputs.app-name }}
           namespace: ${{ inputs.app-name }}
