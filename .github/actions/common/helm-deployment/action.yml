@@ -42,6 +42,13 @@ runs:
       run: |
         echo "🚀 Deploying ${{ inputs.app-name }} to ${{ inputs.environment }}..."
         
+        # Check for stuck Helm operations and clean up if needed
+        if helm list -n ${{ inputs.namespace }} --pending --failed | grep -q ${{ inputs.app-name }}; then
+          echo "⚠️ Found stuck Helm operation, cleaning up..."
+          helm uninstall ${{ inputs.app-name }} -n ${{ inputs.namespace }} || true
+          sleep 5
+        fi
+        
         helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart-path }} \
           --namespace ${{ inputs.namespace }} \
           --create-namespace \
