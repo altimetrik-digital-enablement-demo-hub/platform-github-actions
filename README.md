@@ -3,7 +3,7 @@
 This repository contains **reusable GitHub Actions workflows** that standardize CI/CD pipelines across our organization. These workflows are centrally maintained by the Platform Engineering team and are meant to be consumed via `workflow_call` from individual service repositories.
 
 
-## Goal
+## Goals
 
 This library aims to:
 
@@ -74,7 +74,7 @@ jobs:
 
 Each custom action must include:
 
-- A `README.md` (_mandatory step_)
+- A `README.md`
 - An `action.yml` file with:
   - Inputs clearly described with types, defaults, and required flags
   - **Convention over Configuration:** Use as much as possible reasonable defaults for input parameters and make them optional. 
