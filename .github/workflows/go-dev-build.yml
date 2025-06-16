@@ -40,6 +40,11 @@ on:
         type: boolean
         default: false
         description: 'Deploy to Azure Container Apps'
+      use-helm:
+        required: false
+        type: boolean
+        default: false
+        description: 'Use Helm for Kubernetes deployment'
 
 permissions:
   actions: read
@@ -150,24 +155,28 @@ jobs:
           use-registry-image: ${{ inputs.push-to-registry }}
 
   deploy-k8s:
-    # runs-on: ubuntu-latest
     runs-on: [self-hosted, k8s-deployer]
     needs: [security, setup, package]
     if: inputs.deploy-k8s
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Docker login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
         
       - name: Deploy to Kubernetes
-        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-k8s@feature/workflows
+        uses: ./.github/actions/common/helm-deployment
         with:
           app-name: ${{ inputs.app-name }}
           environment: dev
-          image-tag: ${{ needs.setup.outputs.image-tag }}
-          full-image-name: ${{ needs.package.outputs.full-image-name }}
-          namespace: default
-          replicas: 2
-          use-registry-image: ${{ inputs.push-to-registry }}
+          tag: ${{ needs.setup.outputs.image-tag }}
+          repository: ghcr.io/${{ github.repository }}/${{ inputs.app-name }}
+          chart-path: ./deploy/helm/go-sample-app
 
   deploy-aws:
     runs-on: ubuntu-latest
