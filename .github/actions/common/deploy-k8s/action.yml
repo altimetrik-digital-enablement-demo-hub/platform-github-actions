@@ -108,6 +108,8 @@ runs:
                 app: ${{ inputs.app-name }}
                 environment: ${{ inputs.environment }}
             spec:
+              imagePullSecrets:
+              - name: ghcr-secret
               containers:
               - name: ${{ inputs.app-name }}
                 image: ${{ steps.image-name.outputs.image-name }}
