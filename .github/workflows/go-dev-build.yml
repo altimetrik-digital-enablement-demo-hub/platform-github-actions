@@ -45,11 +45,6 @@ on:
         type: boolean
         default: false
         description: 'Use Helm for Kubernetes deployment'
-      skip_build:
-        required: false
-        type: boolean
-        default: false
-        description: 'Skip the separate build step (use when building in Dockerfile)'
 
 permissions:
   actions: read
@@ -111,7 +106,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     needs: test
-    if: ${{ !inputs.skip_build }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -125,7 +119,7 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
-    needs: [setup, test]
+    needs: [build, setup]
     if: inputs.push-to-registry
     outputs:
       full-image-name: ${{ steps.package.outputs.full-image-name }}
@@ -143,7 +137,6 @@ jobs:
           binary-name: ${{ inputs.binary-name }}
           registry-url: ${{ inputs.registry-url }}
           push-to-registry: ${{ inputs.push-to-registry }}
-          skip_binary_download: ${{ inputs.skip_build }}
 
   security:
     runs-on: ubuntu-latest
