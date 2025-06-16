@@ -32,6 +32,10 @@ inputs:
     description: Whether to push to registry instead of saving as tar
     required: false
     default: 'true'
+  platforms:
+    description: Target platforms to build for (comma-separated)
+    required: false
+    default: 'linux/amd64,linux/arm64'
 
 outputs:
   image-tag:
@@ -112,7 +116,7 @@ runs:
       with:
         context: ${{ inputs.docker-context }}
         file: ${{ inputs.dockerfile-path }}
-        platforms: linux/amd64
+        platforms: ${{ inputs.platforms }}
         tags: ${{ steps.image-name.outputs.full-name }}
         push: true
         labels: |
@@ -126,7 +130,7 @@ runs:
       with:
         context: ${{ inputs.docker-context }}
         file: ${{ inputs.dockerfile-path }}
-        platforms: linux/amd64
+        platforms: ${{ inputs.platforms }}
         tags: ${{ inputs.app-name }}:${{ inputs.image-tag }}
         outputs: type=docker,dest=/tmp/${{ inputs.app-name }}.tar
 
@@ -146,7 +150,7 @@ runs:
           echo "✅ **Image pushed to registry**" >> $GITHUB_STEP_SUMMARY
           echo "- **Registry:** ${{ inputs.registry-url }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image:** \`${{ steps.image-name.outputs.full-name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Platform:** linux/amd64" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platforms:** ${{ inputs.platforms }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🔗 **Pull command:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
