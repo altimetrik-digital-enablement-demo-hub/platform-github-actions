@@ -170,7 +170,7 @@ jobs:
           password: ${{ github.token }}
         
       - name: Deploy to Kubernetes
-        uses: ./.github/actions/common/helm-deployment
+        uses: osru-leu/platform-github-actions/.github/actions/common/helm-deployment@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           environment: dev
