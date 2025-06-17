@@ -233,7 +233,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-              - name: Deploy to AWS App Runner
+      - name: Deploy to AWS App Runner
         uses: osru-leu/platform-github-actions/.github/actions/common/deploy-aws-apprunner@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
@@ -250,13 +250,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-              - name: Deploy to Azure Container Apps
-          uses: osru-leu/platform-github-actions/.github/actions/common/deploy-azure-containerapp@feature/workflows
-          with:
-            app-name: ${{ inputs.app-name }}
-            environment: dev
-            image-tag: ${{ needs.setup.outputs.image-tag }}
-            image-repository: ${{ inputs.registry-url }}
-            resource-group: 'rg-container-apps'
-            location: 'eastus'
-            full-image-name: ${{ needs.push-to-registry.outputs.full-image-name }}
+      - name: Deploy to Azure Container Apps
+        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-azure-containerapp@feature/workflows
+        with:
+          app-name: ${{ inputs.app-name }}
+          environment: dev
+          image-tag: ${{ needs.setup.outputs.image-tag }}
+          image-repository: ${{ inputs.registry-url }}
+          resource-group: 'rg-container-apps'
+          location: 'eastus'
+          full-image-name: ${{ needs.push-to-registry.outputs.full-image-name }}
