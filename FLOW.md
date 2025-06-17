@@ -174,16 +174,6 @@ sequenceDiagram
 - **Container**: ARM64 compatible
 - **Kubernetes**: Local cluster on ARM64
 
-### Health Check Configuration
-- **Endpoint**: `/health`
-- **Response**: `{"service":"calculator","status":"healthy"}`
-- **Probes**: Both liveness and readiness use `/health`
-
-### Service Configuration
-- **Type**: NodePort
-- **Port Mapping**: 80 → 8080
-- **Access**: `kubectl port-forward service/go-sample-app 8080:80`
-
 ## Security-First Pipeline Flow
 
 ```mermaid
