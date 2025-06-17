@@ -67,14 +67,14 @@ jobs:
     steps:
       - name: csharpier
         if: ${{ inputs.dotnet-linter-csharpier == true }}
-        uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/csharpier@composites
+        uses: dgeorgievski/platform-github-actions/.github/actions/dotnet/lint/csharpier@main
         continue-on-error: true
         with:
           app-name: ${{ inputs.app-name }}
           dotnet-version: ${{ inputs.dotnet-version }}
       - name: roslynator
         if: ${{ inputs.dotnet-linter-roslynator == true }}
-        uses: dgeorgievski/my-github-actions/.github/actions/dotnet/lint/roslynator@composites
+        uses: dgeorgievski/platform-github-actions/.github/actions/dotnet/lint/roslynator@main
         continue-on-error: true
         with:
           app-name: ${{ inputs.app-name }}
@@ -86,7 +86,7 @@ jobs:
     needs: lint
     runs-on: 'ubuntu-latest'     
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/test@composites
+      - uses: dgeorgievski/platform-github-actions/.github/actions/dotnet/test@main
         with:
           verbosity: 'normal'
 
@@ -95,7 +95,7 @@ jobs:
     needs: lint
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/codeql@composites
+      - uses: dgeorgievski/platform-github-actions/.github/actions/dotnet/codeql@main
         with:
           app-name: ${{ inputs.app-name }}  
   build:
@@ -105,7 +105,7 @@ jobs:
     outputs:
       app_version: ${{ steps.build.outputs.app_version }}
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/build@composites
+      - uses: dgeorgievski/platform-github-actions/.github/actions/dotnet/build@main
         id: build
         with:
           app-name: ${{ inputs.app-name }}
@@ -125,7 +125,7 @@ jobs:
       )
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/package@composites
+      - uses: dgeorgievski/platform-github-actions/.github/actions/dotnet/package@main
         with:
           language: ${{ inputs.language }}
           app-name: ${{ inputs.app-name }}
@@ -143,7 +143,7 @@ jobs:
       inputs.target == 'azure-webapp-container'
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/trivy-scan@composites
+      - uses: dgeorgievski/platform-github-actions/.github/actions/dotnet/security-scan/trivy@main
         if: inputs.security-trivy == true
         continue-on-error: true
         with:
@@ -153,7 +153,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/security-scan@composites
+      - uses: dgeorgievski/platform-github-actions/.github/actions/dotnet/security-scan/snyk@main
         if: inputs.security-snyk == true
         continue-on-error: true
         with:
@@ -168,7 +168,7 @@ jobs:
     needs: [build, security]
     runs-on: ['self-hosted', 'macOS']
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/local-k8s-helm@composites
+      - uses: dgeorgievski/platform-github-actions/.github/actions/dotnet/deploy/local-k8s-helm@main
         if: inputs.target == 'local-k8s'
         with:
           app-name: ${{ inputs.app-name }}
