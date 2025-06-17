@@ -77,35 +77,38 @@ graph LR
 ### 2. Platform Actions Repository Structure
 
 ```mermaid
-graph TB
-    subgraph "platform-github-actions Repository"
-        subgraph "Reusable Workflows"
-            MAIN_WF["go-dev-build.yml<br/>Main Pipeline"]
-        end
+flowchart LR
+    subgraph REPO["🏗️ platform-github-actions"]
+        WORKFLOW["📋 go-dev-build.yml"]
         
-        subgraph "Go-Specific Actions"
+        subgraph GO["🐹 Go Actions"]
             LINT["go/lint"]
-            TEST["go/unit-test"]
+            TEST["go/unit-test"] 
             BUILD["go/build"]
         end
         
-        subgraph "Common Actions"
-            PACKAGE["common/docker-build-push"]
-            SECURITY["common/security-scan"]
-            PUSH_REGISTRY["common/push-to-registry"]
-            HELM_DEPLOY["common/helm-deployment"]
-            SETUP_TAG["common/git-tag-generation"]
+        subgraph CORE["⚙️ Core Pipeline Actions"]
+            PACKAGE["docker-build-push"]
+            SECURITY["security-scan"]
+            TAG["git-tag-generation"]
+        end
+        
+        subgraph DEPLOY["🚀 Deployment Actions"]
+            HELM["helm-deployment"]
+            K8S["deploy-k8s"]
+            AWS["deploy-aws-apprunner"]
+            AZURE["deploy-azure-containerapp"]
         end
     end
     
-    MAIN_WF --> LINT
-    MAIN_WF --> TEST
-    MAIN_WF --> BUILD
-    MAIN_WF --> PACKAGE
-    MAIN_WF --> SECURITY
-    MAIN_WF --> PUSH_REGISTRY
-    MAIN_WF --> HELM_DEPLOY
-    MAIN_WF --> SETUP_TAG
+    WORKFLOW --> GO
+    WORKFLOW --> CORE
+    WORKFLOW -.->|"Manual Trigger Only"| DEPLOY
+    
+    style WORKFLOW fill:#e1f5fe
+    style GO fill:#e8f5e8
+    style CORE fill:#f3e5f5
+    style DEPLOY fill:#fff3cd
 ```
 
 ## Complete CI/CD Pipeline Flow
