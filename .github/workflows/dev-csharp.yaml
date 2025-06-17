@@ -100,7 +100,7 @@ jobs:
           app-name: ${{ inputs.app-name }}  
   build:
     name: Build ${{ inputs.app-name }}
-    needs: test
+    needs: [test, codeql]
     runs-on: 'ubuntu-latest'
     outputs:
       app_version: ${{ steps.build.outputs.app_version }}
@@ -117,7 +117,12 @@ jobs:
   package:
     name: Package ${{ inputs.app-name }}
     needs: build
-    if: ${{ inputs.target == 'local-k8s' || inputs.target == 'azure-webapp-container' }}
+    if: |
+      needs.build.outputs.app_version != '' && 
+      ( 
+        inputs.target == 'local-k8s' || 
+        inputs.target == 'azure-webapp-container'
+      )
     runs-on: 'ubuntu-latest'
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/package@composites
@@ -133,11 +138,13 @@ jobs:
   security:
     name: Security Scan for ${{ inputs.app-name }}
     needs: [build, package]
-    if: ${{ inputs.target == 'local-k8s' || inputs.target == 'azure-webapp-container' }}
+    if: | 
+      inputs.target == 'local-k8s' || 
+      inputs.target == 'azure-webapp-container'
     runs-on: 'ubuntu-latest'
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/trivy-scan@composites
-        if: ${{ inputs.security-trivy == true }}
+        if: inputs.security-trivy == true
         continue-on-error: true
         with:
           registry: ghcr.io
@@ -147,7 +154,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/security-scan@composites
-        if: ${{ inputs.security-snyk == true }}
+        if: inputs.security-snyk == true
         continue-on-error: true
         with:
           registry: ghcr.io
@@ -162,7 +169,7 @@ jobs:
     runs-on: ['self-hosted', 'macOS']
     steps:
       - uses: dgeorgievski/my-github-actions/.github/actions/dotnet/deploy/local-k8s-helm@composites
-        if: ${{ inputs.target == 'local-k8s' }}
+        if: inputs.target == 'local-k8s'
         with:
           app-name: ${{ inputs.app-name }}
           namespace: ${{ inputs.app-name }}

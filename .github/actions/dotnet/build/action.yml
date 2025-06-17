@@ -66,7 +66,9 @@ runs:
         echo "Running Versionize to determine if a release is needed"
         versionize --version 
         versionize --exit-insignificant-commits
-        echo "app_version=$(versionize inspect)" >> $GITHUB_OUTPUT
+        VERSION=$(versionize inspect)
+        echo "app_version=${VERSION}"
+        echo "app_version=${VERSION}" >> $GITHUB_OUTPUT
       continue-on-error: true
 
     - name: Check versionize result
@@ -75,10 +77,12 @@ runs:
       shell: bash
       run: |
         echo "Current app version: ${{ steps.versionize.outputs.app_version }}" 
+
     - name: No release required
       if: steps.versionize.outcome != 'success'
       shell: bash
       run: echo "Skipping Release. No release required."
+
     - name: Push changes to GitHub
       if: steps.versionize.outcome == 'success'
       uses: ad-m/github-push-action@master
