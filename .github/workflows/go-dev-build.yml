@@ -120,14 +120,13 @@ jobs:
   package:
     runs-on: ubuntu-latest
     needs: [build, setup]
-    if: inputs.push-to-registry
     outputs:
       full-image-name: ${{ steps.package.outputs.full-image-name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Package application
+      - name: Package application (build only, no push)
         id: package
         uses: osru-leu/platform-github-actions/.github/actions/common/package@feature/workflows
         with:
@@ -136,7 +135,7 @@ jobs:
           binary-artifact-name: ${{ inputs.app-name }}-binary
           binary-name: ${{ inputs.binary-name }}
           registry-url: ${{ inputs.registry-url }}
-          push-to-registry: ${{ inputs.push-to-registry }}
+          push-to-registry: false  # Build but don't push yet
 
   security:
     runs-on: ubuntu-latest
@@ -153,11 +152,58 @@ jobs:
           languages: 'go'
           go-version: ${{ inputs.go-version }}
           full-image-name: ${{ needs.package.outputs.full-image-name }}
-          use-registry-image: ${{ inputs.push-to-registry }}
+          use-registry-image: false  # Scan local image, not registry
+
+  push-to-registry:
+    runs-on: ubuntu-latest
+    needs: [security, setup, package]
+    if: inputs.push-to-registry
+    outputs:
+      full-image-name: ${{ steps.push.outputs.full-image-name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.app-name }}-image
+          path: /tmp/
+
+      - name: Login to GitHub Container Registry
+        if: inputs.registry-url == 'ghcr.io'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Load and push image
+        id: push
+        shell: bash
+        run: |
+          # Load the image from tar
+          docker load -i /tmp/${{ inputs.app-name }}.tar
+          
+          # Generate full image name
+          if [[ "${{ inputs.registry-url }}" == "ghcr.io" ]]; then
+            REPO_OWNER=$(echo "${{ github.repository }}" | cut -d'/' -f1 | tr '[:upper:]' '[:lower:]')
+            REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')
+            FULL_NAME="ghcr.io/${REPO_OWNER}/${REPO_NAME}/${{ inputs.app-name }}:${{ needs.setup.outputs.image-tag }}"
+          else
+            FULL_NAME="${{ inputs.registry-url }}/${{ inputs.app-name }}:${{ needs.setup.outputs.image-tag }}"
+          fi
+          
+          # Tag and push
+          docker tag ${{ inputs.app-name }}:${{ needs.setup.outputs.image-tag }} ${FULL_NAME}
+          docker push ${FULL_NAME}
+          
+          echo "full-image-name=${FULL_NAME}" >> $GITHUB_OUTPUT
+          echo "✅ Pushed secure image: ${FULL_NAME}"
 
   deploy-k8s:
     runs-on: [self-hosted, k8s-deployer]
-    needs: [security, setup, package]
+    needs: [push-to-registry, setup]
     if: inputs.deploy-k8s
     steps:
       - name: Checkout
@@ -181,36 +227,36 @@ jobs:
 
   deploy-aws:
     runs-on: ubuntu-latest
-    needs: [security, setup, package]
+    needs: [push-to-registry, setup]
     if: inputs.deploy-aws
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Deploy to AWS App Runner
+              - name: Deploy to AWS App Runner
         uses: osru-leu/platform-github-actions/.github/actions/common/deploy-aws-apprunner@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           environment: dev
           image-tag: ${{ needs.setup.outputs.image-tag }}
           image-repository: ${{ inputs.registry-url }}
-          full-image-name: ${{ needs.package.outputs.full-image-name }}
+          full-image-name: ${{ needs.push-to-registry.outputs.full-image-name }}
 
   deploy-azure:
     runs-on: ubuntu-latest
-    needs: [security, setup, package]
+    needs: [push-to-registry, setup]
     if: inputs.deploy-azure
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Deploy to Azure Container Apps
-        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-azure-containerapp@feature/workflows
-        with:
-          app-name: ${{ inputs.app-name }}
-          environment: dev
-          image-tag: ${{ needs.setup.outputs.image-tag }}
-          image-repository: ${{ inputs.registry-url }}
-          resource-group: 'rg-container-apps'
-          location: 'eastus'
-          full-image-name: ${{ needs.package.outputs.full-image-name }}
+              - name: Deploy to Azure Container Apps
+          uses: osru-leu/platform-github-actions/.github/actions/common/deploy-azure-containerapp@feature/workflows
+          with:
+            app-name: ${{ inputs.app-name }}
+            environment: dev
+            image-tag: ${{ needs.setup.outputs.image-tag }}
+            image-repository: ${{ inputs.registry-url }}
+            resource-group: 'rg-container-apps'
+            location: 'eastus'
+            full-image-name: ${{ needs.push-to-registry.outputs.full-image-name }}

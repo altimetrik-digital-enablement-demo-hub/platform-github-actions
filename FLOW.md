@@ -33,9 +33,10 @@ graph TB
     subgraph "Self-Hosted Runner (macOS ARM64)"
         ACTIONS --> RUNNER["GitHub Actions Runner<br/>Executes Jobs"]
         RUNNER --> BUILD["Build ARM64 Binary"]
-        RUNNER --> DOCKER["Build Docker Image"]
-        RUNNER --> PUSH["Push to GHCR"]
-        RUNNER --> DEPLOY["Deploy via Helm"]
+        RUNNER --> DOCKER["Build Docker Image (Local)"]
+        RUNNER --> SECURITY["Security Scan"]
+        SECURITY --> PUSH["Push to GHCR (Only if Secure)"]
+        PUSH --> DEPLOY["Deploy via Helm"]
     end
     
     subgraph "Local Kubernetes Cluster"
@@ -91,6 +92,7 @@ graph TB
         subgraph "Common Actions"
             PACKAGE["common/package"]
             SECURITY["common/security-scan"]
+            PUSH_REGISTRY["common/push-to-registry"]
             HELM_DEPLOY["common/helm-deployment"]
             SETUP_TAG["common/setup-tag"]
         end
@@ -101,6 +103,7 @@ graph TB
     MAIN_WF --> BUILD
     MAIN_WF --> PACKAGE
     MAIN_WF --> SECURITY
+    MAIN_WF --> PUSH_REGISTRY
     MAIN_WF --> HELM_DEPLOY
     MAIN_WF --> SETUP_TAG
 ```
@@ -133,12 +136,14 @@ sequenceDiagram
     
     Platform->>Runner: Execute package job
     Runner->>Runner: Download binary artifact
-    Runner->>Runner: Build Docker image (ARM64)
-    Runner->>GHCR: Push image with tag
+    Runner->>Runner: Build Docker image (ARM64 - Local only)
     
     Platform->>Runner: Execute security job
     Runner->>Runner: Run CodeQL analysis
-    Runner->>Runner: Scan container image
+    Runner->>Runner: Scan local container image
+    
+    Platform->>Runner: Execute push-to-registry job (if security passes)
+    Runner->>GHCR: Push secure image with tag
     
     Note over Dev,K8s: Manual Deployment (workflow_dispatch only)
     
@@ -176,6 +181,36 @@ sequenceDiagram
 - **Port Mapping**: 80 → 8080
 - **Access**: `kubectl port-forward service/go-sample-app 8080:80`
 
+## Security-First Pipeline Flow
+
+```mermaid
+graph TB
+    SETUP[setup] --> LINT[lint]
+    LINT --> TEST[test]
+    TEST --> BUILD[build]
+    BUILD --> PACKAGE[package - build only]
+    SETUP --> PACKAGE
+    PACKAGE --> SECURITY[security scan]
+    SECURITY --> PUSH[push-to-registry]
+    PUSH --> DEPLOY[deploy-k8s]
+    
+    subgraph "🛡️ SECURE PROCESS"
+        PACKAGE -.->|"Build image locally<br/>NO push yet"| LOCAL[Local Docker Image]
+        SECURITY -.->|"Scan local image<br/>BEFORE publishing"| SCAN[Security Scan Results]
+        PUSH -.->|"Push ONLY if<br/>security scan passes"| GHCR[GitHub Container Registry]
+    end
+    
+    style PACKAGE fill:#e8f5e8
+    style SECURITY fill:#e8f5e8
+    style PUSH fill:#e8f5e8
+```
+
+### Security Benefits
+- **🔒 Build First**: Images are built locally without immediate publication
+- **🛡️ Scan Before Push**: Security scans run on local images before registry push
+- **✅ Conditional Push**: Only security-approved images reach the container registry
+- **🚫 Fail Fast**: Pipeline stops if vulnerabilities are detected, preventing publication
+
 ## Workflow Triggers and Conditions
 
 ```mermaid
@@ -183,15 +218,15 @@ flowchart TD
     START[Workflow Trigger] --> PUSH_CHECK{Push to branch?}
     START --> DISPATCH_CHECK{Manual dispatch?}
     
-    PUSH_CHECK -->|Yes| BUILD_ONLY["Build & Push Image<br/>No Deployment"]
-    DISPATCH_CHECK -->|Yes + Deploy K8s checked| FULL_DEPLOY["Build, Push & Deploy"]
+    PUSH_CHECK -->|Yes| BUILD_ONLY["Build, Scan & Push Image<br/>No Deployment"]
+    DISPATCH_CHECK -->|Yes + Deploy K8s checked| FULL_DEPLOY["Build, Scan, Push & Deploy"]
     DISPATCH_CHECK -->|Yes + Deploy K8s unchecked| BUILD_ONLY
     
-    BUILD_ONLY --> STEPS1["• Lint<br/>• Test<br/>• Build<br/>• Package<br/>• Security Scan"]
-    FULL_DEPLOY --> STEPS2["• Lint<br/>• Test<br/>• Build<br/>• Package<br/>• Security Scan<br/>• Deploy to K8s"]
+    BUILD_ONLY --> STEPS1["• Lint<br/>• Test<br/>• Build<br/>• Package (local)<br/>• Security Scan<br/>• Push to Registry"]
+    FULL_DEPLOY --> STEPS2["• Lint<br/>• Test<br/>• Build<br/>• Package (local)<br/>• Security Scan<br/>• Push to Registry<br/>• Deploy to K8s"]
     
-    STEPS1 --> END1[Image in GHCR]
-    STEPS2 --> END2[Running in K8s]
+    STEPS1 --> END1[Secure Image in GHCR]
+    STEPS2 --> END2[Running Secure App in K8s]
 ```
 
 ## Error Handling and Resilience
@@ -230,8 +265,39 @@ fi
 1. **Modularity**: Reusable actions across multiple projects
 2. **Consistency**: Standardized build and deployment patterns
 3. **Local Development**: Self-hosted runner with direct cluster access
-4. **Security**: Automated scanning and secure image handling
+4. **Security-First**: Images scanned before publication, fail-fast on vulnerabilities
 5. **Flexibility**: Manual deployment control with automatic builds
 6. **Observability**: Comprehensive logging and status reporting
+7. **ARM64 Native**: Optimized for Apple Silicon with Rancher Desktop integration
+8. **Composite Actions**: Cross-platform compatibility without containerized action limitations
 
-This architecture provides a robust, scalable foundation for Go application development and deployment while maintaining developer productivity and operational reliability. 
+## Security Enhancements
+
+This pipeline implements **security-first DevSecOps practices**:
+
+- **🔒 Local Build**: Images built locally before any publication
+- **🛡️ Pre-Publication Scanning**: Security analysis runs before registry push
+- **✅ Conditional Publishing**: Only vulnerability-free images reach the registry
+- **🚫 Fail-Fast**: Pipeline stops immediately if security issues are found
+- **📊 Security Reporting**: Detailed vulnerability reports in GitHub Security tab
+- **🔄 Automated Updates**: Security patches can trigger rebuilds
+
+This architecture provides a robust, scalable, and **secure** foundation for Go application development and deployment while maintaining developer productivity and operational reliability. 
+
+```mermaid
+sequenceDiagram
+    participant Runner as macOS ARM64 Runner
+    participant Rancher as Rancher Desktop
+    participant GHCR as GitHub Container Registry
+    participant K8s as Rancher K8s Cluster
+
+    Runner->>Runner: go build GOARCH=arm64 (native compilation)
+    Runner->>Rancher: docker build --platform linux/arm64 (local only)
+    Rancher->>Rancher: Create ARM64 container image
+    Runner->>Runner: Security scan local image
+    Note over Runner: Only if security passes:
+    Runner->>GHCR: docker push (ARM64 secure image)
+    Runner->>K8s: helm install (pulls ARM64 image)
+    K8s->>GHCR: Pull ARM64 secure image
+    K8s->>K8s: Run ARM64 containers in Rancher K8s
+```
