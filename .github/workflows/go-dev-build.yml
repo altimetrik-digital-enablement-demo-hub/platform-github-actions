@@ -66,7 +66,7 @@ jobs:
 
       - name: Setup image tag
         id: setup-tag
-        uses: osru-leu/platform-github-actions/.github/actions/common/setup-tag@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/common/git-tag-generation@feature/workflows
 
   lint:
     runs-on: ubuntu-latest
@@ -75,7 +75,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Lint Go code
-        uses: osru-leu/platform-github-actions/.github/actions/go-templates/lint@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/lint@feature/workflows
         with:
           go-version: ${{ inputs.go-version }}
   test:
@@ -86,7 +86,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run unit tests
-        uses: osru-leu/platform-github-actions/.github/actions/go-templates/unit-test@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/unit-test@feature/workflows
         with:
           go-version: ${{ inputs.go-version }}
       
@@ -111,7 +111,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Go application
-        uses: osru-leu/platform-github-actions/.github/actions/go-templates/build@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/build@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
@@ -128,7 +128,7 @@ jobs:
 
       - name: Package application (build only, no push)
         id: package
-        uses: osru-leu/platform-github-actions/.github/actions/common/package@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/common/docker-build-push@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           image-tag: ${{ needs.setup.outputs.image-tag }}

@@ -27,7 +27,7 @@ graph TB
     
     subgraph "GitHub Repository: platform-github-actions"
         CALL --> REUSABLE["Reusable Workflow<br/>go-dev-build.yml"]
-        REUSABLE --> ACTIONS["Individual Actions:<br/>• lint<br/>• unit-test<br/>• build<br/>• package<br/>• security-scan<br/>• helm-deployment"]
+        REUSABLE --> ACTIONS["Individual Actions:<br/>• lint<br/>• unit-test<br/>• build<br/>• docker-build-push<br/>• security-scan<br/>• helm-deployment"]
     end
     
     subgraph "Self-Hosted Runner (macOS ARM64)"
@@ -84,17 +84,17 @@ graph TB
         end
         
         subgraph "Go-Specific Actions"
-            LINT["go-templates/lint"]
-            TEST["go-templates/unit-test"]
-            BUILD["go-templates/build"]
+            LINT["go/lint"]
+            TEST["go/unit-test"]
+            BUILD["go/build"]
         end
         
         subgraph "Common Actions"
-            PACKAGE["common/package"]
+            PACKAGE["common/docker-build-push"]
             SECURITY["common/security-scan"]
             PUSH_REGISTRY["common/push-to-registry"]
             HELM_DEPLOY["common/helm-deployment"]
-            SETUP_TAG["common/setup-tag"]
+            SETUP_TAG["common/git-tag-generation"]
         end
     end
     
@@ -134,7 +134,7 @@ sequenceDiagram
     Runner->>Runner: Build binary (GOARCH=arm64)
     Runner->>Runner: Upload binary artifact
     
-    Platform->>Runner: Execute package job
+    Platform->>Runner: Execute docker-build-push job
     Runner->>Runner: Download binary artifact
     Runner->>Runner: Build Docker image (ARM64 - Local only)
     
@@ -188,7 +188,7 @@ graph TB
     SETUP[setup] --> LINT[lint]
     LINT --> TEST[test]
     TEST --> BUILD[build]
-    BUILD --> PACKAGE[package - build only]
+    BUILD --> PACKAGE[docker-build-push - build only]
     SETUP --> PACKAGE
     PACKAGE --> SECURITY[security scan]
     SECURITY --> PUSH[push-to-registry]
@@ -222,8 +222,8 @@ flowchart TD
     DISPATCH_CHECK -->|Yes + Deploy K8s checked| FULL_DEPLOY["Build, Scan, Push & Deploy"]
     DISPATCH_CHECK -->|Yes + Deploy K8s unchecked| BUILD_ONLY
     
-    BUILD_ONLY --> STEPS1["• Lint<br/>• Test<br/>• Build<br/>• Package (local)<br/>• Security Scan<br/>• Push to Registry"]
-    FULL_DEPLOY --> STEPS2["• Lint<br/>• Test<br/>• Build<br/>• Package (local)<br/>• Security Scan<br/>• Push to Registry<br/>• Deploy to K8s"]
+    BUILD_ONLY --> STEPS1["• Lint<br/>• Test<br/>• Build<br/>• Docker Build (local)<br/>• Security Scan<br/>• Push to Registry"]
+    FULL_DEPLOY --> STEPS2["• Lint<br/>• Test<br/>• Build<br/>• Docker Build (local)<br/>• Security Scan<br/>• Push to Registry<br/>• Deploy to K8s"]
     
     STEPS1 --> END1[Secure Image in GHCR]
     STEPS2 --> END2[Running Secure App in K8s]

@@ -130,7 +130,7 @@ runs:
       with:
         context: ${{ inputs.docker-context }}
         file: ${{ inputs.dockerfile-path }}
-        platforms: linux/arm64  # Single platform for tar export
+        platforms: linux/arm64  
         tags: ${{ inputs.app-name }}:${{ inputs.image-tag }}
         outputs: type=docker,dest=/tmp/${{ inputs.app-name }}.tar
 

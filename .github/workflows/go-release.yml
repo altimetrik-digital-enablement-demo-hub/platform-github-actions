@@ -125,7 +125,7 @@ jobs:
           echo "✅ All tests passed for release ${{ needs.prepare-release.outputs.new-version }}"
 
       - name: Run linting
-        uses: osru-leu/platform-github-actions/.github/actions/go-templates/lint@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/lint@feature/workflows
         with:
           go-version: ${{ inputs.go-version }}
 
