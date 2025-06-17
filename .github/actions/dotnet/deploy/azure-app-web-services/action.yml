@@ -21,7 +21,7 @@ runs:
   using: composite
   steps:
     # Check out the repo
-    - uses: actions/checkout@main
+    - uses: actions/checkout@v3
     
     # Setup .NET Core SDK
     - name: Setup .NET Core
