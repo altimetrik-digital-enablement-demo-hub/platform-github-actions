@@ -257,12 +257,6 @@ fi
 - **Artifacts**: Test coverage, security reports
 - **Container Registry**: Image versions and metadata
 
-### Application Monitoring
-- **Health Endpoint**: `/health` for status checks
-- **Web Interface**: `http://localhost:8080` for testing
-- **API Endpoints**: REST API for calculator operations
-- **Kubernetes**: Pod status, service endpoints, logs
-
 ## Benefits of This Architecture
 
 1. **Modularity**: Reusable actions across multiple projects
