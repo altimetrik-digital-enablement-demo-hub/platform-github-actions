@@ -22,11 +22,11 @@ graph TB
     subgraph "GitHub Repository: go-sample-app"
         COMMIT --> TRIGGER[".github/workflows/dev.yml<br/>Workflow Triggered"]
         MANUAL --> TRIGGER
-        TRIGGER --> CALL["Calls platform-github-actions<br/>go-dev-build.yml"]
+        TRIGGER --> CALL["Calls platform-github-actions<br/>dev-go-build.yml"]
     end
     
     subgraph "GitHub Repository: platform-github-actions"
-        CALL --> REUSABLE["Reusable Workflow<br/>go-dev-build.yml"]
+        CALL --> REUSABLE["Reusable Workflow<br/>dev-go-build.yml"]
         REUSABLE --> ACTIONS["Individual Actions:<br/>• lint<br/>• unit-test<br/>• build<br/>• docker-build-push<br/>• security-scan<br/>• helm-deployment"]
     end
     
@@ -79,7 +79,7 @@ graph LR
 ```mermaid
 flowchart LR
     subgraph REPO["🏗️ platform-github-actions"]
-        WORKFLOW["📋 go-dev-build.yml"]
+        WORKFLOW["📋 dev-go-build.yml"]
         
         subgraph GO["🐹 Go Actions"]
             LINT["go/lint"]
@@ -125,7 +125,7 @@ sequenceDiagram
 
     Dev->>GH: Git push to branch
     GH->>App: Trigger .github/workflows/dev.yml
-    App->>Platform: Call go-dev-build.yml workflow
+    App->>Platform: Call dev-go-build.yml workflow
     
     Platform->>Runner: Execute lint job
     Runner->>Runner: Run lint

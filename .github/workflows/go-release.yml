@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new-version: ${{ steps.version.outputs.new-version }}
-      changelog: ${{ steps.changelog.outputs.changelog }}
+      # changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
