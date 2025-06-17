@@ -57,7 +57,9 @@ runs:
         git config --local user.email "gituser@github.com"
         git config --local user.name "Git User"
 
+      # always execute even if new version is not created.
     - name: Versionize Release
+      if: always()
       id: versionize
       shell: bash
       run: |

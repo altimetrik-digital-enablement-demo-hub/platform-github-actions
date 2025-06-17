@@ -2,151 +2,155 @@
 
 This repository contains **reusable GitHub Actions workflows** that standardize CI/CD pipelines across our organization. These workflows are centrally maintained by the Platform Engineering team and are meant to be consumed via `workflow_call` from individual service repositories.
 
-## What’s Included
 
-| Workflow Name       | Purpose                         | Language / Use Case   |
-|---------------------|---------------------------------|-----------------------|
-| `test-node.yml`     | Run tests for Node.js services  | Node.js (npm, yarn)   |
-| `lint-python.yml`   | Lint Python code with flake8    | Python                |
-| `build-java.yml`    | Build and test Java projects    | Java / Maven / Gradle |
-| `deploy.yml`        | Deploy to environment/stage     | Any (requires setup)  |
-| ...                 | ...                             | ...                   |
-|                     |                                 |                       |
+## Goals
 
-## How to Use a Reusable Workflow
+This library aims to:
 
-From your service repository, create a workflow like this:
+- **Centralized Workflows and Actions management:** Ensure consistent standards and best practices are followed across numerous GitHub repositories.
+- **Reduced duplication:** Eliminate the need for developers to rewrite common tasks repeatedly, saving time and reducing the risk of errors.
+- **Enforce security best practices:** Build a more secure CI/CD pipeline by embedding security checks (static code analysis, dependency scanning, container scanning, etc) into your automated workflows, allowing for continuous monitoring, early detection and rapid response to potential threats.
+- **Faster onboarding:** Enable new projects to quickly adopt CI/CD automation through using workflows tailored for their technology stacks, clear documentation, and reduced manual setup.
+- **Reliable deployments:** Introduce changes consistently across various deployment environments.
+- **Modular and testable design:** Add and test new features easily without disruping existing workflows and actions.
 
-```yaml
-# .github/workflows/ci.yml
-name: CI Pipeline
+## Repository Structure
 
-on:
-  push:
-    branches: [ main ]
+```plaintext
+.github/
+├── workflows/    # Reuseable templates
+│    ├── node-build.yml   
+│    ├── node-deploy.yml  
+└── actions/       # Reusable custom actions
+    ├── common/      # Common CI/CD stages
+    │   ├── codeql.yml
+    │   ├── docker-build-publish.yml
+    │   ├── git-package.yml
+    │   ├── git-tag-generation.yml
+    │   ├── github-dashboard.yml
+    │   ├── grype-scan.yml
+    │   ├── trivy-scan.yml
+    │   ├── helm-deployment.yml
+    │   └── ...
+    └── node/        # Node.js-specific workflows
+        ├── build.yml
+        ├── lint.yml
+        ├── setup.yml
+        └── ...
+    ├── java/
+    ├── python/
+    ├── go
+    └── ...
 
-jobs:
-  test:
-    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/test-node.yml@v1
-    with:
-      node-version: '20'
 ```
 
-## Stages
+# What’s Included
 
-To promote consistency and scalability, our reusable workflows follow a standardized set of CI/CD stages. These stages help teams implement reliable pipelines and allow platform tooling (e.g., dashboards, security gates) to plug in seamlessly.
+| Location                      | Purpose                                                  |
+|------------------------------|----------------------------------------------------------|
+| `.github/actions/common/`    | Shared, language-agnostic actions (scans, packaging, tagging, deployment) |
+| `.github/actions/node/`      | Node.js-specific actions only                            |
+| `.github/workflows/`         | Reusable workflows combining multiple actions using `workflow_call` |
 
-| Stage            | Purpose                                                        | Typical Tools / Examples                          |
-|------------------|----------------------------------------------------------------|---------------------------------------------------|
-| `checkout`       | Fetch source code, set up environment                          | `actions/checkout`                                |
-| `setup`          | Generate pipeline-wide metadata and context used across stages | image tag name, normalized branch name, timestamps, versioning |
-| `language-setup` | Install required language runtimes for downstream execution    | `setup-node`, `setup-python`, `setup-go`, `setup-dotnet` |
-| `lint`           | Code formatting, dependency scan, secret detection             | `eslint`, `flake8`, `gitleaks`, `trivy fs`, `npm audit` |
-| `test`           | Unit tests, code coverage, static analysis                     | `jest`, `pytest`, `SonarQube`, `CodeQL`, `semgrep`|
-| `build`          | Compile or prepare source artifacts                            | `npm run build`, `mvn package`, `go build`        |
-| `package`        | Create deployable artifacts (e.g., containers, zips, SBOMs)    | `docker build`, `zip`, `cyclonedx`, `trivy image` |
-| `security`       | Deep scanning (SAST, image vuln, license)                      | `Veracode`, `Snyk`, `Trivy`, `CodeQL`, `OSS Review` |
-| `deploy`         | Deploy to environment (dev, staging, prod)                     | `kubectl`, `helm`, `aws deploy`, `argo`           |
-| `notify`         | Send status notifications or post-results                      | Slack, Microsoft Teams, GitHub PR status updates  |
+---
 
-> **Note:** Not all pipelines use every stage. You can opt-in to stages via inputs or choose from templates like `dev-build.yml` or `rel-build.yml`.
+## How to Use
 
-**Example Workflow Using All Stages**:
+- All reusable workflows live under the `.github/workflows/` folder.
+- These workflows use `workflow_call` and can be referenced in service repositories via: ` uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/dev-node-build.yml@v0.0.1` 
+- You can visit [reference section](./.github/workflows/README.md) to understand complete setup.
+
+```yaml
+jobs:
+  use-dev-pipeline:
+    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/dev-node.yml@<ref>
+    with:
+      node-version: '20'
+      lint-command: 'npm run lint'
+      ...
+```
+
+## Action Format
+
+Each custom action must include:
+
+- A `README.md`
+- An `action.yml` file with:
+  - Inputs clearly described with types, defaults, and required flags
+  - **Convention over Configuration:** Use as much as possible reasonable defaults for input parameters and make them optional. 
+  - `runs` section clearly defined (`composite` or `docker`)
+  - Descriptive, minimal, and reusable logic
+
+---
+
+## Workflow Format
+
+Reusable workflows should follow a stage-based format:
 
 ```yaml
 jobs:
   lint:
-    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/lint-node.yml@v1
-
-  test:
-    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/test-node.yml@v1
-    needs: lint
-
+    ...
   build:
-    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/build-node.yml@v1
-    needs: test
-
-  package:
-    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/package-node.yml@v1
-    needs: build
-
+    needs: lint
+    ...
+  test:
+    needs: lint
+    ...
   security:
-    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/security-scan.yml@v1
-    needs: package
-    with:
-      image-name: my-app
-      image-tag: 1.0
-
+    needs: build
+    ...
   deploy:
-    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/deploy.yml@v1
     needs: security
-    with:
-      environment: staging
+    ...
 ```
 
-## Available Inputs
+- Use `needs:` to define dependencies on other jobs
+- Keep environment setup (e.g., Node version) as `parameterized inputs`
 
-Inputs vary by workflow. Refer to the top of each workflow YAML file or [input reference section](#workflow-inputs).
+---
 
-## Example Starter Templates
+## Naming Conventions
 
-We provide starter templates in the /templates folder:
+- ✅ Use **kebab-case** for file and folder names:  
+  _e.g., `docker-build-push.yml`, `jest-unit-test/`_
 
-- sample-node.yml
-- sample-python.yml
+- ✅ Prefix actions with their domain for clarity:  
+  _e.g., `node/lint`, `common/grype-scan`_
 
-Copy and customize one for your service to get started quickly.
+- ✅ Workflows should be named by use case or language:  
+  _e.g., `dev-node.yml`, `release-java.yml`_
 
-## Versioning
+---
 
-Workflows should be consumed using tagged versions, not main.
 
-✅ **Recommended**:
+## Security Standards
 
-```yaml
-uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/test-node.yml@v1
-```
+- ❌ Never hardcode tokens or secrets  
+- ✅ Use GitHub-provided secrets (`GITHUB_TOKEN`) or GitHub Environments  
+  - ✅ Allow (`GITHUB_TOKEN`) with read/write permissions for - `Actions`, `Contents`, `Deployments`, `Pages`, `Secrets` & `Workflows`
 
-❌ **Avoid**:
+---
 
-```yaml
-uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/test-node.yml@main
-```
+# Adding new Reusable Workflows and Actions
+## Documentation
 
-## Contributing
+A new Reusable Workflow or Composite Action must include at least:
 
-Want to add a new workflow or improve an existing one?
+- A one-liner description in the `README.md` table
+- Inputs documented (in table format if possible)
+- Example usage (for both actions and workflows)
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for:
+---
 
-- Naming conventions
-- Coding standards
-- Testing tips
-- Review checklist
 
-## Support
+## Testing & Validation
 
-- GitHub Issues: Open an issue
-- Maintainers: @platform-dev1, @platform-dev2
+Before merging:
 
-## Security
+- Lint YAML syntax of new Workflows and Actions.
+- Create a test Workflow to test new Reusable Workflow and Composite Actions.
+- Provide a link to test Workflow in the PR.
+- Test deployments in local Kubernetes clusters using local GitHub Runners.
 
-- Secrets must be passed via secrets input or GitHub Environments
-- No hardcoded credentials or tokens
-- No direct org resource references unless templated
-
-## Workflow Inputs
-
-Below are common inputs for popular workflows:
-
-**test-node.yml**:
-
-| Input        | Type   | Default | Description            |
-|--------------|--------|---------|------------------------|
-| node-version | string | '18'    | Node.js version to use |
-
-**test-python.yml**:
-
-| Input          | Type   | Default | Description           |
-|----------------|--------|---------|-----------------------|
-| python-version | string | '3.11'  | Python version to use |
+---

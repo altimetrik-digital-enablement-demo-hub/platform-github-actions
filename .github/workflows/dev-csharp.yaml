@@ -59,10 +59,10 @@ on:
         type: string
         default: 'local-k8s'
       
-jobs:     
+jobs:
   lint:
     name: Lint C# code
-    if: ${{ inputs.language == 'csharp' }}
+    if: ${{ inputs.language == 'csharp' }}     
     runs-on: 'ubuntu-latest'
     steps:
       - name: csharpier
