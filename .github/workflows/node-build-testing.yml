@@ -51,17 +51,7 @@ on:
         default: true
         type: boolean
 
-      run_grype:
-        description: 'Run Grype Scan'
-        required: false
-        default: true
-        type: boolean
 
-      contine-on-error:
-        description: "Continue on error for linting"
-        required: false
-        default: true
-        type: boolean
 
 jobs:
   # This job runs the linting process to ensure code quality
@@ -75,7 +65,7 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
 
       # This job sets up Node.js and runs the lint command
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/node/lint@testing
+      - uses:  altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/lint@main
         with:
           lint-command: ${{ inputs.lint-command }}
           node-version: ${{ inputs.node-version }}
@@ -90,13 +80,12 @@ jobs:
     steps:
       
       # This job sets up Node.js and runs the build command
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/node/build@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/build@main
         with:
           build-command: ${{ inputs.build-command }}
           node-version: ${{ inputs.node-version }}
           working-directory: ${{ inputs.working-directory }}
           token: ${{ secrets.GITHUB_TOKEN }}
-
 
   # This job executes unit test
   unitTest:
@@ -104,12 +93,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This job sets up Node.js and runs unit tests
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/node/setup@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@main
         with:
           node-version: ${{ inputs.node-version }}
           working-directory: ${{ inputs.working-directory }}
       # This step runs the unit tests using Jest
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/jest-unit-test@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/jest-unit-test@main
         with:
           test-command: ${{ inputs.test-command }}
           continue-on-error: ${{ inputs.contine-on-error }}
@@ -127,6 +116,7 @@ jobs:
       # - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/codeql@testing
       #   with:
       #     languages: javascript
+ 
   
   # This job handles versioning by generating a new tag based on the commit history
   versioning:
@@ -139,7 +129,7 @@ jobs:
     steps:
       # This step checks out the code from the repository
       - id: generate-tag
-        uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/git-tag-generation@testing
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/git-tag-generation@main
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   dockerBuildAndPush:
@@ -151,7 +141,7 @@ jobs:
       packages: write  # Required to push to GHCR
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/docker-build-push@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@main
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -165,7 +155,7 @@ jobs:
       packages: read  # Required to pull from GHCR
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/trivy-scan@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/trivy-scan@main
         if: ${{ inputs.run_trivy == true }}
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
@@ -173,7 +163,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/grype-scan@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/grype-scan@main
         if: ${{ inputs.run_grype == true }}
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
@@ -185,12 +175,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This job sets up Node.js in the environment
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/node/setup@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@main
         with:
           node-version: ${{ inputs.node-version }}
           working-directory: '.'
       # This step packages the Node.js project
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/git-package@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/git-package@main
         with:
           package-command: ${{ inputs.package-command }}
           artifact-name: ${{ inputs.artifact-name }}
@@ -207,3 +197,4 @@ jobs:
           report: 'reports'
           critical_keyword: 'CRITICAL'
           high_keyword: 'HIGH'
+
