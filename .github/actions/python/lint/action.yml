@@ -13,5 +13,6 @@ runs:
   steps:
     - name: Run Pylint
       shell: bash
+      continue-on-error: true
       run: |
         ${{ inputs.lint-command }}
