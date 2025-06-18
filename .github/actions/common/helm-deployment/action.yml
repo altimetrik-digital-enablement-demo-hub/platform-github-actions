@@ -58,7 +58,7 @@ runs:
           --wait \
           --debug
 
-    - name: Generate deployment summary # TODO: Make this a separate action
+    - name: Generate deployment summary # TODO: Make this a separate action?
       shell: bash
       run: |
         echo "## 🚀 Helm Deployment Summary" >> $GITHUB_STEP_SUMMARY

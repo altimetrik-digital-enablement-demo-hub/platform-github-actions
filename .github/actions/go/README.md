@@ -288,3 +288,18 @@ sequenceDiagram
     K8s->>GHCR: Pull ARM64 secure image
     K8s->>K8s: Run ARM64 containers in Rancher K8s
 ```
+
+
+```mermaid
+flowchart TD
+  A[Developer pushes code] --> B[GitHub Actions triggered]
+  B --> C[Run Lint/Test]
+  C --> D{Tests Passed?}
+  D -- No --> E[Fail the pipeline & notify]
+  D -- Yes --> F[Build Docker Image]
+  F --> G[Push to GHCR/Registry]
+  G --> H[Deploy to Dev Environment]
+  H --> I{Manual Approval?}
+  I -- No --> J[Stop Deployment]
+  I -- Yes --> K[Deploy to Prod Environment]
+  ```

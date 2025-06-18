@@ -1,0 +1,127 @@
+name: Go Deploy
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: 'Name of the application to deploy'
+        required: true
+        type: string
+      image-tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
+      repository:
+        description: 'Docker image repository (e.g., ghcr.io/org/app)'
+        required: true
+        type: string
+      environment:
+        description: 'Deployment environment (dev, staging, prod)'
+        required: false
+        type: string
+        default: 'dev'
+      chart-path:
+        description: 'Path to the Helm chart for deployment'
+        required: false
+        type: string
+        default: './deploy/helm'
+      deploy-k8s:
+        description: 'Deploy to Kubernetes'
+        required: false
+        type: boolean
+        default: false
+      deploy-aws:
+        description: 'Deploy to AWS App Runner'
+        required: false
+        type: boolean
+        default: false
+      deploy-azure:
+        description: 'Deploy to Azure Container Apps'
+        required: false
+        type: boolean
+        default: false
+      use-helm:
+        description: 'Use Helm for Kubernetes deployment'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy-k8s:
+    runs-on: [self-hosted, k8s-deployer]
+    if: inputs.deploy-k8s
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+        
+      - name: Deploy to Kubernetes with Helm
+        if: inputs.use-helm
+        uses: osru-leu/platform-github-actions/.github/actions/common/helm-deployment@feature/workflows
+        with:
+          app-name: ${{ inputs.app-name }}
+          environment: ${{ inputs.environment }}
+          tag: ${{ inputs.image-tag }}
+          repository: ${{ inputs.repository }}
+          chart-path: ${{ inputs.chart-path }}/${{ inputs.app-name }}
+
+  deploy-aws:
+    runs-on: ubuntu-latest
+    if: inputs.deploy-aws
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Deploy to AWS App Runner
+        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-aws-apprunner@feature/workflows
+        with:
+          app-name: ${{ inputs.app-name }}
+          environment: ${{ inputs.environment }}
+          image-tag: ${{ inputs.image-tag }}
+          full-image-name: ${{ inputs.repository }}:${{ inputs.image-tag }}
+
+  deploy-azure:
+    runs-on: ubuntu-latest
+    if: inputs.deploy-azure
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Deploy to Azure Container Apps
+        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-azure-containerapp@feature/workflows
+        with:
+          app-name: ${{ inputs.app-name }}
+          environment: ${{ inputs.environment }}
+          image-tag: ${{ inputs.image-tag }}
+          full-image-name: ${{ inputs.repository }}:${{ inputs.image-tag }}
+          resource-group: 'rg-container-apps'
+          location: 'eastus'
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [deploy-k8s, deploy-aws, deploy-azure]
+    if: always()
+    steps:
+      - name: Generate deployment summary
+        run: |
+          echo "## 🚀 Go Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Application:** ${{ inputs.app-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ inputs.repository }}:${{ inputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Kubernetes:** ${{ needs.deploy-k8s.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **AWS App Runner:** ${{ needs.deploy-aws.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Azure Container Apps:** ${{ needs.deploy-azure.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY 
