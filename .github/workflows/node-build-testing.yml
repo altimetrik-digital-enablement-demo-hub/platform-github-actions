@@ -50,6 +50,16 @@ on:
         required: false
         default: true
         type: boolean
+      run_grype:
+        description: 'Run Grype Scan'
+        required: false
+        default: true
+        type: boolean
+      continue-on-error:
+        description: 'Continue on error for lint and test steps'
+        required: false
+        default: false
+        type: boolean
 
 
 
