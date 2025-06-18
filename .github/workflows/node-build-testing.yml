@@ -88,6 +88,11 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
+      # This job sets up Node.js in the environment
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/node/setup@testing
+        with:
+          node-version: ${{ inputs.node-version }}
+          working-directory: ${{ inputs.working-directory }}  
       
       # This job sets up Node.js and runs the build command
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/node/build@testing

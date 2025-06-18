@@ -23,11 +23,6 @@ inputs:
 runs: 
   using: composite
   steps:
-    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@main
-      with:
-        node-version: ${{ inputs.node-version }}
-        working-directory: ${{ inputs.working-directory }}
-
     # This step runs the lint command
     - name: Lint Project
       run: ${{ inputs.lint-command }}

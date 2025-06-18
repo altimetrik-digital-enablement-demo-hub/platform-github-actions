@@ -21,11 +21,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@main
-      with:
-        node-version: ${{ inputs.node-version }}
-        working-directory: ${{ inputs.working-directory }}
-
     # This step builds the Node.js project
     - name: Build Project
       run: ${{ inputs.build-command }}
