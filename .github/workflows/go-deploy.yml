@@ -67,7 +67,7 @@ jobs:
         
       - name: Deploy to Kubernetes with Helm
         if: inputs.use-helm
-        uses: osru-leu/platform-github-actions/.github/actions/common/helm-deployment@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/helm-deployment@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           environment: ${{ inputs.environment }}
@@ -83,7 +83,7 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Deploy to AWS App Runner
-        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-aws-apprunner@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/deploy-aws-apprunner@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           environment: ${{ inputs.environment }}
@@ -98,7 +98,7 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Deploy to Azure Container Apps
-        uses: osru-leu/platform-github-actions/.github/actions/common/deploy-azure-containerapp@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/deploy-azure-containerapp@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           environment: ${{ inputs.environment }}

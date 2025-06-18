@@ -54,7 +54,7 @@ jobs:
 
       - name: Setup image tag
         id: setup-tag
-        uses: osru-leu/platform-github-actions/.github/actions/common/git-tag-generation@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/git-tag-generation@feature/workflows
 
   lint:
     runs-on: ubuntu-latest
@@ -116,7 +116,7 @@ jobs:
 
       - name: Package application (build only, no push)
         id: package
-        uses: osru-leu/platform-github-actions/.github/actions/common/docker-build-push@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/docker-build-push@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           image-tag: ${{ needs.setup.outputs.image-tag }}
@@ -133,7 +133,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Security scan
-        uses: osru-leu/platform-github-actions/.github/actions/common/security-scan@feature/workflows
+        uses: osru-leu/platform-github-actions/.github/actions/go/security-scan@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           image-tag: ${{ needs.setup.outputs.image-tag }}
