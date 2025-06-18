@@ -29,10 +29,6 @@ on:
         required: false
         type: boolean  
         default: false
-      azure_webapp_package_path:
-        required: false
-        type: string
-        default: '.'
       security-trivy:
         required: false
         type: boolean
