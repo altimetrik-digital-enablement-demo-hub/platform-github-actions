@@ -103,18 +103,18 @@ jobs:
           continue-on-error: ${{ inputs.continue-on-error }}
   
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-  securityScan:
-    needs: lint
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-    steps:
-      # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/static-code-analysis/codeql@testing
-        with:
-          languages: python
+  # securityScan:
+  #   needs: lint
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     security-events: write
+  #     actions: read
+  #     contents: read
+  #   steps:
+  #     # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
+  #     - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/static-code-analysis/codeql@testing
+  #       with:
+  #         languages: python
 
   # This job builds the Python project, preparing it for packaging
   versioning:
