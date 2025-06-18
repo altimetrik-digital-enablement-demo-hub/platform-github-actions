@@ -97,7 +97,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
           working-directory: ${{ inputs.working-directory }}
       # This step runs the unit tests using Jest
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/python/unittest@testing
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/python/unittest@testing
         with:
           test-command: ${{ inputs.test-command }}
           continue-on-error: ${{ inputs.continue-on-error }}
