@@ -162,7 +162,7 @@ jobs:
     if: ${{ needs.versioning.outputs.new_tag != '' }}
     permissions:
       contents: read
-      packages: read  # Required to pull from GHCR
+      packages: read 
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/trivy-scan@main

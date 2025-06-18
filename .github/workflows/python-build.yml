@@ -81,7 +81,7 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
 
       # This job sets up Node.js and runs the lint command
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/python/lint/pylint@testing
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/python/lint@testing
         with:
           lint-command: ${{ inputs.lint-command }}
           continue-on-error: ${{ inputs.contine-on-error }}
