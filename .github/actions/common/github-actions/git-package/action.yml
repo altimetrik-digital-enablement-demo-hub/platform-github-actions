@@ -27,7 +27,7 @@ runs:
       id: pack
       shell: bash
       run: |
-        PACKAGE_FILE=$(npm pack)
+        PACKAGE_FILE=$(eval ${{ inputs.package-command }} | tail -n 1)
         echo "package_file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
 
     # Upload the package as an artifact
