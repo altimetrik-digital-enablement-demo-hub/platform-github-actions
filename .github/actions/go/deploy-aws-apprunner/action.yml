@@ -11,8 +11,8 @@ inputs:
   image-tag:
     description: Docker image tag to deploy
     required: true
-  image-repository:
-    description: Full image repository URL (e.g., ECR URL)
+  image-registry:
+    description: Full image registry URL (e.g., ECR URL)
     required: true
   container-port:
     description: Container port
@@ -40,7 +40,7 @@ runs:
           "ServiceName": "${{ inputs.app-name }}-${{ inputs.environment }}",
           "SourceConfiguration": {
             "ImageRepository": {
-              "ImageIdentifier": "${{ inputs.image-repository }}/${{ inputs.app-name }}:${{ inputs.image-tag }}",
+              "ImageIdentifier": "${{ inputs.image-registry }}/${{ inputs.app-name }}:${{ inputs.image-tag }}",
               "ImageConfiguration": {
                 "Port": "${{ inputs.container-port }}",
                 "RuntimeEnvironmentVariables": {

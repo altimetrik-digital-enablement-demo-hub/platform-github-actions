@@ -13,8 +13,8 @@ inputs:
     description: Kubernetes namespace
     required: false
     default: default
-  repository:
-    description: Docker image repo (e.g., ghcr.io/org/app)
+  image-registry: 
+    description: Image registry (e.g., ghcr.io/org/app)
     required: true
   tag:
     description: Docker image tag
@@ -52,7 +52,7 @@ runs:
         helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart-path }} \
           --namespace ${{ inputs.namespace }} \
           --create-namespace \
-          --set image.repository=${{ inputs.repository }} \
+          --set image.repository=${{ inputs.image-registry }} \
           --set image.tag=${{ inputs.tag }} \
           --set environment=${{ inputs.environment }} \
           --wait \
@@ -67,7 +67,7 @@ runs:
         echo "- **Application:** ${{ inputs.app-name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Namespace:** ${{ inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Image:** \`${{ inputs.repository }}:${{ inputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image:** \`${{ inputs.image-registry }}:${{ inputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         echo "### 📊 Deployment Status" >> $GITHUB_STEP_SUMMARY

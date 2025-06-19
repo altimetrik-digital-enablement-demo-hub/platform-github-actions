@@ -12,10 +12,6 @@ inputs:
     description: Name of the binary artifact to download
     required: false
     default: 'go-binary'
-  binary-name:
-    description: Name of the binary file
-    required: false
-    default: 'app'
   dockerfile-path:
     description: Path to Dockerfile
     required: false
@@ -25,7 +21,7 @@ inputs:
     required: false
     default: '.'
   registry-url:
-    description: Container registry URL
+    description: Container registry base URL
     required: false
     default: 'ghcr.io'
   push-to-registry:
@@ -54,7 +50,6 @@ runs:
         echo "app-name: ${{ inputs.app-name }}"
         echo "image-tag: ${{ inputs.image-tag }}"
         echo "binary-artifact-name: ${{ inputs.binary-artifact-name }}"
-        echo "binary-name: ${{ inputs.binary-name }}"
         echo "registry-url: ${{ inputs.registry-url }}"
         echo "push-to-registry: ${{ inputs.push-to-registry }}"
 
@@ -66,7 +61,7 @@ runs:
 
     - name: Make binary executable
       shell: bash
-      run: chmod +x ${{ inputs.binary-name }}
+      run: chmod +x ${{ inputs.app-name }}
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3

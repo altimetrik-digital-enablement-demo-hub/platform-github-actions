@@ -8,11 +8,11 @@ on:
         required: true
         type: string
       image-tag:
-        description: 'Docker image tag to deploy'
+        description: 'image tag to deploy'
         required: true
         type: string
-      repository:
-        description: 'Docker image repository (e.g., ghcr.io/org/app)'
+      image-registry:
+        description: 'image registry (e.g., ghcr.io/org/app)'
         required: true
         type: string
       environment:
@@ -25,17 +25,17 @@ on:
         required: false
         type: string
         default: './deploy/helm'
-      deploy-k8s:
-        description: 'Deploy to Kubernetes'
+      deploy-local-k8s:
+        description: 'Deploy to local Kubernetes cluster'
         required: false
         type: boolean
         default: false
-      deploy-aws:
+      deploy-aws-apprunner:
         description: 'Deploy to AWS App Runner'
         required: false
         type: boolean
         default: false
-      deploy-azure:
+      deploy-azure-containerapp:
         description: 'Deploy to Azure Container Apps'
         required: false
         type: boolean
@@ -51,9 +51,9 @@ permissions:
   packages: read
 
 jobs:
-  deploy-k8s:
+  deploy-local-k8s:
     runs-on: [self-hosted, k8s-deployer]
-    if: inputs.deploy-k8s
+    if: inputs.deploy-local-k8s
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,12 +72,12 @@ jobs:
           app-name: ${{ inputs.app-name }}
           environment: ${{ inputs.environment }}
           tag: ${{ inputs.image-tag }}
-          repository: ${{ inputs.repository }}
+          image-registry: ${{ inputs.image-registry }}
           chart-path: ${{ inputs.chart-path }}/${{ inputs.app-name }}
 
-  deploy-aws:
+  deploy-aws-apprunner:
     runs-on: ubuntu-latest
-    if: inputs.deploy-aws
+    if: inputs.deploy-aws-apprunner
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,11 +88,11 @@ jobs:
           app-name: ${{ inputs.app-name }}
           environment: ${{ inputs.environment }}
           image-tag: ${{ inputs.image-tag }}
-          full-image-name: ${{ inputs.repository }}:${{ inputs.image-tag }}
+          full-image-name: ${{ inputs.image-registry }}:${{ inputs.image-tag }}
 
-  deploy-azure:
+  deploy-azure-containerapp:
     runs-on: ubuntu-latest
-    if: inputs.deploy-azure
+    if: inputs.deploy-azure-containerapp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,13 +103,13 @@ jobs:
           app-name: ${{ inputs.app-name }}
           environment: ${{ inputs.environment }}
           image-tag: ${{ inputs.image-tag }}
-          full-image-name: ${{ inputs.repository }}:${{ inputs.image-tag }}
+          full-image-name: ${{ inputs.image-registry }}:${{ inputs.image-tag }}
           resource-group: 'rg-container-apps'
           location: 'eastus'
 
   summary:
     runs-on: ubuntu-latest
-    needs: [deploy-k8s, deploy-aws, deploy-azure]
+    needs: [deploy-local-k8s, deploy-aws-apprunner, deploy-azure-containerapp]
     if: always()
     steps:
       - name: Generate deployment summary
@@ -119,9 +119,9 @@ jobs:
           echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
           echo "- **Application:** ${{ inputs.app-name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** \`${{ inputs.repository }}:${{ inputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ inputs.image-registry }}:${{ inputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Deployment Status" >> $GITHUB_STEP_SUMMARY
-          echo "- **Kubernetes:** ${{ needs.deploy-k8s.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **AWS App Runner:** ${{ needs.deploy-aws.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Azure Container Apps:** ${{ needs.deploy-azure.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY 
+          echo "- **Local Kubernetes:** ${{ needs.deploy-local-k8s.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **AWS App Runner:** ${{ needs.deploy-aws-apprunner.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Azure Container Apps:** ${{ needs.deploy-azure-containerapp.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY 
