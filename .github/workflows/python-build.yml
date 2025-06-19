@@ -168,19 +168,3 @@ jobs:
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
-
-  # This job packages the Python project, creating an artifact for deployment or distribution
-  package:
-    needs: versioning
-    runs-on: ubuntu-latest
-    steps:
-      # This job sets up Python in the environment
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/python/setup@testing
-        with:
-          python-version: ${{ inputs.python-version }}
-          working-directory: '.'
-      # This step packages the Python project
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-package@testing
-        with:
-          package-command: ${{ inputs.package-command }}
-          artifact-name: ${{ inputs.artifact-name }}
