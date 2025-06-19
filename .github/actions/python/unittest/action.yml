@@ -15,5 +15,6 @@ runs:
     - name: Run unit tests
       continue-on-error: true
       run: |
+        cd $GITHUB_WORKSPACE
         ${{ inputs.test-command }}
       shell: bash
