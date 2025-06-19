@@ -11,19 +11,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Run unit tests
-      shell: bash
-      run: |
-        echo "📂 Current directory:"
-        pwd
-        echo "📄 Contents:"
-        ls -l
-        echo "📁 tests directory:"
-        ls -l tests || echo "❌ tests directory is missing"
-        # Run the tests
-        python -m unittest discover -s tests -t .
-
-        
     # This step will execute the unittest command
     - name: Run unit tests
       continue-on-error: true
