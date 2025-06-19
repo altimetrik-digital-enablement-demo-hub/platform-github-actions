@@ -1,0 +1,59 @@
+name: deploy .NET application
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: 'Name of the Docker image to deploy'
+        required: true
+        type: string
+      image-tag:
+        description: 'Tag for the Docker image. Default latest'
+        required: false
+        type: string
+        default: 'latest'
+      namespace:
+        description: 'Kubernetes namespace to deploy the application to'
+        required: true
+        type: string
+        default: 'default'
+      registry:
+        description: 'Container registry to push the image to. Default ghcr.io'
+        required: false
+        type: string
+        default: 'ghcr.io'
+      chart:
+        required: false
+        type: string
+        default: 'app'
+      release-name:
+        description: 'Release name for the Helm chart'
+        required: false
+        type: string
+        default: 'app'
+      helm-version:
+        description: 'Version of Helm to use for deployment. Default helm3; can be helm2 or helm3'
+        required: false
+        type: string
+        default: 'helm3'
+      target:
+        required: false
+        description: 'Deployment target platform. Default local-k8s; can be local-k8s, azure-webapp-svc, or azure-webapp-containter'
+        type: string
+        default: 'local-k8s'
+      
+jobs:
+  deploy:
+    name: Deploy release ${{ inputs.release-name }} to ${{ inputs.target }}/${{ inputs.namespace }}
+    runs-on: ['self-hosted', 'macOS']
+    steps:
+      - name: Deploy to local Kubernetes cluster using Helm
+        if: inputs.target == 'local-k8s'
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/deploy/local-k8s-helm@main
+        with:
+          release-name: ${{ inputs.release-name }}
+          namespace: ${{ inputs.namespace }}
+          registry: ${{ inputs.registry }}
+          image-name: ${{ inputs.image-name }}
+          image-tag: ${{ inputs.image-tag }}
+          chart: ${{ inputs.chart }}
+          helm-version: ${{ inputs.helm-version }}

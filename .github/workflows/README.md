@@ -17,19 +17,21 @@ The workflows are designed to be used by application workflows through a [workfl
 
 ## Workflows list
 
-### csharp-deploy
+### csharp-build.yml
 
-Lint, build, test, scan, package into docker container and deploy. By default it deploys into local k8s cluster with the help of local GitHub runner and helm v3. 
+Performs the following actions:
+
+1. Lint code.
+2. Run unit tests.
+3. Build the applicaiton.
+4. Scan code for vulnerabilities. 
+5. Create docker image abd push it to the default registry  ghcr.io.
+6. Scan the docker image for vulnerabilities.
 
 Requirements:
 
   1. GitHub permissions
       - Read and Write workflow permissions under Settings/Actions/General.
-
-  2. Target: lcoal-k8s.
-      - Local GitHub runner
-      - Local Kubernetes cluster
-      - Helm v3
 
 Input parameters
 
@@ -42,9 +44,37 @@ Input parameters
 | dotnet-tools-restore    | true      | no       | Should .Net tools like `csharpier` linter be restored from the project as a Nuget package or installed globally (false) |
 | dotnet-linter-csharpier   | true    | no        | If true, use csharpier for linting |
 | dotnet-linter-roslynator  | false   | no        | If true, use roslynator for linting |  
+| dotnet-test-verbosity     | normal  | no        | Verbosity level for .NET tests. Default normal; can be quiet, minimal, normal, detailed, or diagnostic |  
 | security-trivy            | true    | no        | If true, perform Trivy scan of docker image |
 | security-snyk             | false   | no        | If true, perform Snyk scan of docker image |
 | registry                  | ghcr.io | no        | Container registry to push to for the docker image |
-| chart                     | app     | no        | Path to the helm chart in the GitHub repo. Example: 'deploy/helm/netwebapi' |
-| helm-version              | HEML3   | no        | Helm version to use for deployment into Kubernetess cluster |
-| target                    | local-k8s | no      | Deployment target - local k8s cluster |
+| docker-context            | .       | no        | Context for Docker build. Default src/NetWebApi.API |
+| docker-file               | ./Dockerfile   | no        | Dockerfile path. Default ./Dockerfile; can be set to a custom Dockerfile path |
+| docker-push            | true       | no        | Push the Docker image to the registry. Default true |
+
+### csharp-deploy.yml
+
+Deploy docker container imate to a target platform. By default it deploys into local k8s cluster with the help of local GitHub runner and helm v3. 
+
+Requirements:
+
+  1. GitHub permissions
+      - Read permissions under Settings/Actions/General.
+
+  2. Target: lcoal-k8s.
+      - Local GitHub runner
+      - Local Kubernetes cluster
+      - Helm v3
+
+Input parameters
+
+| Name                    | Default   | Required | Description          |
+| :---                    | :----     | :------: | :----                |
+| image-name              |           | yes      | Name of the Docker image to deploy     |
+| image-tag               | latest    | no       | Docker image tag  |
+| namespace               | default   | no       | Kubernetes namespace to deploy where the image is deployed to |
+| registry                | ghcr.io   | no        | Container registry to pull the docker image from |
+| chart                   | app     | no        | Path to the helm chart in the GitHub repo. Example: 'deploy/helm/netwebapi' |
+| release-name            | 9.0.300   | no       | Release name for the Helm chart |
+| helm-version            | helm3     | no        | Helm version to use for deployment into Kubernetess cluster |
+| target                  | local-k8s | no      | Deployment target - local k8s cluster |

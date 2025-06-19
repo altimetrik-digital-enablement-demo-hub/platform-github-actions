@@ -2,8 +2,8 @@ name: local-k8s
 description: Deploy a Docker image to a local Kubernetes cluster.
 
 inputs:
-  app-name:
-    description: 'Application name'
+  release-name:
+    description: 'Helm release name'
     required: true
     default: 'netwebapi'
   namespace:  
@@ -39,12 +39,12 @@ runs:
     - name: Deploy to local Kubernetes cluster
       shell: bash
       run: |
-        echo "Deploying ${{ inputs.app-name }} to Kubernetes namespace ${{ inputs.namespace }}"
+        echo "Deploying ${{ inputs.release-name }} to Kubernetes namespace ${{ inputs.namespace }}"
         echo "Using Helm chart: ${{ inputs.chart }}"
         echo "Image: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.image-tag }}"
         echo "Helm version: ${{ inputs.helm-version }}"
 
-        helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart }} \
+        helm upgrade --install ${{ inputs.release-name }} ${{ inputs.chart }} \
           --namespace ${{ inputs.namespace }} \
           --set image.repository=${{ inputs.registry }}/${{ inputs.image-name }} \
           --set image.tag=${{ inputs.image-tag }} \
