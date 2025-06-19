@@ -85,6 +85,11 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
+      # This job sets up Python and runs unit tests
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/python/setup@testing
+        with:
+          python-version: ${{ inputs.python-version }}
+          working-directory: ${{ inputs.working-directory }}
       # This step runs the unit tests using Jest
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/python/unittest@testing
         with:
