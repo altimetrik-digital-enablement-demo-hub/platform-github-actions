@@ -18,19 +18,13 @@ on:
       lint-command:
         description: 'Lint command (e.g., npm run lint)'
         required: false
-        default: 'npm run lint'
-        type: string
-
-      build-command:
-        description: 'build command (e.g., npm run)'
-        required: false
-        default: 'npm run build'
+        default: 'pylint app run.py tests'
         type: string
 
       test-command:
         description: 'test command (e.g., npm test)'
         required: false
-        default: 'npm test'
+        default: 'python -m unittest discover tests'
         type: string
         
       package-command:
