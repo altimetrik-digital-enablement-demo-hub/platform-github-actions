@@ -1,0 +1,20 @@
+name: "Run Python Unittests"
+description: "Set up Python, install dependencies, and run unittests"
+
+inputs:
+  test-command:
+    description: "Command to run unittests"
+    required: false
+    default: "python -m unittest discover tests"
+
+
+runs:
+  using: "composite"
+  steps:
+    # This step will execute the unittest command
+    - name: Run unit tests
+      continue-on-error: true
+      run: |
+        cd $GITHUB_WORKSPACE
+        ${{ inputs.test-command }}
+      shell: bash

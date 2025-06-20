@@ -44,7 +44,9 @@ This library aims to:
 
 ```
 
-# What’s Included
+---
+
+## What’s Included
 
 | Location                      | Purpose                                                  |
 |------------------------------|----------------------------------------------------------|
@@ -108,8 +110,6 @@ jobs:
 - Use `needs:` to define dependencies on other jobs
 - Keep environment setup (e.g., Node version) as `parameterized inputs`
 
----
-
 ## Naming Conventions
 
 - ✅ Use **kebab-case** for file and folder names:  
@@ -123,7 +123,6 @@ jobs:
 
 ---
 
-
 ## Security Standards
 
 - ❌ Never hardcode tokens or secrets  
@@ -132,8 +131,9 @@ jobs:
 
 ---
 
-# Adding new Reusable Workflows and Actions
-## Documentation
+## Contributing - Adding new Reusable Workflows and Actions
+
+### Documentation
 
 A new Reusable Workflow or Composite Action must include at least:
 
@@ -143,8 +143,7 @@ A new Reusable Workflow or Composite Action must include at least:
 
 ---
 
-
-## Testing & Validation
+### Testing & Validation
 
 Before merging:
 
@@ -152,5 +151,3 @@ Before merging:
 - Create a test Workflow to test new Reusable Workflow and Composite Actions.
 - Provide a link to test Workflow in the PR.
 - Test deployments in local Kubernetes clusters using local GitHub Runners.
-
----

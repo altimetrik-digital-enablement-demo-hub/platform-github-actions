@@ -1,0 +1,46 @@
+name: deploy-csharp-azure-app-web-services
+description: Deploy a C# application to Azure App Service
+
+inputs:
+  azure-webapp-name:
+    description: 'Azure App Service name'
+    required: true
+  azure-webapp-package-path:
+    description: 'The path to your web app project, defaults to the repository root'
+    required: true
+    default: '.'
+  azure-webapp-publish-profile:
+    description: 'The publish profile for the Azure Web App Service'
+    required: true
+  dotnet_version:
+    description: 'The .NET SDK version to use, defaults to 6.0.x'
+    required: false
+    default: '9.0.300'
+        
+runs:
+  using: composite
+  steps:
+    # Check out the repo
+    - uses: actions/checkout@v3
+    
+    # Setup .NET Core SDK
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ inputs.dotnet_version }} 
+    
+    # Run dotnet build and publish
+    - name: dotnet build and publish
+      shell: bash
+      run: |
+        dotnet restore
+        dotnet build --configuration Release
+        dotnet publish -c Release --property:PublishDir='${{inputs.azure-webapp-name}}' 
+    
+      # Deploy to Azure Web apps
+    - name: 'Run Azure webapp deploy action using publish profile credentials'
+      uses: azure/webapps-deploy@v3
+      with: 
+        app-name: ${{ inputs.azure-webapp-name }} 
+        publish-profile: ${{ inputs.azure-webapp-publish-profile }} 
+        package: '${{ inputs.azure-webapp-package-path }}/${{inputs.azure-webapp-name}}'

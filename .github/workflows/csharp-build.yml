@@ -1,0 +1,173 @@
+name: build .Net application
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: 'Name of the .NET '
+        required: true
+        type: string
+      language:
+        description: '.Net programming language used in the application. Default csharp; can be csharp or fsharp.'
+        required: false
+        type: string
+        default: 'csharp'
+      git-fetch-depth:
+        description: 'Git fetch depth for the repository. Default 1; can be 0 for full history.'
+        required: false
+        type: string
+        default: '1'
+      dotnet-version:
+        description: 'Version of .NET SDK to use. Default 9.0.300; can be any valid .NET SDK version.'
+        required: false
+        type: string
+        default: '9.0.300'
+      dotnet-tools-restore:
+        description: 'Restore .NET tools before running the linter. Default true; can be false to skip tool restoration.'
+        required: false
+        type: boolean
+        default: true
+      dotnet-linter-csharpier:
+        description: 'Run CSharpier linter on the code. Default true; can be false to skip CSharpier linting.'
+        required: false
+        type: boolean  
+        default: true
+      dotnet-linter-roslynator:
+        description: 'Run Roslynator linter on the code. Default true; can be false to skip Roslynator linting.'
+        required: false
+        type: boolean  
+        default: false
+      dotnet-test-verbosity:
+        description: 'Verbosity level for .NET tests. Default normal; can be quiet, minimal, normal, detailed, or diagnostic.'
+        required: false
+        type: string
+        default: 'normal'
+      security-trivy:
+        description: 'Run Trivy security scan on the Docker image. Default true; can be false to skip Trivy scan.'
+        required: false
+        type: boolean
+        default: true
+      security-snyk:
+        description: 'Run Snyk security scan on the Docker image. Default true; can be false to skip Snyk scan.'
+        required: false
+        type: boolean
+        default: false
+      registry:
+        description: 'Container registry to push the image to. Default ghcr.io.'
+        required: false
+        type: string
+        default: 'ghcr.io'
+      docker-context:
+        description: 'Context for Docker build. Default src/NetWebApi.API.'
+        required: false
+        type: string
+        default: '.'
+      docker-file:
+        description: 'Dockerfile path. Default ./Dockerfile; can be set to a custom Dockerfile path'
+        required: false
+        type: string
+        default: './Dockerfile'
+      docker-push:
+        description: 'Push the Docker image to the registry. Default true'
+        required: false
+        type: boolean
+        default: true
+      
+jobs:
+  lint:
+    name: Lint C# code
+    if: ${{ inputs.language == 'csharp' }}     
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: csharpier
+        if: ${{ inputs.dotnet-linter-csharpier == true }}
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/csharpier@main
+        continue-on-error: true
+        with:
+          app-name: ${{ inputs.app-name }}
+          dotnet-version: ${{ inputs.dotnet-version }}
+          restore: ${{ inputs.dotnet-tools-restore }}
+      - name: roslynator
+        if: ${{ inputs.dotnet-linter-roslynator == true }}
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/roslynator@main
+        continue-on-error: true
+        with:
+          app-name: ${{ inputs.app-name }}
+          dotnet-version: ${{ inputs.dotnet-version }}
+          restore: ${{ inputs.dotnet-tools-restore }}
+
+  test:
+    name: Test ${{ inputs.app-name }}
+    needs: lint
+    runs-on: 'ubuntu-latest'     
+    steps:
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/test@main
+        with:
+          verbosity: ${{ inputs.dotnet-test-verbosity }}
+
+  codeql:
+    name: CodeQL Analysis for ${{ inputs.app-name }}
+    needs: lint
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/codeql@main
+        with:
+          app-name: ${{ inputs.app-name }}  
+  build:
+    name: Build ${{ inputs.app-name }}
+    needs: [test, codeql]
+    runs-on: 'ubuntu-latest'
+    outputs:
+      app_version: ${{ steps.build.outputs.app_version }}
+    steps:
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/build@main
+        id: build
+        with:
+          app-name: ${{ inputs.app-name }}
+          language: ${{ inputs.language }}
+          dotnet-version: ${{ inputs.dotnet-version }}
+          git-fetch-depth: ${{ inputs.git-fetch-depth }}   
+          git-fetch-tags: "true"
+          token: ${{ secrets.GITHUB_TOKEN }}  
+  
+  package:
+    name: Package ${{ inputs.app-name }}
+    needs: build
+    if: needs.build.outputs.app_version != '' 
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/package@main
+        with:
+          language: ${{ inputs.language }}
+          app-name: ${{ inputs.app-name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          context: ${{ inputs.docker-context }}
+          docker-file: ${{ inputs.docker-file }}
+          image-tag: ${{ needs.build.outputs.app_version }}
+          registry: ${{ inputs.registry }}
+          push: ${{ inputs.docker-push }}
+  
+  security:
+    name: Security Scan for ${{ inputs.app-name }}
+    needs: [build, package]
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/security-scan/trivy@main
+        if: inputs.security-trivy == true
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          image-name: altimetrik-digital-enablement-demo-hub/${{ inputs.app-name }}
+          image-tag: ${{ needs.build.outputs.app_version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          severity: 'CRITICAL,HIGH'
+
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/security-scan/snyk@main
+        if: inputs.security-snyk == true
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          image-name: ${{ inputs.app-name }}
+          image-tag: ${{ needs.build.outputs.app_version }}
+          docker-file: ${{ inputs.docker-file }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          

@@ -1,0 +1,67 @@
+name: Grype Scan
+description: 'Scan a Docker image for vulnerabilities using Grype'
+
+inputs:
+  version:
+    required: true
+    description: 'Version of the Docker image to scan'
+    default: 'latest'
+  token:
+    required: true
+    description: 'GitHub token for authentication'
+
+runs:
+  using: 'composite'
+  steps:
+    # Log in to GitHub Container Registry
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.token }}
+    
+    # This step will change the repository name to lowercase
+    - name: Convert repository name to lowercase
+      shell: bash
+      id: repo
+      run: |
+        repo_lower=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+        echo "repo=$repo_lower" >> $GITHUB_OUTPUT
+
+    # Install Grype
+    - name: Install Grype
+      shell: bash
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+    # Scan the Docker image with Grype
+    - name: Scan Docker image with Grype
+      shell: bash
+      run: |
+        IMAGE=ghcr.io/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
+        echo "Scanning image: $IMAGE"
+        grype $IMAGE -o table > grype-report.txt
+    
+    - name: Upload Grype Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: Grype-summary
+        path: Grype-summary.txt
+    
+    # Upload the Grype report as an artifact
+    - name: Summarize Grype Report
+      shell: bash
+      run: |
+        CRITICAL=$(grep -c 'Critical' grype-report.txt || true)
+        HIGH=$(grep -c 'High' grype-report.txt || true)
+
+        echo "## 🛡️ Grype Scan" >> $GITHUB_STEP_SUMMARY
+        echo "- 🚨 Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
+        echo "- ⚠️ High: $HIGH" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "<details><summary>📄 View Raw Report (truncated)</summary>" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        head -n 100 grype-report.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo '</details>' >> $GITHUB_STEP_SUMMARY

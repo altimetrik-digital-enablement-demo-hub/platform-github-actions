@@ -1,0 +1,64 @@
+name: "Summarize Report"
+description: "Summarize a security scan report and write to GITHUB_STEP_SUMMARY"
+
+
+inputs:
+  token:
+    description: "GitHub token for authentication"
+    required: true
+  tool:
+    description: "Tool name (e.g., Trivy, Grype)"
+    required: true
+  report:
+    description: "Path to the report file"
+    required: true
+  critical-keyword:
+    description: "Keyword used to count critical vulnerabilities"
+    required: true
+  high-keyword:
+    description: "Keyword used to count high vulnerabilities"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: reports
+
+    - name: Build Dashboard
+      shell: bash
+      run: |
+        mkdir -p dashboard
+        cat <<EOF > dashboard/index.html
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <title>CI Dashboard</title>
+          <style>
+            body { font-family: sans-serif; padding: 2rem; background: #f9f9f9; }
+            h2 { color: #2c3e50; }
+            pre { background: #fff; padding: 1em; border: 1px solid #ddd; }
+            section { margin-bottom: 2em; }
+          </style>
+        </head>
+        <body>
+          <h1>🔍 CI Scan Dashboard</h1>
+        EOF
+
+        find reports -type f \( -name "*.md" -o -name "*.txt" \) | while read -r file; do
+          NAME=$(basename "$(dirname "$file")")
+          echo "<section><h2>${NAME} Report</h2><pre>" >> dashboard/index.html
+          cat "$file" >> dashboard/index.html
+          echo "</pre></section>" >> dashboard/index.html
+        done
+
+        echo "</body></html>" >> dashboard/index.html
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ inputs.token }}
+        publish_dir: ./dashboard

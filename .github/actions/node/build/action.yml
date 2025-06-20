@@ -1,0 +1,34 @@
+name: Build Node Project
+description: 'Build a Node.js project and deploy the build artifacts to GitHub Pages'
+
+inputs:
+  build-command:
+    description: 'Build command (e.g., npm run build or npx ng build)'
+    required: false
+    default: 'npm run build'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20'
+  working-directory:
+    description: 'Working directory for the build command'
+    required: false
+    default: '.'
+  token:
+    description: 'GitHub token for authentication'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # This step builds the Node.js project
+    - name: Build Project
+      run: ${{ inputs.build-command }}
+      shell: bash
+
+    # This step uploads the build artifacts
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ inputs.token }}
+        publish_dir: ./build

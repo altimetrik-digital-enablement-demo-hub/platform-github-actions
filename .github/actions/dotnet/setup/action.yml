@@ -1,0 +1,34 @@
+name: dotnet-setup
+description: Setup .NET environment
+
+inputs:
+  dotnet-version:
+    description: The .NET SDK version to use
+    required: false
+    default: '9.0.300'
+  git-fetch-depth:
+    description: The depth of the git fetch
+    required: false
+    default: "1"
+  git-fetch-tags:
+    description: Whether to fetch tags from the repository
+    required: false
+    default: "true"
+  
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ inputs.git-fetch-depth }}
+        fetch-tags: ${{ inputs.git-fetch-tags }}  
+
+    - name: Set up .NET Core
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+
+    - name: install dependencies
+      shell: bash
+      run: dotnet restore
+    

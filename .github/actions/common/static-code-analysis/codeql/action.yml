@@ -1,0 +1,37 @@
+name: CodeQL Steps
+description: Perform CodeQL scanning steps
+
+inputs:
+  languages:
+    description: 'Languages to analyze'
+    required: true
+    default: 'javascript'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ inputs.languages }}
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    # This step runs the CodeQL analysis on the codebase
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+    # This step generates a summary of the CodeQL analysis results
+    - name: CodeQL Summary
+      shell: bash
+      run: |
+        echo "## 🔐 CodeQL Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- Check [Security > Code Scanning Alerts](../../security/code-scanning) for results." >> $GITHUB_STEP_SUMMARY
+
+    # This step uploads the CodeQL summary as an artifact
+    - name: Upload ESLint Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: codeql-summary
+        path: summary.md
