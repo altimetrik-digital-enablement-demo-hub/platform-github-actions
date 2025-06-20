@@ -87,7 +87,7 @@ jobs:
           continue-on-error: ${{ inputs.contine-on-error }}
 
   # This job executes unit test
-  unitTest:
+  unit-test:
     needs: lint
     runs-on: ubuntu-latest
     steps:
@@ -103,7 +103,7 @@ jobs:
           continue-on-error: ${{ inputs.continue-on-error }}
   
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-  securityScan:
+  security-scan:
     needs: lint
     runs-on: ubuntu-latest
     permissions:
@@ -119,7 +119,7 @@ jobs:
   # This job builds the Python project, preparing it for packaging
   versioning:
     runs-on: ubuntu-latest
-    needs: [lint, unitTest]
+    needs: [lint, unit-test]
     permissions:
       contents: write
     outputs:
@@ -131,7 +131,7 @@ jobs:
 
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
-  dockerBuildAndPush:
+  docker-build-and-push:
     runs-on: ubuntu-latest
     needs: versioning
     if: ${{ needs.versioning.outputs.new_tag != '' }}
@@ -147,9 +147,9 @@ jobs:
           registry: ${{ inputs.registry }}
   
   # This job scans the Docker image for vulnerabilities using Trivy and Grype
-  dockerScan:
+  docker-scan:
     runs-on: ubuntu-latest
-    needs: [versioning, dockerBuildAndPush]
+    needs: [versioning, docker-build-and-push]
     if: ${{ needs.versioning.outputs.new_tag != '' }}
     permissions:
       contents: read

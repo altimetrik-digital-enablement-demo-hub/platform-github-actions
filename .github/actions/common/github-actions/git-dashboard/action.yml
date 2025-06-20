@@ -12,10 +12,10 @@ inputs:
   report:
     description: "Path to the report file"
     required: true
-  critical_keyword:
+  critical-keyword:
     description: "Keyword used to count critical vulnerabilities"
     required: true
-  high_keyword:
+  high-keyword:
     description: "Keyword used to count high vulnerabilities"
     required: true
 
