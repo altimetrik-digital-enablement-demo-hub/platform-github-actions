@@ -8,6 +8,10 @@ inputs:
   token:
     description: 'GitHub token for authentication to GHCR'
     required: true
+  registry:
+    description: 'Docker registry to push the image to'
+    required: false
+    default: 'ghcr.io'
 
 
 runs:
@@ -20,7 +24,7 @@ runs:
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
-        registry: ghcr.io
+        registry: ${{ inputs.registry }}
         username: ${{ github.actor }}
         password: ${{ inputs.token }}
     

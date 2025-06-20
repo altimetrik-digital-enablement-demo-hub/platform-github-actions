@@ -20,6 +20,12 @@ on:
         required: false
         default: 'npm run lint'
         type: string
+      
+      registry:
+        description: 'Docker registry to push the image (e.g., ghcr.io/org/app)'
+        required: false
+        default: 'ghcr.io'
+        type: string
 
       build-command:
         description: 'build command (e.g., npm run)'
@@ -160,6 +166,7 @@ jobs:
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ inputs.registry }}
 
   dockerScan:
     runs-on: ubuntu-latest

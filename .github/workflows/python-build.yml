@@ -15,6 +15,12 @@ on:
         default: '.'
         type: string
       
+      registry:
+        description: 'Docker registry to push the image (e.g., ghcr.io/org/app)'
+        required: false
+        default: 'ghcr.io'
+        type: string
+      
       lint-command:
         description: 'Lint command (e.g., npm run lint)'
         required: false
@@ -97,18 +103,18 @@ jobs:
           continue-on-error: ${{ inputs.continue-on-error }}
   
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-  # securityScan:
-  #   needs: lint
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     security-events: write
-  #     actions: read
-  #     contents: read
-  #   steps:
-  #     # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-  #     - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
-  #       with:
-  #         languages: python
+  securityScan:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
+        with:
+          languages: python
 
   # This job builds the Python project, preparing it for packaging
   versioning:
@@ -138,6 +144,7 @@ jobs:
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ inputs.registry }}
   
   # This job scans the Docker image for vulnerabilities using Trivy and Grype
   dockerScan:
