@@ -1,0 +1,197 @@
+name: Complete Java Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: "Java version to use"
+        required: false
+        default: '17'
+        type: string
+
+      working-directory:
+        description: "Project root directory"
+        required: false
+        default: '.'
+        type: string
+      
+      lint-command:
+        description: 'Lint command (e.g., mvn checkstyle:check)'
+        required: false
+        default: 'mvn checkstyle:check'
+        type: string
+
+      build-command:
+        description: 'build command (e.g., mvn clean package)'
+        required: false
+        default: 'mvn clean package'
+        type: string
+
+      test-command:
+        description: 'test command (e.g., mvn test)'
+        required: false
+        default: 'mvn test'
+        type: string
+        
+      package-command:
+        description: "Command to package the app"
+        required: false
+        default: 'mvn package'
+        type: string
+
+      artifact-name:
+        description: "Name of the build artifact"
+        required: false
+        default: 'java-package'
+        type: string
+      
+      run-trivy:
+        description: 'Run Trivy Scan'
+        required: false
+        default: true
+        type: boolean
+
+      run-grype:
+        description: 'Run Grype Scan'
+        required: false
+        default: true
+        type: boolean
+
+      contine-on-error:
+        description: "Continue on error for linting"
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  # This job runs the linting process to ensure code quality
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      # This job sets up Java and runs the lint command
+      - uses: amorattabalt/platform-github-actions/.github/actions/java/lint@main
+        with:
+          lint-command: ${{ inputs.lint-command }}
+          java-version: ${{ inputs.java-version }}
+          working-directory: ${{ inputs.working-directory }}
+          continue-on-error: ${{ inputs.contine-on-error }}
+
+  # This job builds the Java project, preparing it for packaging
+  build:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      # This job sets up Java and runs the build command
+      - uses: amorattabalt/platform-github-actions/.github/actions/java/build@main
+        with:
+          build-command: ${{ inputs.build-command }}
+          java-version: ${{ inputs.java-version }}
+          working-directory: ${{ inputs.working-directory }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # This job executes unit test
+  unit-test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      # This job sets up Java and runs unit tests
+      - uses: amorattabalt/platform-github-actions/.github/actions/java/setup@main
+        with:
+          java-version: ${{ inputs.java-version }}
+          working-directory: ${{ inputs.working-directory }}
+      # This step runs the unit tests
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/junit-test@main
+        with:
+          test-command: ${{ inputs.test-command }}
+          continue-on-error: ${{ inputs.contine-on-error }}
+
+  # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
+  # Note: CodeQL is only available for public repos or private repos with GitHub Advanced Security
+  security-scan:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_visibility == 'public' }}
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
+      - name: Run CodeQL Analysis
+        uses: amorattabalt/platform-github-actions/.github/actions/common/codeql@main
+        with:
+          languages: java
+        continue-on-error: true
+
+  # This job handles versioning by generating a new tag based on the commit history
+  versioning:
+    runs-on: ubuntu-latest
+    needs: [build, unit-test]
+    permissions:
+      contents: write
+    outputs:
+      new-tag: ${{ steps.generate-tag.outputs.tag }}
+    steps:
+      # This step checks out the code from the repository
+      - id: generate-tag
+        uses: amorattabalt/platform-github-actions/.github/actions/common/git-tag-generation@main
+
+  # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
+  dockerBuildAndPush:
+    runs-on: ubuntu-latest
+    needs: versioning
+    if: ${{ needs.versioning.outputs.new-tag != '' }}
+    permissions:
+      contents: read
+      packages: write  # Required to push to GHCR
+    steps:
+    # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/docker-build-push@main
+        with:
+          version: ${{ needs.versioning.outputs.new-tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  dockerScan:
+    runs-on: ubuntu-latest
+    needs: [versioning, dockerBuildAndPush]
+    if: ${{ needs.versioning.outputs.new-tag != '' }}
+    permissions:
+      contents: read
+      packages: read  # Required to pull from GHCR
+    steps:
+      # This job scans the Docker image for vulnerabilities using Trivy
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/trivy-scan@main
+        if: ${{ inputs.run-trivy == true }}
+        with:
+          version: ${{ needs.versioning.outputs.new-tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          severity: 'CRITICAL,HIGH'
+
+      # This job scans the Docker image for vulnerabilities using Grype
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/grype-scan@main
+        if: ${{ inputs.run-grype == true }}
+        with:
+          version: ${{ needs.versioning.outputs.new-tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # This job packages the Java project, creating an artifact for deployment or distribution
+  package:
+    needs: versioning
+    runs-on: ubuntu-latest
+    steps:
+      # This step packages the Java project
+      - uses: amorattabalt/platform-github-actions/.github/actions/java/package@main
+        with:
+          package-command: ${{ inputs.package-command }}
+          artifact-name: ${{ inputs.artifact-name }}
+          java-version: ${{ inputs.java-version }}
+          working-directory: ${{ inputs.working-directory }}
+
+  # This job generates a dashboard summarizing the results of the previous jobs
+  dashboard:
+    runs-on: ubuntu-latest
+    needs: [lint, unit-test, dockerScan]
+    if: always()
+    steps:
+      # This job generates a dashboard summarizing the results of the previous jobs
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/github-dashboard@main 

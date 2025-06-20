@@ -1,0 +1,34 @@
+name: Common Java Setup
+description: 'Setup Java environment and install dependencies for a Java project'
+
+inputs:
+  java-version:
+    description: 'Java version to use'
+    required: false
+    default: '17'
+  working-directory:
+    description: 'The working directory for the Java project'
+    required: false
+    default: '.'
+
+runs:
+  using: 'composite'
+  steps:
+    # Checkout code
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+          fetch-depth: 0
+
+    # Setup Java environment
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ inputs.java-version }}
+
+    # Install dependencies (Maven will download dependencies automatically)
+    - name: Install dependencies
+      run: mvn dependency:resolve
+      shell: bash
+      working-directory: ${{ inputs.working-directory }} 
