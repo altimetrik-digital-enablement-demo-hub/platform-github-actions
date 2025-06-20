@@ -1,0 +1,38 @@
+name: Package Node Project
+description: |
+  This action packages a Node.js project using a custom command and uploads the resulting artifact.
+  It is designed to be used in workflows that require packaging of Node.js applications or libraries.
+
+inputs:
+  package-command:
+    description: 'Custom command for packaging (e.g., npm pack, zip, etc.)'
+    required: false
+    default: 'npm pack'
+  artifact-name:
+    description: 'Name of the uploaded artifact'
+    required: false
+    default: 'package-artifact'
+  package-output-dir:
+    description: 'Directory where the package is generated (relative to working-directory)'
+    required: false
+    default: '.'
+
+
+
+runs:
+  using: 'composite'
+  steps:
+    # This step packages a Node.js project
+    - name: Package Project
+      id: pack
+      shell: bash
+      run: |
+        PACKAGE_FILE=$(eval ${{ inputs.package-command }} | tail -n 1)
+        echo "package_file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
+
+    # Upload the package as an artifact
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.pack.outputs.package_file }}

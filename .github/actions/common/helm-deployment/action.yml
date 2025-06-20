@@ -1,0 +1,48 @@
+name: Deploy with Helm
+description: Builds and deploys the app using Helm to a Kubernetes cluster.
+inputs:
+  app-name:
+    description: Name of the application to deploy
+    required: true
+    default: react-app
+  kubeconfig:
+    description: Base64-encoded kubeconfig to access the cluster
+    required: false
+  chart-path:
+    description: Path to the Helm chart
+    required: true
+    default: ./charts/react-app
+  namespace:
+    description: Kubernetes namespace
+    required: false
+    default: default
+  repository:
+    description: Docker image repo (e.g., ghcr.io/org/app)
+    required: true
+    default: latest
+  tag:
+    description: Docker image tag
+    required: true
+    default: latest
+
+runs:
+  using: composite
+  steps:
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: v1.29.0
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: v3.14.0
+
+    - name: Deploy via Helm
+      shell: bash
+      run: |
+        helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart-path }} \
+          --namespace ${{ inputs.namespace }} \
+          --create-namespace \
+          --set image.repository=${{ inputs.repository }} \
+          --set image.tag=${{ inputs.tag }}

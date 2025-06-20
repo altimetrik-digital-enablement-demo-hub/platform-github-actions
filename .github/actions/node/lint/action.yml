@@ -1,0 +1,56 @@
+name: Lint Node Project
+description: 'Lint a Node.js project using ESLint and upload the results as an artifact'
+
+inputs:
+  lint-command:
+    description: 'Lint command (e.g., npm run lint or npx ng lint)'
+    required: false
+    default: 'npm run lint'
+  working-directory:
+    description: 'Working directory for the lint command'
+    required: false
+    default: '.'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20'
+  continue-on-error:
+    description: 'Continue on error for linting'
+    required: false
+    default: 'true'
+
+
+runs: 
+  using: composite
+  steps:
+    # This step runs the lint command
+    - name: Lint Project
+      run: ${{ inputs.lint-command }}
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      shell: bash
+
+    # This step uploads the lint results
+    - name: ESLint Summary
+      run: |
+        if [[ ! -f eslint-report.json ]]; then
+          echo "## 🧹 ESLint Report" > summary.md
+          echo "- ⚠️ No report file found. Was ESLint run with JSON output?" >> summary.md
+        else
+          ERRORS=$(jq '[.[] | .messages[] | select(.severity==2)] | length' eslint-report.json)
+          WARNINGS=$(jq '[.[] | .messages[] | select(.severity==1)] | length' eslint-report.json)
+
+          echo "## 🧹 ESLint Report" > summary.md
+          echo "- ❌ Errors: $ERRORS" >> summary.md
+          echo "- ⚠️ Warnings: $WARNINGS" >> summary.md
+        fi
+      shell: bash
+
+    # This step uploads the summary file as an artifact
+    - name: Upload ESLint Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: eslint-summary
+        path: summary.md
+
+    

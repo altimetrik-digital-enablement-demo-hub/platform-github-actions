@@ -1,0 +1,71 @@
+name: Node.js Unit Tests
+description: "Runs unit tests for a Node.js project using Jest and uploads the results."
+    
+inputs:
+  test-command:
+    description: "Command to run unit tests"
+    required: false
+    default: 'npm test'
+  continue-on-error:
+    description: "Continue on error for unit tests"
+    required: false
+    default: 'true'
+
+
+
+outputs:
+  coverage-report:
+    description: "Coverage report file"
+    value: coverage/cobertura-coverage.xml
+
+
+runs:
+  using: composite
+  steps:
+    # Run the test command with additional flags
+    - name: Run Unit Tests
+      shell: bash
+      continue-on-error: true
+      run: |
+        echo "Running: ${{ inputs.test-command }} -- --coverage --json --outputFile=jest-report.json"
+        ${{ inputs.test-command }} -- --coverage --json --outputFile=jest-report.json || true
+
+    # Upload JUnit XML test results
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: test-results/junit.xml
+
+    # Annotate test failures
+    - name: Annotate test failures
+      uses: dorny/test-reporter@v1
+      with:
+        name: Jest Tests
+        path: test-results/junit.xml
+        reporter: jest-junit
+        fail-on-error: false
+
+    # Summarize Jest JSON report
+    - name: Summarize Jest Results
+      shell: bash
+      run: |
+        if [[ ! -f jest-report.json ]]; then
+          echo "## 🧪 Jest Unit Test Report" > summary.md
+          echo "- ⚠️ No Jest report found. Was Jest run correctly?" >> summary.md
+        else
+          PASSED=$(jq '.numPassedTests' jest-report.json)
+          FAILED=$(jq '.numFailedTests' jest-report.json)
+          TOTAL=$(jq '.numTotalTests' jest-report.json)
+
+          echo "## 🧪 Jest Unit Test Report" > summary.md
+          echo "- 🟢 Passed: $PASSED" >> summary.md
+          echo "- 🔴 Failed: $FAILED" >> summary.md
+          echo "- 📊 Total: $TOTAL" >> summary.md
+        fi
+
+    - name: Upload ESLint Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: jest-summary
+        path: summary.md

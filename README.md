@@ -152,5 +152,3 @@ Before merging:
 - Create a test Workflow to test new Reusable Workflow and Composite Actions.
 - Provide a link to test Workflow in the PR.
 - Test deployments in local Kubernetes clusters using local GitHub Runners.
-
----
