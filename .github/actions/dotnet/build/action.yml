@@ -2,7 +2,7 @@ name: dotnet-setup
 description: Setup .NET environment
 
 inputs:
-  app-name:
+  app-name: 
     description: Application name
     required: true
   language:
@@ -18,12 +18,12 @@ inputs:
     required: false
     default: "1"
   token:
-    description: 'A Github PAT'
+    description: 'A Github API token with permissions to create releases and push changes'
     required: true
 outputs:
-    app_version: 
-      description: SemVer application
-      value: ${{ steps.versionize.outputs.app_version }}
+    app-version:
+      description: The version of the application as determined by Versionize 
+      value: ${{ steps.versionize.outputs.app-version }}
   
 runs:
   using: composite
@@ -67,8 +67,8 @@ runs:
         versionize --version 
         versionize --exit-insignificant-commits
         VERSION=$(versionize inspect)
-        echo "app_version=${VERSION}"
-        echo "app_version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "app-version=${VERSION}"
+        echo "app-version=${VERSION}" >> $GITHUB_OUTPUT
       continue-on-error: true
 
     - name: Check versionize result

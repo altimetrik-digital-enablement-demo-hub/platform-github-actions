@@ -15,7 +15,7 @@ inputs:
     description: 'Docker image tag'
     required: true
     
-  dockerFile:
+  docker-file:
     description: 'Path to the Dockerfile'
     default: './Dockerfile'
     required: false
@@ -45,7 +45,3 @@ runs:
       env:
         SNYK_TOKEN: ${{ inputs.token }}
 
-    # - name: Upload Snyk report as sarif 📦
-    #   uses: github/codeql-action/upload-sarif@v3
-    #   with:
-    #     sarif_file: snyk.sarif

@@ -1,4 +1,4 @@
-name: build
+name: csharpier-lint
 description: Lint C# code using CSharpier
 
 inputs:

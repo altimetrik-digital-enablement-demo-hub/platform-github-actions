@@ -85,6 +85,7 @@ jobs:
         with:
           app-name: ${{ inputs.app-name }}
           dotnet-version: ${{ inputs.dotnet-version }}
+          restore: ${{ inputs.dotnet-tools-restore }}
       - name: roslynator
         if: ${{ inputs.dotnet-linter-roslynator == true }}
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/roslynator@main
@@ -166,6 +167,6 @@ jobs:
           registry: ghcr.io
           image-name: ${{ inputs.app-name }}
           image-tag: ${{ needs.build.outputs.app_version }}
-          dockerFile: ${{ inputs.docker-file }}
+          docker-file: ${{ inputs.docker-file }}
           token: ${{ secrets.GITHUB_TOKEN }}
           

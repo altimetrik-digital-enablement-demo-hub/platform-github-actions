@@ -4,13 +4,13 @@ description: |
   It builds the application, creates a Docker image, and optionally pushes it to a container registry.
 
 inputs:
+  app-name:
+    description: Application name
+    required: true
   language:
     description: Programming language used in the application
     required: false
     default: 'csharp'
-  app-name:
-    description: Application name
-    required: true
   context:
     description: 'Context for docker build'
     default: '.'
@@ -70,10 +70,3 @@ runs:
         push: ${{ inputs.push || false }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-
-      # - name: Generate artifact attestation
-      #   uses: actions/attest-build-provenance@v2
-      #   with:
-      #     subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
-      #     subject-digest: ${{ steps.push.outputs.digest }}
-      #     push-to-registry: true
