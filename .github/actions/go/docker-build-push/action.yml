@@ -8,10 +8,6 @@ inputs:
   image-tag:
     description: Docker image tag
     required: true
-  binary-artifact-name:
-    description: Name of the binary artifact to download
-    required: false
-    default: 'go-binary'
   dockerfile-path:
     description: Path to Dockerfile
     required: false
@@ -20,7 +16,7 @@ inputs:
     description: Docker build context
     required: false
     default: '.'
-  registry-url:
+  registry:
     description: Container registry base URL
     required: false
     default: 'ghcr.io'
@@ -49,8 +45,7 @@ runs:
       run: |
         echo "app-name: ${{ inputs.app-name }}"
         echo "image-tag: ${{ inputs.image-tag }}"
-        echo "binary-artifact-name: ${{ inputs.binary-artifact-name }}"
-        echo "registry-url: ${{ inputs.registry-url }}"
+        echo "registry: ${{ inputs.registry }}"
         echo "push-to-registry: ${{ inputs.push-to-registry }}"
 
     - name: Download binary artifact
@@ -71,14 +66,14 @@ runs:
       shell: bash
       run: |
         if [ "${{ inputs.push-to-registry }}" == "true" ]; then
-          if [[ "${{ inputs.registry-url }}" == "ghcr.io" ]]; then
+          if [[ "${{ inputs.registry }}" == "ghcr.io" ]]; then
             # GitHub Container Registry format: ghcr.io/owner/repo/app-name:tag
             REPO_OWNER=$(echo "${{ github.repository }}" | cut -d'/' -f1 | tr '[:upper:]' '[:lower:]')
             REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')
             FULL_NAME="ghcr.io/${REPO_OWNER}/${REPO_NAME}/${{ inputs.app-name }}:${{ inputs.image-tag }}"
           else
             # Other registries
-            FULL_NAME="${{ inputs.registry-url }}/${{ inputs.app-name }}:${{ inputs.image-tag }}"
+            FULL_NAME="${{ inputs.registry }}/${{ inputs.app-name }}:${{ inputs.image-tag }}"
           fi
           echo "full-name=${FULL_NAME}" >> $GITHUB_OUTPUT
           echo "Full image name: ${FULL_NAME}"
@@ -86,24 +81,13 @@ runs:
           echo "full-name=${{ inputs.app-name }}:${{ inputs.image-tag }}" >> $GITHUB_OUTPUT
         fi
 
-    - name: Login to GitHub Container Registry
-      if: inputs.push-to-registry == 'true' && inputs.registry-url == 'ghcr.io'
+    - name: Login to Container Registry
+      if: inputs.push-to-registry == 'true'
       uses: docker/login-action@v3
       with:
-        registry: ghcr.io
+        registry: ${{ inputs.registry }}
         username: ${{ github.actor }}
         password: ${{ github.token }}
-
-    - name: Configure AWS credentials (if using ECR)
-      if: inputs.push-to-registry == 'true' && contains(inputs.registry-url, 'amazonaws.com')
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ env.AWS_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
-
-    - name: Login to Amazon ECR
-      if: inputs.push-to-registry == 'true' && contains(inputs.registry-url, 'amazonaws.com')
-      uses: aws-actions/amazon-ecr-login@v2
 
     - name: Build and push to registry
       if: inputs.push-to-registry == 'true'
@@ -119,23 +103,6 @@ runs:
           org.opencontainers.image.revision=${{ github.sha }}
           org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
-    - name: Build Docker image (tar output)
-      if: inputs.push-to-registry != 'true'
-      uses: docker/build-push-action@v5
-      with:
-        context: ${{ inputs.docker-context }}
-        file: ${{ inputs.dockerfile-path }}
-        platforms: linux/arm64  
-        tags: ${{ inputs.app-name }}:${{ inputs.image-tag }}
-        outputs: type=docker,dest=/tmp/${{ inputs.app-name }}.tar
-
-    - name: Upload Docker image artifact
-      if: inputs.push-to-registry != 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.app-name }}-image
-        path: /tmp/${{ inputs.app-name }}.tar
-
     - name: Generate package summary
       shell: bash
       run: |
@@ -143,7 +110,7 @@ runs:
         echo "" >> $GITHUB_STEP_SUMMARY
         if [ "${{ inputs.push-to-registry }}" == "true" ]; then
           echo "✅ **Image pushed to registry**" >> $GITHUB_STEP_SUMMARY
-          echo "- **Registry:** ${{ inputs.registry-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry:** ${{ inputs.registry }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image:** \`${{ steps.image-name.outputs.full-name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms:** ${{ inputs.platforms }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

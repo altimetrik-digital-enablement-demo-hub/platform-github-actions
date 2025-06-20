@@ -47,28 +47,9 @@ runs:
         languages: ${{ inputs.languages }}
 
     - name: Set up Go (if needed)
-      if: contains(inputs.languages, 'go')
-      uses: actions/setup-go@v5
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
       with:
         go-version: ${{ inputs.go-version }}
-
-    - name: Set up Node.js (if needed)
-      if: contains(inputs.languages, 'javascript') || contains(inputs.languages, 'typescript')
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ inputs.node-version }}
-
-    - name: Set up Python (if needed)
-      if: contains(inputs.languages, 'python')
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ inputs.python-version }}
-
-    - name: Set up .NET (if needed)
-      if: contains(inputs.languages, 'csharp')
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: ${{ inputs.dotnet-version }}
 
     - name: Build for CodeQL
       shell: bash
@@ -78,25 +59,6 @@ runs:
         if [[ "${{ inputs.languages }}" == *"go"* ]]; then
           echo "🔨 Building Go application..."
           go build ./...
-        fi
-        
-        if [[ "${{ inputs.languages }}" == *"python"* ]]; then
-          echo "🐍 Python - no build needed"
-        fi
-        
-        if [[ "${{ inputs.languages }}" == *"csharp"* ]]; then
-          echo "🔨 Building .NET application..."
-          dotnet build
-        fi
-        
-        if [[ "${{ inputs.languages }}" == *"javascript"* ]] || [[ "${{ inputs.languages }}" == *"typescript"* ]]; then
-          echo "🔨 Building JavaScript/TypeScript application..."
-          if [ -f "package.json" ]; then
-            npm ci
-            npm run build || echo "No build script found, continuing..."
-          else
-            echo "No package.json found, skipping npm build"
-          fi
         fi
 
     - name: Perform CodeQL Analysis

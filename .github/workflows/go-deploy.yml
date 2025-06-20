@@ -11,15 +11,6 @@ on:
         description: 'image tag to deploy'
         required: true
         type: string
-      image-registry:
-        description: 'image registry (e.g., ghcr.io/org/app)'
-        required: true
-        type: string
-      environment:
-        description: 'Deployment environment (dev, staging, prod)'
-        required: false
-        type: string
-        default: 'dev'
       chart-path:
         description: 'Path to the Helm chart for deployment'
         required: false
@@ -45,7 +36,7 @@ on:
         required: false
         type: boolean
         default: true
-      registry-url:
+      registry:
         description: 'Container registry URL for login (e.g., ghcr.io)'
         required: false
         type: string
@@ -66,55 +57,22 @@ jobs:
       - name: Docker login to registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ inputs.registry-url }}
+          registry: ${{ inputs.registry }}
           username: ${{ github.actor }}
           password: ${{ github.token }}
         
       - name: Deploy to Kubernetes with Helm
         if: inputs.use-helm
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/helm-deployment@feature/workflows
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/local-k8s-deployment@main
         with:
           app-name: ${{ inputs.app-name }}
-          environment: ${{ inputs.environment }}
           tag: ${{ inputs.image-tag }}
-          image-registry: ${{ inputs.image-registry }}
+          registry: ${{ inputs.registry }}
           chart-path: ${{ inputs.chart-path }}/${{ inputs.app-name }}
-
-  deploy-aws-apprunner:
-    runs-on: ubuntu-latest
-    if: inputs.deploy-aws-apprunner
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Deploy to AWS App Runner
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/deploy-aws-apprunner@feature/workflows
-        with:
-          app-name: ${{ inputs.app-name }}
-          environment: ${{ inputs.environment }}
-          image-tag: ${{ inputs.image-tag }}
-          full-image-name: ${{ inputs.image-registry }}:${{ inputs.image-tag }}
-
-  deploy-azure-containerapp:
-    runs-on: ubuntu-latest
-    if: inputs.deploy-azure-containerapp
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Deploy to Azure Container Apps
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/deploy-azure-containerapp@feature/workflows
-        with:
-          app-name: ${{ inputs.app-name }}
-          environment: ${{ inputs.environment }}
-          image-tag: ${{ inputs.image-tag }}
-          full-image-name: ${{ inputs.image-registry }}:${{ inputs.image-tag }}
-          resource-group: 'rg-container-apps'
-          location: 'eastus'
 
   summary:
     runs-on: ubuntu-latest
-    needs: [deploy-local-k8s, deploy-aws-apprunner, deploy-azure-containerapp]
+    needs: deploy-local-k8s
     if: always()
     steps:
       - name: Generate deployment summary
@@ -123,10 +81,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
           echo "- **Application:** ${{ inputs.app-name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** \`${{ inputs.image-registry }}:${{ inputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ inputs.registry }}/${{ inputs.app-name }}:${{ inputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Deployment Status" >> $GITHUB_STEP_SUMMARY
           echo "- **Local Kubernetes:** ${{ needs.deploy-local-k8s.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **AWS App Runner:** ${{ needs.deploy-aws-apprunner.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Azure Container Apps:** ${{ needs.deploy-azure-containerapp.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY 

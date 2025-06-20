@@ -23,11 +23,11 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
       with:
         go-version: ${{ inputs.go-version }}
-      # basic calculator for code coverage threshold comparisons
-    - name: Install dependencies
+
+    - name: Install dependencies 
       shell: bash
       run: |
         sudo apt-get update
@@ -79,7 +79,7 @@ runs:
           test-results/coverage.txt
 
     - name: Publish Test Results
-      uses: dorny/test-reporter@v1 # Reads junit.xml created but gotestsum
+      uses: dorny/test-reporter@v1 
       if: always()
       with:
         name: Go Test Results

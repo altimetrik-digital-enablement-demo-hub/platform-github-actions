@@ -11,10 +11,9 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main 
       with:
         go-version: ${{ inputs.go-version }}
-        cache: false
 
     - name: Run StaticCheck
       uses: dominikh/staticcheck-action@v1.3.0
