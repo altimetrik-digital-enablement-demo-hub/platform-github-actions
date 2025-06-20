@@ -126,6 +126,7 @@ jobs:
           language: ${{ inputs.language }}
           dotnet-version: ${{ inputs.dotnet-version }}
           git-fetch-depth: ${{ inputs.git-fetch-depth }}   
+          git-fetch-tags: "true"
           token: ${{ secrets.GITHUB_TOKEN }}  
   
   package:

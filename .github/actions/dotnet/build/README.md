@@ -11,6 +11,7 @@ If the commits are insignificant, no new version and release is created.
 | language                | csharp    | no       | Programming language |
 | dotnet-version          | 9.0.300   | no       | .Net version used to build, test and package the application |
 | git-fetch-depth         | 1         | no       | The depth of the git fetch |
+| git-fetch-tags          | true      | no       | If yes, fetch tags from the repository |
 | token                   |           | yes       | A Github API token with permissions to create releases and push changes |
 
 ## Outputs

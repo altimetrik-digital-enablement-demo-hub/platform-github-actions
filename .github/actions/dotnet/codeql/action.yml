@@ -17,20 +17,16 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v3
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v3
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
+        fetch-depth: 1
+        fetch-tags: false
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ inputs.language }}
-        
-    - name: install dependencies for ${{ inputs.app-name }}
-      shell: bash
-      run: dotnet restore
     
     - name: build ${{ inputs.app-name }}
       shell: bash

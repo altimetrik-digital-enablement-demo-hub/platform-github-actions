@@ -14,13 +14,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 1
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v3
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
+        fetch-depth: 1
+        fetch-tags: false 
+        
     - name: dotnect-test
       shell: bash
       run: |
