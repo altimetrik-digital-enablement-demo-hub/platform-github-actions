@@ -134,7 +134,7 @@ jobs:
     steps:
       # This step checks out the code from the repository
       - id: generate-tag
-        uses: amorattabalt/platform-github-actions/.github/actions/common/git-tag-generation@main
+        uses: amorattabalt/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@main
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   dockerBuildAndPush:
