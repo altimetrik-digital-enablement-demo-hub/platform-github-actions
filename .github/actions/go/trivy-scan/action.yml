@@ -23,10 +23,6 @@ inputs:
     description: Severity levels to scan for (comma-separated)
     required: false
     default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
-  scan-type:
-    description: Type of scan to perform (vuln, config, secret, license)
-    required: false
-    default: 'vuln'
   fail-on-severity:
     description: Fail the action if vulnerabilities of this severity or higher are found
     required: false
@@ -62,7 +58,6 @@ runs:
         echo "use-registry-image: ${{ inputs.use-registry-image }}"
         echo "output-format: ${{ inputs.output-format }}"
         echo "severity: ${{ inputs.severity }}"
-        echo "scan-type: ${{ inputs.scan-type }}"
 
     - name: Install dependencies
       shell: bash
@@ -107,13 +102,12 @@ runs:
         echo "✅ Container image loaded successfully"
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@0.31.0 
       with:
         image-ref: ${{ steps.image-ref.outputs.image-ref }}
         format: ${{ inputs.output-format }}
         output: trivy-results.${{ inputs.output-format }}
         severity: ${{ inputs.severity }}
-        scan-type: ${{ inputs.scan-type }}
         exit-code: 0  # Don't fail here, we'll handle it in the next step
 
     - name: Parse Trivy results
@@ -180,7 +174,6 @@ runs:
         echo "## 🛡️ Trivy Container Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Image:** \`${{ steps.image-ref.outputs.image-ref }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "**Scan Type:** ${{ inputs.scan-type }}" >> $GITHUB_STEP_SUMMARY
         echo "**Severity Filter:** ${{ inputs.severity }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
