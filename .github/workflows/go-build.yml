@@ -127,14 +127,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Security scan
-        uses: osru-leu/platform-github-actions/.github/actions/go/security-scan@feature/workflows
+      - name: CodeQL security scan
+        uses: osru-leu/platform-github-actions/.github/actions/go/codeql@feature/workflows
+        with:
+          app-name: ${{ inputs.app-name }}
+          languages: 'go'
+          go-version: ${{ inputs.go-version }}
+
+      - name: Container vulnerability scan
+        uses: osru-leu/platform-github-actions/.github/actions/go/trivy-scan@feature/workflows
         with:
           app-name: ${{ inputs.app-name }}
           image-tag: ${{ needs.setup.outputs.image-tag }}
-          languages: 'go'
-          go-version: ${{ inputs.go-version }}
-          full-image-name: ${{ needs.package.outputs.full-image-name }}
           use-registry-image: false  # Scan local image, not registry
 
   push-to-registry:

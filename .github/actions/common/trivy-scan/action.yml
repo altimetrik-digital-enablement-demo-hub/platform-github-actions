@@ -1,0 +1,287 @@
+name: Trivy Container Vulnerability Scan
+description: Runs Trivy vulnerability scanner on container images
+
+inputs:
+  app-name:
+    description: Name of the application
+    required: true
+  image-tag:
+    description: Docker image tag to scan
+    required: true
+  full-image-name:
+    description: Full image name with registry (e.g., ghcr.io/owner/repo/app:tag)
+    required: false
+  use-registry-image:
+    description: Whether to use registry image instead of loading from tar
+    required: false
+    default: 'false'
+  output-format:
+    description: Output format for Trivy scan results
+    required: false
+    default: 'sarif'
+  severity:
+    description: Severity levels to scan for (comma-separated)
+    required: false
+    default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+  scan-type:
+    description: Type of scan to perform (vuln, config, secret, license)
+    required: false
+    default: 'vuln'
+  fail-on-severity:
+    description: Fail the action if vulnerabilities of this severity or higher are found
+    required: false
+    default: 'none'
+  upload-results:
+    description: Whether to upload scan results as artifacts
+    required: false
+    default: 'true'
+
+outputs:
+  total-vulnerabilities:
+    description: Total number of vulnerabilities found
+    value: ${{ steps.parse-results.outputs.total }}
+  critical-vulnerabilities:
+    description: Number of critical vulnerabilities found
+    value: ${{ steps.parse-results.outputs.critical }}
+  high-vulnerabilities:
+    description: Number of high vulnerabilities found
+    value: ${{ steps.parse-results.outputs.high }}
+  scan-results-file:
+    description: Path to the scan results file
+    value: trivy-results.${{ inputs.output-format }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Debug inputs
+      shell: bash
+      run: |
+        echo "🔍 Trivy Scan Configuration:"
+        echo "app-name: ${{ inputs.app-name }}"
+        echo "image-tag: ${{ inputs.image-tag }}"
+        echo "use-registry-image: ${{ inputs.use-registry-image }}"
+        echo "output-format: ${{ inputs.output-format }}"
+        echo "severity: ${{ inputs.severity }}"
+        echo "scan-type: ${{ inputs.scan-type }}"
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+
+    - name: Login to GitHub Container Registry (if using registry image)
+      if: inputs.use-registry-image == 'true' && contains(inputs.full-image-name, 'ghcr.io')
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Determine image reference
+      id: image-ref
+      shell: bash
+      run: |
+        if [ "${{ inputs.use-registry-image }}" == "true" ] && [ -n "${{ inputs.full-image-name }}" ]; then
+          IMAGE_REF="${{ inputs.full-image-name }}"
+          echo "🔗 Using registry image: ${IMAGE_REF}"
+        else
+          IMAGE_REF="${{ inputs.app-name }}:${{ inputs.image-tag }}"
+          echo "🔗 Using local image: ${IMAGE_REF}"
+        fi
+        echo "image-ref=${IMAGE_REF}" >> $GITHUB_OUTPUT
+
+    - name: Download container image (if not using registry)
+      if: inputs.use-registry-image != 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.app-name }}-image
+        path: /tmp/
+
+    - name: Load container image (if not using registry)
+      if: inputs.use-registry-image != 'true'
+      shell: bash
+      run: |
+        echo "📦 Loading container image from artifact..."
+        docker load -i /tmp/${{ inputs.app-name }}.tar
+        echo "✅ Container image loaded successfully"
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ steps.image-ref.outputs.image-ref }}
+        format: ${{ inputs.output-format }}
+        output: trivy-results.${{ inputs.output-format }}
+        severity: ${{ inputs.severity }}
+        scan-type: ${{ inputs.scan-type }}
+        exit-code: 0  # Don't fail here, we'll handle it in the next step
+
+    - name: Parse Trivy results
+      id: parse-results
+      shell: bash
+      run: |
+        echo "📊 Parsing Trivy scan results..."
+        
+        RESULTS_FILE="trivy-results.${{ inputs.output-format }}"
+        
+        if [ -f "$RESULTS_FILE" ]; then
+          if [ "${{ inputs.output-format }}" == "sarif" ]; then
+            # Parse SARIF results for vulnerabilities
+            CRITICAL_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) == 9 or (.properties.security_severity | tonumber) == 10))) | length' "$RESULTS_FILE" 2>/dev/null || echo "0")
+            HIGH_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) >= 7 and (.properties.security_severity | tonumber) < 9))) | length' "$RESULTS_FILE" 2>/dev/null || echo "0")
+            MEDIUM_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) >= 4 and (.properties.security_severity | tonumber) < 7))) | length' "$RESULTS_FILE" 2>/dev/null || echo "0")
+            LOW_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) > 0 and (.properties.security_severity | tonumber) < 4))) | length' "$RESULTS_FILE" 2>/dev/null || echo "0")
+            UNKNOWN_VULN=$(jq '.runs[0].results | map(select(.ruleId and ((.properties.security_severity | tonumber) == 0))) | length' "$RESULTS_FILE" 2>/dev/null || echo "0")
+            TOTAL_VULN=$(jq '.runs[0].results | length' "$RESULTS_FILE" 2>/dev/null || echo "0")
+          else
+            # For non-SARIF formats, try to parse JSON or provide basic info
+            TOTAL_VULN=$(wc -l < "$RESULTS_FILE" 2>/dev/null || echo "0")
+            CRITICAL_VULN="unknown"
+            HIGH_VULN="unknown"
+            MEDIUM_VULN="unknown"
+            LOW_VULN="unknown"
+            UNKNOWN_VULN="unknown"
+          fi
+          
+          echo "critical=${CRITICAL_VULN}" >> $GITHUB_OUTPUT
+          echo "high=${HIGH_VULN}" >> $GITHUB_OUTPUT
+          echo "medium=${MEDIUM_VULN}" >> $GITHUB_OUTPUT
+          echo "low=${LOW_VULN}" >> $GITHUB_OUTPUT
+          echo "unknown=${UNKNOWN_VULN}" >> $GITHUB_OUTPUT
+          echo "total=${TOTAL_VULN}" >> $GITHUB_OUTPUT
+          
+          echo "📊 Scan Results Summary:"
+          echo "  🔴 Critical: $CRITICAL_VULN"
+          echo "  🟠 High: $HIGH_VULN"
+          echo "  🟡 Medium: $MEDIUM_VULN"
+          echo "  🟢 Low: $LOW_VULN"
+          echo "  ❓ Unknown: $UNKNOWN_VULN"
+          echo "  📊 Total: $TOTAL_VULN"
+        else
+          echo "⚠️ Trivy results file not found: $RESULTS_FILE"
+          echo "critical=0" >> $GITHUB_OUTPUT
+          echo "high=0" >> $GITHUB_OUTPUT
+          echo "medium=0" >> $GITHUB_OUTPUT
+          echo "low=0" >> $GITHUB_OUTPUT
+          echo "unknown=0" >> $GITHUB_OUTPUT
+          echo "total=0" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Upload Trivy scan results as artifact
+      if: inputs.upload-results == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-scan-results-${{ inputs.app-name }}
+        path: trivy-results.${{ inputs.output-format }}
+
+    - name: Generate Trivy summary report
+      shell: bash
+      run: |
+        echo "## 🛡️ Trivy Container Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Image:** \`${{ steps.image-ref.outputs.image-ref }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Scan Type:** ${{ inputs.scan-type }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Severity Filter:** ${{ inputs.severity }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        RESULTS_FILE="trivy-results.${{ inputs.output-format }}"
+        
+        if [ -f "$RESULTS_FILE" ]; then
+          CRITICAL_VULN="${{ steps.parse-results.outputs.critical }}"
+          HIGH_VULN="${{ steps.parse-results.outputs.high }}"
+          MEDIUM_VULN="${{ steps.parse-results.outputs.medium }}"
+          LOW_VULN="${{ steps.parse-results.outputs.low }}"
+          UNKNOWN_VULN="${{ steps.parse-results.outputs.unknown }}"
+          TOTAL_VULN="${{ steps.parse-results.outputs.total }}"
+          
+          echo "### 📊 Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔴 Critical | $CRITICAL_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 High     | $HIGH_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Medium   | $MEDIUM_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟢 Low      | $LOW_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❓ Unknown  | $UNKNOWN_VULN |" >> $GITHUB_STEP_SUMMARY
+          echo "| **📊 Total** | **$TOTAL_VULN** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Show top vulnerabilities if any and format is SARIF
+          if [ "$TOTAL_VULN" -gt "0" ] && [ "${{ inputs.output-format }}" == "sarif" ]; then
+            echo "<details>" >> $GITHUB_STEP_SUMMARY
+            echo "<summary>🔍 Top Vulnerabilities (Click to expand)</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            jq -r '.runs[0].results[0:10][] | "• \(.ruleId // "Unknown"): \(.message.text // "No description")"' "$RESULTS_FILE" 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || echo "No detailed vulnerability information available" >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Overall status
+          if [ "$CRITICAL_VULN" != "0" ] && [ "$CRITICAL_VULN" != "unknown" ] && [ "$CRITICAL_VULN" -gt "0" ]; then
+            echo "### 🔴 **CRITICAL VULNERABILITIES FOUND**" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Action Required:** Address critical vulnerabilities before deployment" >> $GITHUB_STEP_SUMMARY
+          elif [ "$TOTAL_VULN" -gt "0" ]; then
+            echo "### 🟡 **Vulnerabilities Found**" >> $GITHUB_STEP_SUMMARY
+            echo "💡 **Recommended:** Review and address security findings" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ **No Vulnerabilities Detected**" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 **Great!** No vulnerabilities found in this scan" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "### ⚠️ **Scan Results Unavailable**" >> $GITHUB_STEP_SUMMARY
+          echo "Could not find or parse Trivy results file" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📎 **Artifact:** Detailed scan results available as workflow artifact" >> $GITHUB_STEP_SUMMARY
+
+    - name: Security gate check
+      shell: bash
+      run: |
+        FAIL_ON="${{ inputs.fail-on-severity }}"
+        CRITICAL_VULN="${{ steps.parse-results.outputs.critical }}"
+        HIGH_VULN="${{ steps.parse-results.outputs.high }}"
+        MEDIUM_VULN="${{ steps.parse-results.outputs.medium }}"
+        LOW_VULN="${{ steps.parse-results.outputs.low }}"
+        
+        echo "🚪 Security Gate Check (fail-on-severity: $FAIL_ON)"
+        
+        SHOULD_FAIL=false
+        
+        case "$FAIL_ON" in
+          "CRITICAL"|"critical")
+            if [ "$CRITICAL_VULN" != "0" ] && [ "$CRITICAL_VULN" != "unknown" ] && [ "$CRITICAL_VULN" -gt "0" ]; then
+              SHOULD_FAIL=true
+              echo "❌ Security gate failed: $CRITICAL_VULN critical vulnerabilities found"
+            fi
+            ;;
+          "HIGH"|"high")
+            if ([ "$CRITICAL_VULN" != "0" ] && [ "$CRITICAL_VULN" != "unknown" ] && [ "$CRITICAL_VULN" -gt "0" ]) || ([ "$HIGH_VULN" != "0" ] && [ "$HIGH_VULN" != "unknown" ] && [ "$HIGH_VULN" -gt "0" ]); then
+              SHOULD_FAIL=true
+              echo "❌ Security gate failed: $CRITICAL_VULN critical + $HIGH_VULN high vulnerabilities found"
+            fi
+            ;;
+          "MEDIUM"|"medium")
+            if ([ "$CRITICAL_VULN" != "0" ] && [ "$CRITICAL_VULN" != "unknown" ] && [ "$CRITICAL_VULN" -gt "0" ]) || ([ "$HIGH_VULN" != "0" ] && [ "$HIGH_VULN" != "unknown" ] && [ "$HIGH_VULN" -gt "0" ]) || ([ "$MEDIUM_VULN" != "0" ] && [ "$MEDIUM_VULN" != "unknown" ] && [ "$MEDIUM_VULN" -gt "0" ]); then
+              SHOULD_FAIL=true
+              echo "❌ Security gate failed: $CRITICAL_VULN critical + $HIGH_VULN high + $MEDIUM_VULN medium vulnerabilities found"
+            fi
+            ;;
+          "LOW"|"low")
+            if [ "${{ steps.parse-results.outputs.total }}" -gt "0" ]; then
+              SHOULD_FAIL=true
+              echo "❌ Security gate failed: ${{ steps.parse-results.outputs.total }} total vulnerabilities found"
+            fi
+            ;;
+          *)
+            echo "✅ Security gate check disabled (fail-on-severity: $FAIL_ON)"
+            ;;
+        esac
+        
+        if [ "$SHOULD_FAIL" = true ]; then
+          echo "🚫 Failing the action due to security gate policy"
+          exit 1
+        else
+          echo "✅ Security gate passed"
+        fi 
