@@ -24,7 +24,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
+    - uses: amorattabalt/platform-github-actions/.github/actions/java/setup@main
       with:
         java-version: ${{ inputs.java-version }}
         working-directory: ${{ inputs.working-directory }}

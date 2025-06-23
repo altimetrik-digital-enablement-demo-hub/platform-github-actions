@@ -59,13 +59,13 @@ This library aims to:
 ## How to Use
 
 - All reusable workflows live under the `.github/workflows/` folder.
-- These workflows use `workflow_call` and can be referenced in service repositories via: ` uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/dev-node-build.yml@v0.0.1` 
+- These workflows use `workflow_call` and can be referenced in service repositories via: ` uses: amorattabalt/platform-github-actions/.github/workflows/dev-node-build.yml@v0.0.1` 
 - You can visit [reference section](./.github/workflows/README.md) to understand complete setup.
 
 ```yaml
 jobs:
   use-dev-pipeline:
-    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/dev-node.yml@<ref>
+    uses: amorattabalt/platform-github-actions/.github/workflows/dev-node.yml@<ref>
     with:
       node-version: '20'
       lint-command: 'npm run lint'

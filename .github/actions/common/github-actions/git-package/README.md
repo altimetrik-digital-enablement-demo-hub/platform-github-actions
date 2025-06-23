@@ -13,7 +13,7 @@ This action:
 ## Usage
 
 ```yaml
-uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-package@main
+uses: amorattabalt/platform-github-actions/.github/actions/common/github-actions/git-package@main
 with:
   package-command: 'npm pack'
   artifact-name: 'my-node-package'
@@ -51,7 +51,7 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-package@main
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/github-actions/git-package@main
         with:
           package-command: 'npm pack'
           artifact-name: 'my-node-app'

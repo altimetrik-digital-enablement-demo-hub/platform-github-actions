@@ -63,7 +63,7 @@ jobs:
         
       - name: Deploy to Kubernetes with Helm
         if: inputs.use-helm
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/local-k8s-deployment@main
+        uses: amorattabalt/platform-github-actions/.github/actions/go/local-k8s-deployment@main
         with:
           app-name: ${{ inputs.app-name }}
           tag: ${{ inputs.image-tag }}

@@ -24,7 +24,7 @@ To contribute or test workflows locally, follow these steps to set up this proje
 ### 1. Clone the Repository
 
 ```bash
-git clone git@github.com:altimetrik-digital-enablement-demo-hub/platform-github-actions.git
+git clone git@github.com:amorattabalt/platform-github-actions.git
 cd platform-github-actions
 ```
 

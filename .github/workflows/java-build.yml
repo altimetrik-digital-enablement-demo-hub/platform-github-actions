@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This job sets up Java and runs the lint command
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/lint@main
+      - uses: amorattabalt/platform-github-actions/.github/actions/java/lint@main
         with:
           lint-command: ${{ inputs.lint-command }}
           java-version: ${{ inputs.java-version }}
@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This job sets up Java and runs the build command
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/build@main
+      - uses: amorattabalt/platform-github-actions/.github/actions/java/build@main
         with:
           build-command: ${{ inputs.build-command }}
           java-version: ${{ inputs.java-version }}
@@ -95,12 +95,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This job sets up Java and runs unit tests
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
+      - uses: amorattabalt/platform-github-actions/.github/actions/java/setup@main
         with:
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
       # This step runs the unit tests
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/junit-test@main
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/junit-test@main
         with:
           test-command: ${{ inputs.test-command }}
           continue-on-error: ${{ inputs.contine-on-error }}
@@ -118,7 +118,7 @@ jobs:
     steps:
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
       - name: Run CodeQL Analysis
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/codeql@main
+        uses: amorattabalt/platform-github-actions/.github/actions/common/codeql@main
         with:
           languages: java
         continue-on-error: true
@@ -134,7 +134,7 @@ jobs:
     steps:
       # This step checks out the code from the repository
       - id: generate-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@main
+        uses: amorattabalt/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@main
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   dockerBuildAndPush:
@@ -146,7 +146,7 @@ jobs:
       packages: write  # Required to push to GHCR
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@main
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/docker-build-push@main
         with:
           version: ${{ needs.versioning.outputs.new-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -160,7 +160,7 @@ jobs:
       packages: read  # Required to pull from GHCR
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/trivy-scan@main
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/trivy-scan@main
         if: ${{ inputs.run-trivy == true }}
         with:
           version: ${{ needs.versioning.outputs.new-tag }}
@@ -168,7 +168,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/grype-scan@main
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/grype-scan@main
         if: ${{ inputs.run-grype == true }}
         with:
           version: ${{ needs.versioning.outputs.new-tag }}
@@ -180,7 +180,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This step packages the Java project
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/package@main
+      - uses: amorattabalt/platform-github-actions/.github/actions/java/package@main
         with:
           package-command: ${{ inputs.package-command }}
           artifact-name: ${{ inputs.artifact-name }}
@@ -194,4 +194,4 @@ jobs:
     if: always()
     steps:
       # This job generates a dashboard summarizing the results of the previous jobs
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-dashboard@main 
+      - uses: amorattabalt/platform-github-actions/.github/actions/common/github-dashboard@main 
