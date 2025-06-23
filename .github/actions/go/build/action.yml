@@ -1,0 +1,44 @@
+name: Go Build
+description: Builds a Go application and uploads the binary as an artifact
+
+inputs:
+  app-name:
+    description: Name of the application (used as binary name)
+    required: true
+  go-version:
+    description: Go version to use
+    required: false
+    default: '1.24'
+  main-directory:
+    description: Directory containing main.go
+    required: false
+    default: './cmd'
+
+runs:
+  using: 'composite'  
+  steps:
+    - name: Set up Go
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Go version
+      shell: bash
+      run: go version
+        
+    - name: Install dependencies and tidy
+      shell: bash
+      run: |
+        go mod download
+        go mod tidy
+
+    - name: Build binary
+      shell: bash
+      run: |
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o ${{ inputs.app-name }} ${{ inputs.main-directory }}
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.app-name }}-binary
+        path: ${{ inputs.app-name }}

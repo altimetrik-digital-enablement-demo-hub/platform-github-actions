@@ -1,0 +1,29 @@
+name: Go Setup
+description: Setup go runtime
+
+inputs:
+  go-version:
+    description: Go version to use
+    required: false
+    default: '1.24'
+
+runs:
+  using: 'composite'  
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Go version
+      shell: bash
+      run: go version
+        
+    - name: Install dependencies and tidy
+      shell: bash
+      run: |
+        go mod download
+        go mod tidy

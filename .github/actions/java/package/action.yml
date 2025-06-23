@@ -1,0 +1,46 @@
+name: Package Java Project
+description: |
+  This action packages a Java project using Maven and uploads the resulting artifacts.
+  It is designed to be used in workflows that require packaging of Java applications or libraries.
+
+inputs:
+  package-command:
+    description: 'Maven package command (e.g., mvn package)'
+    required: false
+    default: 'mvn package'
+  artifact-name:
+    description: 'Name of the uploaded artifact'
+    required: false
+    default: 'java-package'
+  java-version:
+    description: 'Java version to use'
+    required: false
+    default: '17'
+  working-directory:
+    description: 'Working directory for the package command'
+    required: false
+    default: '.'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
+      with:
+        java-version: ${{ inputs.java-version }}
+        working-directory: ${{ inputs.working-directory }}
+
+    # This step packages the Java project
+    - name: Package Project
+      id: pack
+      shell: bash
+      run: |
+        ${{ inputs.package-command }}
+        echo "package_command_executed=true" >> $GITHUB_OUTPUT
+      working-directory: ${{ inputs.working-directory }}
+
+    # Upload the package as an artifact
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: target/ 

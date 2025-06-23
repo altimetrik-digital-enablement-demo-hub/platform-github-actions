@@ -1,0 +1,44 @@
+name: Java Deploy Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: 'Name of the application to deploy'
+        required: true
+        type: string
+      tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
+      chart-path:
+        description: 'Path to the Helm chart for deployment'
+        required: true
+        type: string
+      repository:
+        description: 'Docker image repository (e.g., ghcr.io/org/app)'
+        required: true
+        type: string
+    secrets:
+      GHCR_PAT:
+        required: true
+      GHCR_USERNAME:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Docker login to GHCR
+        run: |
+          echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@main
+        with:
+          app-name: ${{ inputs.app-name }}
+          tag: ${{ inputs.tag }}
+          chart-path: ${{ inputs.chart-path }}
+          repository: ${{ inputs.repository }} 

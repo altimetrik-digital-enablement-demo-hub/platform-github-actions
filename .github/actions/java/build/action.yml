@@ -1,0 +1,40 @@
+name: Build Java Project
+description: 'Build a Java project and deploy the build artifacts to GitHub Pages'
+
+inputs:
+  build-command:
+    description: 'Build command (e.g., mvn clean package)'
+    required: false
+    default: 'mvn clean package'
+  java-version:
+    description: 'Java version to use'
+    required: false
+    default: '17'
+  working-directory:
+    description: 'Working directory for the build command'
+    required: false
+    default: '.'
+  token:
+    description: 'GitHub token for authentication'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
+      with:
+        java-version: ${{ inputs.java-version }}
+        working-directory: ${{ inputs.working-directory }}
+
+    # This step builds the Java project
+    - name: Build Project
+      run: ${{ inputs.build-command }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+
+    # This step uploads the build artifacts
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ inputs.token }}
+        publish_dir: ./target/site 

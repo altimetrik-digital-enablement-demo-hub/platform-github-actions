@@ -1,0 +1,87 @@
+name: Go Deploy
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: 'Name of the application to deploy'
+        required: true
+        type: string
+      image-tag:
+        description: 'image tag to deploy'
+        required: true
+        type: string
+      chart-path:
+        description: 'Path to the Helm chart for deployment'
+        required: false
+        type: string
+        default: './deploy/helm'
+      deploy-local-k8s:
+        description: 'Deploy to local Kubernetes cluster'
+        required: false
+        type: boolean
+        default: false
+      deploy-aws-apprunner:
+        description: 'Deploy to AWS App Runner'
+        required: false
+        type: boolean
+        default: false
+      deploy-azure-containerapp:
+        description: 'Deploy to Azure Container Apps'
+        required: false
+        type: boolean
+        default: false
+      use-helm:
+        description: 'Use Helm for Kubernetes deployment'
+        required: false
+        type: boolean
+        default: true
+      registry:
+        description: 'Container registry URL for login (e.g., ghcr.io)'
+        required: false
+        type: string
+        default: 'ghcr.io'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy-local-k8s:
+    runs-on: [self-hosted, k8s-deployer] #k8s-deployer is a self-hosted MacOS runner
+    if: inputs.deploy-local-k8s
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+        
+      - name: Deploy to Kubernetes with Helm
+        if: inputs.use-helm
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/local-k8s-deployment@main
+        with:
+          app-name: ${{ inputs.app-name }}
+          tag: ${{ inputs.image-tag }}
+          registry: ${{ inputs.registry }}
+          chart-path: ${{ inputs.chart-path }}/${{ inputs.app-name }}
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: deploy-local-k8s
+    if: always()
+    steps:
+      - name: Generate deployment summary
+        run: |
+          echo "## 🚀 Go Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Application:** ${{ inputs.app-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ inputs.registry }}/${{ inputs.app-name }}:${{ inputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Local Kubernetes:** ${{ needs.deploy-local-k8s.result || '❌ Skipped' }}" >> $GITHUB_STEP_SUMMARY

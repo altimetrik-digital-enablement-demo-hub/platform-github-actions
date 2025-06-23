@@ -1,0 +1,207 @@
+name: Security Scan
+description: Runs CodeQL source code analysis for security vulnerabilities
+
+inputs:
+  app-name:
+    description: Name of the application
+    required: true
+  languages:
+    description: Programming languages to scan (comma-separated)
+    required: false
+    default: 'go'
+  go-version:
+    description: Go version for CodeQL analysis
+    required: false
+    default: '1.24'
+  node-version:
+    description: Node.js version for CodeQL analysis
+    required: false
+    default: '20'
+  python-version:
+    description: Python version for CodeQL analysis
+    required: false
+    default: '3.11'
+  dotnet-version:
+    description: .NET version for CodeQL analysis
+    required: false
+    default: '8.0'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Debug inputs
+      shell: bash
+      run: |
+        echo "app-name: ${{ inputs.app-name }}"
+        echo "languages: ${{ inputs.languages }}"
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with: 
+        languages: ${{ inputs.languages }}
+
+    - name: Set up Go (if needed)
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Build for CodeQL
+      shell: bash
+      run: |
+        echo "Building for languages: ${{ inputs.languages }}"
+        
+        if [[ "${{ inputs.languages }}" == *"go"* ]]; then
+          echo "🔨 Building Go application..."
+          go build ./...
+        fi
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      continue-on-error: true
+      with:
+        output: codeql-results
+        upload: false
+
+    - name: Upload CodeQL results as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: codeql-scan-results-${{ inputs.languages }}
+        path: codeql-results
+
+    - name: Generate security report
+      shell: bash
+      run: |
+        echo "## 🔒 CodeQL Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # CodeQL Results Summary
+        echo "### 📊 Source Code Analysis" >> $GITHUB_STEP_SUMMARY
+        if [ -d "codeql-results" ]; then
+          # Count issues by severity
+          if [ -f "codeql-results/results.sarif" ]; then
+            CRITICAL=$(jq '.runs[0].results | map(select(.ruleId and (.level == "error" or .rank >= 8.0))) | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            HIGH=$(jq '.runs[0].results | map(select(.ruleId and (.level == "warning" or (.rank >= 6.0 and .rank < 8.0)))) | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            MEDIUM=$(jq '.runs[0].results | map(select(.ruleId and (.rank >= 4.0 and .rank < 6.0))) | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            LOW=$(jq '.runs[0].results | map(select(.ruleId and .rank < 4.0)) | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            TOTAL=$(jq '.runs[0].results | length' codeql-results/results.sarif 2>/dev/null || echo "0")
+            
+            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔴 Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟠 High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟡 Medium | $MEDIUM |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟢 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+            echo "| **📊 Total** | **$TOTAL** |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Set environment variables for later use
+            echo "CODEQL_CRITICAL=$CRITICAL" >> $GITHUB_ENV
+            echo "CODEQL_HIGH=$HIGH" >> $GITHUB_ENV
+            echo "CODEQL_MEDIUM=$MEDIUM" >> $GITHUB_ENV
+            echo "CODEQL_LOW=$LOW" >> $GITHUB_ENV
+            echo "CODEQL_TOTAL=$TOTAL" >> $GITHUB_ENV
+            
+            # Show top issues if any
+            if [ "$TOTAL" -gt "0" ]; then
+              echo "<details>" >> $GITHUB_STEP_SUMMARY
+              echo "<summary>🔍 Top Security Issues (Click to expand)</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "```" >> $GITHUB_STEP_SUMMARY
+              jq -r '.runs[0].results[0:10][] | "• \(.ruleId // "Unknown"): \(.message.text // "No description")"' codeql-results/results.sarif 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || echo "No detailed issue information available" >> $GITHUB_STEP_SUMMARY
+              echo "```" >> $GITHUB_STEP_SUMMARY
+              echo "</details>" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "✅ No CodeQL results file found - scan may have completed without issues" >> $GITHUB_STEP_SUMMARY
+            echo "CODEQL_TOTAL=0" >> $GITHUB_ENV
+            echo "CODEQL_CRITICAL=0" >> $GITHUB_ENV
+            echo "CODEQL_HIGH=0" >> $GITHUB_ENV
+            echo "CODEQL_MEDIUM=0" >> $GITHUB_ENV
+            echo "CODEQL_LOW=0" >> $GITHUB_ENV
+          fi
+        else
+          echo "⚠️ CodeQL results directory not found" >> $GITHUB_STEP_SUMMARY
+          echo "CODEQL_TOTAL=unknown" >> $GITHUB_ENV
+          echo "CODEQL_CRITICAL=0" >> $GITHUB_ENV
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+    - name: Generate overall security summary
+      shell: bash
+      run: |
+        echo "### 📋 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Determine overall security status
+        CODEQL_ISSUES="${CODEQL_TOTAL:-0}"
+        CODEQL_CRITICAL="${CODEQL_CRITICAL:-0}"
+        
+        if [ "$CODEQL_CRITICAL" -gt "0" ]; then
+          STATUS="🔴 **CRITICAL ISSUES FOUND**"
+          RECOMMENDATION="⚠️ **Action Required:** Address critical security issues before deployment"
+        elif [ "$CODEQL_ISSUES" -gt "0" ]; then
+          STATUS="🟡 **Issues Found**"
+          RECOMMENDATION="💡 **Recommended:** Review and address security findings"
+        else
+          STATUS="✅ **No Security Issues Detected**"
+          RECOMMENDATION="🎉 **Great!** No security issues found in source code analysis"
+        fi
+        
+        echo "**Overall Status:** $STATUS" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "$RECOMMENDATION" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Analysis Type | Issues Found |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------------|--------------|" >> $GITHUB_STEP_SUMMARY
+        echo "| CodeQL (Source Code) | $CODEQL_ISSUES |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📎 **Artifacts:** Detailed CodeQL report available as workflow artifact" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "💡 **Note:** For container vulnerability scanning, use the separate \`trivy-scan\` action" >> $GITHUB_STEP_SUMMARY
+
+    - name: Add security comment to PR
+      if: github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: codeql-security-scan
+        recreate: true
+        message: |
+          ## 🔒 CodeQL Security Scan Results
+          
+          **Source Code Analysis:** ${{ env.CODEQL_TOTAL }} issues found
+          **Critical Issues:** ${{ env.CODEQL_CRITICAL }}
+          
+          <details>
+          <summary>📊 Detailed Breakdown</summary>
+          
+          ### CodeQL (Source Code Analysis)
+          - 🔴 Critical: ${{ env.CODEQL_CRITICAL }}
+          - 🟠 High: ${{ env.CODEQL_HIGH }}
+          - 🟡 Medium: ${{ env.CODEQL_MEDIUM }}
+          - 🟢 Low: ${{ env.CODEQL_LOW }}
+          </details>
+          
+          💡 **Download detailed CodeQL report from workflow artifacts**
+          
+          ℹ️ **Note:** This scan covers source code only. For container vulnerability scanning, check for separate Trivy scan results.
+
+    - name: Security gate check
+      shell: bash
+      run: |
+        CODEQL_CRITICAL="${CODEQL_CRITICAL:-0}"
+        
+        if [ "$CODEQL_CRITICAL" -gt "0" ]; then
+          echo "❌ Security gate failed: Critical security issues found in source code"
+          echo "CodeQL Critical: $CODEQL_CRITICAL"
+          # Uncomment the next line if you want to fail the pipeline on critical issues
+          # exit 1
+        else
+          echo "✅ Security gate passed: No critical security issues found in source code"
+        fi

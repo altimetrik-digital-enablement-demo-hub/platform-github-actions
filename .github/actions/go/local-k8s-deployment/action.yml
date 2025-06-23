@@ -1,0 +1,76 @@
+name: Deploy to Local Kubernetes Cluster
+description: Builds and deploys the app using Helm to a Kubernetes cluster.
+
+inputs:
+  app-name:
+    description: Name of the application to deploy
+    required: true
+  chart-path:
+    description: Path to the Helm chart
+    required: true
+    default: app
+  namespace:
+    description: Kubernetes namespace
+    required: false
+    default: default
+  image-registry: 
+    description: Image registry
+    required: true
+    default: ghcr.io
+  image-tag:
+    description: Docker image tag
+    required: true
+  image-name:
+    description: Name of the Docker image (without registry)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: v1.29.0
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: v3.14.0
+
+    - name: Deploy via Helm
+      shell: bash
+      run: |
+        echo "🚀 Deploying ${{ inputs.app-name }} to ${{ inputs.environment }}..."
+        
+        # Check for stuck Helm operations and clean up if needed
+        if helm list -n ${{ inputs.namespace }} --pending --failed | grep -q ${{ inputs.app-name }}; then
+          echo "⚠️ Found stuck Helm operation, cleaning up..."
+          helm uninstall ${{ inputs.app-name }} -n ${{ inputs.namespace }} || true
+          sleep 5
+        fi
+        
+        helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart-path }} \
+          --namespace ${{ inputs.namespace }} \
+          --create-namespace \
+          --set image.repository=${{ inputs.image-registry }}/${{ inputs.image-name }} \
+          --set image.tag=${{ inputs.tag }} \
+          --debug
+
+    - name: Generate deployment summary # TODO: Make this a separate action?
+      shell: bash
+      run: |
+        echo "## 🚀 Helm Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Application:** ${{ inputs.app-name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Namespace:** ${{ inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image:** \`${{ inputs.image-registry }}/${{ inputs.image-name }}:${{ inputs.tag }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Deployment Status" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        kubectl get deployment ${{ inputs.app-name }} -n ${{ inputs.namespace }} -o wide >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "### 🌐 Service Status" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        kubectl get service ${{ inputs.app-name }} -n ${{ inputs.namespace }} >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY 

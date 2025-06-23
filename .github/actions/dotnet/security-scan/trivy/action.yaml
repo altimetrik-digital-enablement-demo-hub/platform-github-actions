@@ -1,0 +1,69 @@
+name: Trivy
+description: "Description: Scan Docker images for vulnerabilities using Trivy"
+
+inputs:
+  registry:
+    description: 'Container registry. Example: ghcr.io'
+    required: true
+    default: 'ghcr.io'
+
+  image-name:
+    description: Docker image name
+    required: true
+    
+  image-tag:
+    description: 'Docker image tag'
+    required: true
+
+  token:
+    description: 'A GitHub Personal Access Token (PAT)' 
+    required: true
+  severity:
+    description: "Comma-separated list of severities to include in the scan (e.g., CRITICAL,HIGH,MEDIUM,LOW)"
+    required: false
+    default: 'CRITICAL,HIGH'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.token }}
+
+    # Install and scan using Trivy
+    - name: Scan Docker image with Trivy
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        image-ref: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.image-tag }}
+        format: table
+        exit-code: 0
+        output: trivy-report.txt
+        vuln-type: os,library
+        severity: ${{ inputs.severity }}
+      env:
+        TRIVY_USERNAME: ${{ github.actor }}
+        TRIVY_PASSWORD: ${{ inputs.token }}
+
+
+    # Upload the Trivy report as an artifact
+    - name: Trivy Summary
+      shell: bash
+      run: |
+        CRITICAL=$(grep -c 'CRITICAL' trivy-report.txt || true)
+        HIGH=$(grep -c 'HIGH' trivy-report.txt || true)
+
+        echo "## 🛡️ Trivy Scan" >> $GITHUB_STEP_SUMMARY
+        echo "- 🚨 Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
+        echo "- ⚠️ High: $HIGH" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "<details><summary>📄 View Raw Report (truncated)</summary>" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        head -n 100 trivy-report.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "</details>" >> $GITHUB_STEP_SUMMARY

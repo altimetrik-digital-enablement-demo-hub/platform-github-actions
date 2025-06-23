@@ -1,0 +1,126 @@
+name: Unit Test Go Code
+description: Runs Go unit tests with race detection, coverage, and reporting
+
+inputs:
+  go-version:
+    description: Go version to use
+    required: false
+    default: '1.24'
+  test-flags:
+    description: Additional flags to pass to go test
+    required: false
+    default: '-race ./...'
+  working-directory:
+    description: Directory to run tests from
+    required: false
+    default: '.'
+  coverage-threshold:
+    description: Minimum code coverage percentage
+    required: false
+    default: '80'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Install dependencies 
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc jq
+
+    - name: Install gotestsum for better test reporting #
+      shell: bash
+      run: go install gotest.tools/gotestsum@latest
+
+    - name: Run tests with coverage and reporting
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        # Create test results directory
+        mkdir -p test-results
+        
+        # Run tests with coverage and JUnit XML output
+        gotestsum --junitfile test-results/junit.xml --format testname -- \
+          -coverprofile=test-results/coverage.out \
+          -covermode=atomic \
+          ${{ inputs.test-flags }}
+        
+        # Generate coverage report in different formats
+        go tool cover -html=test-results/coverage.out -o test-results/coverage.html
+        go tool cover -func=test-results/coverage.out -o test-results/coverage.txt
+        
+        # Get coverage percentage
+        COVERAGE=$(go tool cover -func=test-results/coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+        echo "COVERAGE_PERCENTAGE=$COVERAGE" >> $GITHUB_ENV
+        
+        # Display coverage summary
+        echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+        echo "**Total Coverage: ${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Coverage by Package:" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        go tool cover -func=test-results/coverage.out >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          test-results/junit.xml
+          test-results/coverage.out
+          test-results/coverage.html
+          test-results/coverage.txt
+
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1 
+      if: always()
+      with:
+        name: Go Test Results
+        path: test-results/junit.xml
+        reporter: java-junit
+        fail-on-error: false
+
+    - name: Add Coverage PR Comment
+      uses: marocchino/sticky-pull-request-comment@v2
+      if: github.event_name == 'pull_request'
+      with:
+        recreate: true
+        message: |
+          ## 🧪 Test Results & Coverage Report
+          
+          **Coverage: ${{ env.COVERAGE_PERCENTAGE }}%**
+          
+          <details>
+          <summary>📋 Coverage Details</summary>
+          
+          ```
+          $(cat test-results/coverage.txt)
+          ```
+          
+          </details>
+
+    - name: Check coverage threshold
+      shell: bash
+      run: |
+        COVERAGE=${{ env.COVERAGE_PERCENTAGE }}
+        THRESHOLD=${{ inputs.coverage-threshold }}
+        
+        echo "📊 Coverage Analysis:"
+        echo "Current coverage: ${COVERAGE}%"
+        echo "Required threshold: ${THRESHOLD}%"
+        
+        if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+          echo "❌ Coverage $COVERAGE% is below threshold $THRESHOLD%"
+          echo "🚨 Please add more tests to improve coverage!"
+          exit 1
+        else
+          echo "✅ Coverage $COVERAGE% meets threshold $THRESHOLD%"
+          echo "🎉 Great job on maintaining good test coverage!"
+        fi

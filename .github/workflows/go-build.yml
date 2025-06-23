@@ -1,0 +1,125 @@
+name: Go Dev Build Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        required: true
+        type: string
+        description: 'Name of the application (used for binary name, image name, etc.)'
+      go-version:
+        required: false
+        type: string
+        description: 'Go version to use'
+        default: '1.24'
+      registry-url:
+        required: false
+        type: string
+        description: 'Container registry URL (e.g., ghcr.io, AWS ECR)'
+        default: 'ghcr.io'
+      push-to-registry:
+        required: false
+        type: boolean
+        description: 'Push to registry instead of saving as tar'
+        default: true
+      package-push-to-registry:
+        required: false
+        type: boolean
+        description: 'Push to registry during package step (build but do not push yet if false)'
+        default: false
+      use-registry-image:
+        required: false
+        type: boolean
+        description: 'Use registry image for security scanning instead of local image'
+        default: false
+
+    outputs:
+      image-tag:
+        description: 'Generated image tag'
+        value: ${{ jobs.setup.outputs.image-tag }}
+      full-image-name:
+        description: 'Full image name with registry'
+        value: ${{ jobs.push-to-registry.outputs.full-image-name }}
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+  checks: write          
+  pull-requests: write
+  issues: write
+  packages: write        
+
+jobs:
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lint Go code
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@main
+        with:
+          go-version: ${{ inputs.go-version }}
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Run unit tests
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@main
+        with:
+          go-version: ${{ inputs.go-version }}
+      
+      - name: Generate Test Summary
+        if: always()
+        run: |
+          echo "## Test Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Unit tests completed" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Coverage report generated" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Test artifacts uploaded" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏗️ Building application binary" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 Packaging into Docker container" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔒 Running security scans" >> $GITHUB_STEP_SUMMARY
+          
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Build Go application
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@main
+        with:
+          app-name: ${{ inputs.app-name }}
+          go-version: ${{ inputs.go-version }}
+
+  package:
+    runs-on: ubuntu-latest
+    needs: build
+    outputs:
+      full-image-name: ${{ steps.package.outputs.full-image-name }}
+    steps:
+      - name: Package application
+        id: package
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/docker-build-push@main
+        with:
+          app-name: ${{ inputs.app-name }}
+          image-tag: ${{ needs.setup.outputs.image-tag }}
+          registry: ${{ inputs.registry }}
+          push-to-registry: ${{ inputs.package-push-to-registry }}
+
+  security:
+    runs-on: ubuntu-latest
+    needs: package
+    steps:
+      - name: CodeQL security scan
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/codeql@main
+        with:
+          app-name: ${{ inputs.app-name }}
+          languages: 'go'
+          go-version: ${{ inputs.go-version }}
+
+      - name: Container vulnerability scan
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/trivy-scan@main
+        with:
+          app-name: ${{ inputs.app-name }}
+          image-tag: ${{ needs.setup.outputs.image-tag }}
+          use-registry-image: ${{ inputs.use-registry-image }}

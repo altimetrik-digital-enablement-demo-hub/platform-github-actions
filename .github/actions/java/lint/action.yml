@@ -1,0 +1,58 @@
+name: Lint Java Project
+description: 'Lint a Java project using Checkstyle and upload the results as an artifact'
+
+inputs:
+  lint-command:
+    description: 'Lint command (e.g., mvn checkstyle:check)'
+    required: false
+    default: 'mvn checkstyle:check'
+  working-directory:
+    description: 'Working directory for the lint command'
+    required: false
+    default: '.'
+  java-version:
+    description: 'Java version to use'
+    required: false
+    default: '17'
+  continue-on-error:
+    description: 'Continue on error for linting'
+    required: false
+    default: 'true'
+
+runs: 
+  using: composite
+  steps:
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
+      with:
+        java-version: ${{ inputs.java-version }}
+        working-directory: ${{ inputs.working-directory }}
+
+    # This step runs the lint command
+    - name: Lint Project
+      run: ${{ inputs.lint-command }}
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      shell: bash
+
+    # This step uploads the lint results
+    - name: Checkstyle Summary
+      run: |
+        if [[ ! -f target/checkstyle-result.xml ]]; then
+          echo "## 🧹 Checkstyle Report" > summary.md
+          echo "- ⚠️ No report file found. Was Checkstyle run correctly?" >> summary.md
+        else
+          ERRORS=$(grep -c '<error' target/checkstyle-result.xml || echo "0")
+          WARNINGS=$(grep -c '<warning' target/checkstyle-result.xml || echo "0")
+
+          echo "## 🧹 Checkstyle Report" > summary.md
+          echo "- ❌ Errors: $ERRORS" >> summary.md
+          echo "- ⚠️ Warnings: $WARNINGS" >> summary.md
+        fi
+      shell: bash
+
+    # This step uploads the summary file as an artifact
+    - name: Upload Checkstyle Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: checkstyle-summary
+        path: summary.md 

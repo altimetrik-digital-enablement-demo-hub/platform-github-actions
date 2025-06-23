@@ -1,0 +1,23 @@
+name: Setup Image Tag
+description: Generates a unique image tag based on branch name, date, and run number
+
+outputs:
+  image-tag:
+    description: "Computed image tag"
+    value: ${{ steps.set-tag.outputs.image_tag }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Compute tag
+      id: set-tag
+      shell: bash
+      run: |
+        echo "GITHUB_REF_NAME: ${GITHUB_REF_NAME}"
+        echo "GITHUB_RUN_NUMBER: ${{ github.run_number }}"
+        BRANCH="${GITHUB_REF_NAME}"
+        BRANCH_LOWER=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | tr '/' '-')
+        DATE=$(date +%Y%m%d)
+        TAG="${BRANCH_LOWER}-${DATE}.${{ github.run_number }}"
+        echo "Generated tag: $TAG"
+        echo "image_tag=$TAG" >> $GITHUB_OUTPUT

@@ -1,0 +1,45 @@
+name: csharpier-lint
+description: Lint C# code using CSharpier
+
+inputs:
+  app-name:
+    description: Application name to lint
+    required: true
+  dotnet-version:
+    description: The .NET SDK version to use
+    required: false
+    default: '9.0.300'
+  restore:
+    description: Whether to restore dotnet tools before linting
+    required: false
+    default: "true"
+  
+runs:
+  using: composite
+  steps:
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+        fetch-depth: 1
+        fetch-tags: false 
+
+    - name: Lint global - ${{ inputs.app-name }}
+      if: ${{ inputs.restore == 'false' }}
+      shell: bash
+      run: |
+        echo "PWD: $(pwd)"
+        ls -al
+        echo "installing csharpier tool"
+        dotnet tool install --global csharpier
+        csharpier check .
+
+    - name: Lint restore - ${{ inputs.app-name }}
+      if: ${{ inputs.restore == 'true' }}
+      shell: bash
+      run: |
+        echo "PWD: $(pwd)"
+        ls -al
+        echo "Restoring project tools"
+        dotnet tool restore
+        dotnet csharpier check .
+    

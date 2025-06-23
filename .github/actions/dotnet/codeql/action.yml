@@ -1,0 +1,43 @@
+name: CodeQL
+description: CodeQL analysis for .NET applications
+
+inputs:
+  app-name:
+    description: Application name
+    required: true
+  language:
+    description: Programming language used in the application
+    required: false
+    default: 'csharp'
+  dotnet-version:
+    description: The .NET SDK version to use
+    required: false
+    default: '9.0.300'
+
+runs:
+  using: composite
+  steps:
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+        fetch-depth: 1
+        fetch-tags: false
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ inputs.language }}
+    
+    - name: build ${{ inputs.app-name }}
+      shell: bash
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Perform CodeQL Analysis for ${{ inputs.app-name }}
+      uses: github/codeql-action/analyze@v3
+
+    # This step generates a summary of the CodeQL analysis results
+    - name: CodeQL Summary
+      shell: bash
+      run: |
+        echo "## 🔐 CodeQL Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- Check [Security > Code Scanning Alerts](../../security/code-scanning) for results." >> $GITHUB_STEP_SUMMARY
