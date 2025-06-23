@@ -33,7 +33,7 @@ on:
 
 jobs:
   use-pipeline:
-    uses: amorattabalt/platform-github-actions/.github/workflows/dev-node.yml@v1
+    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/dev-node.yml@v1
     with:
       node-version: '20'
       lint-command: 'npm run lint'
@@ -100,29 +100,29 @@ To promote consistency and scalability, our reusable workflows follow a standard
 ```yaml
 jobs:
   lint:
-    uses: amorattabalt/platform-github-actions/.github/workflows/lint-node.yml@v1
+    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/lint-node.yml@v1
 
   test:
-    uses: amorattabalt/platform-github-actions/.github/workflows/test-node.yml@v1
+    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/test-node.yml@v1
     needs: lint
 
   build:
-    uses: amorattabalt/platform-github-actions/.github/workflows/build-node.yml@v1
+    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/build-node.yml@v1
     needs: test
 
   package:
-    uses: amorattabalt/platform-github-actions/.github/workflows/package-node.yml@v1
+    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/package-node.yml@v1
     needs: build
 
   security:
-    uses: amorattabalt/platform-github-actions/.github/workflows/security-scan.yml@v1
+    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/security-scan.yml@v1
     needs: package
     with:
       image-name: my-app
       image-tag: 1.0
 
   deploy:
-    uses: amorattabalt/platform-github-actions/.github/workflows/deploy.yml@v1
+    uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/workflows/deploy.yml@v1
     needs: security
     with:
       environment: staging
