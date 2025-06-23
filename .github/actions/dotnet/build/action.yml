@@ -5,25 +5,10 @@ inputs:
   app-name: 
     description: Application name
     required: true
-  language:
-    description: Programming language used in the application
-    required: false
-    default: 'csharp'
   dotnet-version:
     description: The .NET SDK version to use
     required: false
     default: '9.0.300'
-  git-fetch-depth:
-    description: The depth of the git fetch
-    required: false
-    default: "1"
-  git-fetch-tags:
-    description: Whether to fetch tags from the repository
-    required: false
-    default: "true"
-  token:
-    description: 'A Github API token with permissions to create releases and push changes'
-    required: true
 outputs:
     app-version:
       description: The version of the application as determined by Versionize 
@@ -36,78 +21,8 @@ runs:
     - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
-        fetch-depth: ${{ inputs.git-fetch-depth }}
-        fetch-tags: ${{ inputs.git-fetch-tags }}
-
+        
     - name: dotnet build ${{ inputs.app-name }}
       shell: bash
       run: |
         dotnet build --configuration Release --no-restore
-
-    - name: Install Versionize
-      shell: bash
-      run: dotnet tool install --global Versionize
-
-    - name: Setup git
-      shell: bash
-      run: |
-        git config --local user.email "gituser@github.com"
-        git config --local user.name "Git User"
-
-      # always execute even if new version is not created.
-    - name: Versionize Release
-      if: always()
-      id: versionize
-      shell: bash
-      run: |
-        echo "Running Versionize to determine if a release is needed"
-        versionize --version 
-        versionize --exit-insignificant-commits
-        VERSION=$(versionize inspect)
-        echo "app-version=${VERSION}"
-        echo "app-version=${VERSION}" >> $GITHUB_OUTPUT
-      continue-on-error: true
-
-    - name: Check versionize result
-      if: steps.versionize.outcome == 'success'
-      id: check_versionize
-      shell: bash
-      run: |
-        echo "Current app version: ${{ steps.versionize.outputs.app_version }}" 
-
-    - name: No release required
-      if: steps.versionize.outcome != 'success'
-      shell: bash
-      run: echo "Skipping Release. No release required."
-
-    - name: Push changes to GitHub
-      if: steps.versionize.outcome == 'success'
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ inputs.token }}
-        branch: ${{ github.ref }}
-        tags: true
-
-    - name: 'Create release'
-      if: steps.versionize.outcome == 'success'
-      uses: 'actions/github-script@v5'
-      with:
-        github-token: ${{ inputs.token }}
-        script: |
-          try {
-            const tags_url = context.payload.repository.tags_url + "?per_page=1"
-            const result = await github.request(tags_url)
-            const current_tag = result.data[0].name
-            await github.rest.repos.createRelease({
-              draft: false,
-              generate_release_notes: true,
-              name: current_tag,
-              owner: context.repo.owner,
-              prerelease: false,
-              repo: context.repo.repo,
-              tag_name: current_tag,
-            });
-          } catch (error) {
-            core.setFailed(error.message);
-          }
-

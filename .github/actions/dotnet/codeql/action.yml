@@ -20,8 +20,8 @@ runs:
     - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
-        fetch-depth: 1
-        fetch-tags: false
+        git-fetch-depth: 1
+        git-fetch-tags: false
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
