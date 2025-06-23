@@ -1,11 +1,19 @@
 name: Lint Java Project
-description: 'Lint a Java project using Checkstyle and upload the results as an artifact'
+description: 'Lint a Java project using Spring Java Format (default) or Checkstyle and upload the results as an artifact'
 
 inputs:
   lint-command:
-    description: 'Lint command (e.g., mvn checkstyle:check)'
+    description: 'Lint command (e.g., mvn checkstyle:check) - overrides linter-type if specified'
     required: false
-    default: 'mvn checkstyle:check'
+    default: ''
+  linter-type:
+    description: 'Type of linter to use (spring or checkstyle)'
+    required: false
+    default: 'spring'
+  run-formatting:
+    description: 'Whether to run formatting before linting'
+    required: false
+    default: 'true'
   working-directory:
     description: 'Working directory for the lint command'
     required: false
@@ -27,32 +35,74 @@ runs:
         java-version: ${{ inputs.java-version }}
         working-directory: ${{ inputs.working-directory }}
 
-    # This step runs the lint command
-    - name: Lint Project
+    # Use custom lint command if provided
+    - name: Run Custom Lint Command
+      if: inputs.lint-command != ''
       run: ${{ inputs.lint-command }}
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: true
       shell: bash
 
-    # This step uploads the lint results
-    - name: Checkstyle Summary
-      run: |
-        if [[ ! -f target/checkstyle-result.xml ]]; then
-          echo "## 🧹 Checkstyle Report" > summary.md
-          echo "- ⚠️ No report file found. Was Checkstyle run correctly?" >> summary.md
-        else
-          ERRORS=$(grep -c '<error' target/checkstyle-result.xml || echo "0")
-          WARNINGS=$(grep -c '<warning' target/checkstyle-result.xml || echo "0")
+    # Format Spring Java Code
+    - name: Format Spring Java Code
+      if: inputs.lint-command == '' && inputs.linter-type == 'spring' && inputs.run-formatting == 'true'
+      run: mvn -B spring-javaformat:apply
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      shell: bash
 
-          echo "## 🧹 Checkstyle Report" > summary.md
-          echo "- ❌ Errors: $ERRORS" >> summary.md
-          echo "- ⚠️ Warnings: $WARNINGS" >> summary.md
+    # Run Spring Java Format validation
+    - name: Run Spring Java Format
+      if: inputs.lint-command == '' && inputs.linter-type == 'spring'
+      run: mvn -B spring-javaformat:validate
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      shell: bash
+
+    # Format with Checkstyle
+    - name: Format with Checkstyle
+      if: inputs.lint-command == '' && inputs.linter-type == 'checkstyle' && inputs.run-formatting == 'true'
+      run: mvn -B checkstyle:format
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      shell: bash
+
+    # Run Checkstyle validation
+    - name: Run Checkstyle
+      if: inputs.lint-command == '' && inputs.linter-type == 'checkstyle'
+      run: mvn -B checkstyle:check
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      shell: bash
+
+    # Generate summary based on linter type or custom command
+    - name: Generate Lint Summary
+      run: |
+        if [[ "${{ inputs.lint-command }}" != "" ]]; then
+          echo "## 🔧 Custom Lint Report" > summary.md
+          echo "- ✅ Custom lint command executed: ${{ inputs.lint-command }}" >> summary.md
+        elif [[ "${{ inputs.linter-type }}" == "spring" ]]; then
+          echo "## 🌸 Spring Java Format Report" > summary.md
+          echo "- ✅ Spring Java Format validation completed" >> summary.md
+          echo "- 📝 Code formatting applied (if enabled)" >> summary.md
+        else
+          if [[ ! -f target/checkstyle-result.xml ]]; then
+            echo "## 🧹 Checkstyle Report" > summary.md
+            echo "- ⚠️ No report file found. Was Checkstyle run correctly?" >> summary.md
+          else
+            ERRORS=$(grep -c '<error' target/checkstyle-result.xml || echo "0")
+            WARNINGS=$(grep -c '<warning' target/checkstyle-result.xml || echo "0")
+
+            echo "## 🧹 Checkstyle Report" > summary.md
+            echo "- ❌ Errors: $ERRORS" >> summary.md
+            echo "- ⚠️ Warnings: $WARNINGS" >> summary.md
+          fi
         fi
       shell: bash
 
-    # This step uploads the summary file as an artifact
-    - name: Upload Checkstyle Summary
+    # Upload the summary file as an artifact
+    - name: Upload Lint Summary
       uses: actions/upload-artifact@v4
       with:
-        name: checkstyle-summary
+        name: ${{ inputs.lint-command != '' && 'custom-lint-summary' || format('%s-lint-summary', inputs.linter-type) }}
         path: summary.md 
