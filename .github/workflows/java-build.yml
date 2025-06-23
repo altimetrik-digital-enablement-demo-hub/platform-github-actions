@@ -18,7 +18,7 @@ on:
       lint-command:
         description: 'Lint command (e.g., mvn checkstyle:check)'
         required: false
-        default: 'mvn checkstyle:check'
+        default: 'mvn spring-javaformat:validate'
         type: string
 
       build-command:
