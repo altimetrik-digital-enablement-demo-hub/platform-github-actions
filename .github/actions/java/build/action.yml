@@ -1,5 +1,5 @@
 name: Build Java Project
-description: 'Build a Java project and deploy the build artifacts to GitHub Pages'
+description: 'Build a Java project and upload build artifacts'
 
 inputs:
   build-command:
@@ -14,9 +14,10 @@ inputs:
     description: 'Working directory for the build command'
     required: false
     default: '.'
-  token:
-    description: 'GitHub token for authentication'
-    required: true
+  artifact-name:
+    description: 'Name of the uploaded build artifact'
+    required: false
+    default: 'build-artifacts'
 
 runs:
   using: composite
@@ -33,8 +34,10 @@ runs:
       working-directory: ${{ inputs.working-directory }}
 
     # This step uploads the build artifacts
-    - name: Deploy
-      uses: peaceiris/actions-gh-pages@v4
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
       with:
-        github_token: ${{ inputs.token }}
-        publish_dir: ./target/site 
+        name: ${{ inputs.artifact-name }}
+        path: |
+          target/*.jar
+          target/*.war 

@@ -87,22 +87,19 @@ jobs:
           build-command: ${{ inputs.build-command }}
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          artifact-name: ${{ inputs.artifact-name }}
 
   # This job executes unit test
   unit-test:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      # This job sets up Java and runs unit tests
-      - uses: amorattabalt/platform-github-actions/.github/actions/java/setup@main
-        with:
-          java-version: ${{ inputs.java-version }}
-          working-directory: ${{ inputs.working-directory }}
-      # This step runs the unit tests
-      - uses: amorattabalt/platform-github-actions/.github/actions/common/junit-test@main
+      # This step runs the unit tests using the new Java test action
+      - uses: amorattabalt/platform-github-actions/.github/actions/java/test@main
         with:
           test-command: ${{ inputs.test-command }}
+          java-version: ${{ inputs.java-version }}
+          working-directory: ${{ inputs.working-directory }}
           continue-on-error: ${{ inputs.contine-on-error }}
 
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
