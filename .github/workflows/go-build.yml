@@ -4,34 +4,34 @@ on:
   workflow_call:
     inputs:
       app-name:
+        description: 'Name of the application (used for binary name, image name, etc.)'
         required: true
         type: string
-        description: 'Name of the application (used for binary name, image name, etc.)'
       go-version:
+        description: 'Go version to use'
         required: false
         type: string
-        description: 'Go version to use'
         default: '1.24'
-      registry-url:
+      registry:
         required: false
         type: string
         description: 'Container registry URL (e.g., ghcr.io, AWS ECR)'
         default: 'ghcr.io'
-      push-to-registry:
+      docker-context:
+        description: 'Context for Docker build. Default src/NetWebApi.API.'
+        required: false
+        type: string
+        default: '.'
+      docker-file:
+        description: 'Dockerfile path. Default ./Dockerfile; can be set to a custom Dockerfile path'
+        required: false
+        type: string
+        default: './Dockerfile'
+      docker-push:
+        description: 'Push the Docker image to the registry. Default true'
         required: false
         type: boolean
-        description: 'Push to registry instead of saving as tar'
         default: true
-      package-push-to-registry:
-        required: false
-        type: boolean
-        description: 'Push to registry during package step (build but do not push yet if false)'
-        default: false
-      use-registry-image:
-        required: false
-        type: boolean
-        description: 'Use registry image for security scanning instead of local image'
-        default: false
 
     outputs:
       image-tag:
@@ -43,20 +43,20 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
   security-events: write
   checks: write          
   pull-requests: write
   issues: write
-  packages: write        
+  packages: write    
+  id-token: write    
 
 jobs:
-
   lint:
     runs-on: ubuntu-latest
     steps:
       - name: Lint Go code
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@main
+        uses: dgeorgievski/my-github-actions/.github/actions/go/lint@test-go
         with:
           go-version: ${{ inputs.go-version }}
   test:
@@ -64,62 +64,84 @@ jobs:
     needs: lint
     steps:
       - name: Run unit tests
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@main
+        uses: dgeorgievski/my-github-actions/.github/actions/go/unit-test@test-go
         with:
           go-version: ${{ inputs.go-version }}
       
-      - name: Generate Test Summary
-        if: always()
-        run: |
-          echo "## Test Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Unit tests completed" >> $GITHUB_STEP_SUMMARY
-          echo "📊 Coverage report generated" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Test artifacts uploaded" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "- 🏗️ Building application binary" >> $GITHUB_STEP_SUMMARY
-          echo "- 📦 Packaging into Docker container" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔒 Running security scans" >> $GITHUB_STEP_SUMMARY
-          
+      # - name: Generate Test Summary
+      #   if: always()
+      #   run: |
+      #     echo "## Test Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+      #     echo "✅ Unit tests completed" >> $GITHUB_STEP_SUMMARY
+      #     echo "📊 Coverage report generated" >> $GITHUB_STEP_SUMMARY
+      #     echo "📦 Test artifacts uploaded" >> $GITHUB_STEP_SUMMARY
+      #     echo "" >> $GITHUB_STEP_SUMMARY
+      #     echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+      #     echo "- 🏗️ Building application binary" >> $GITHUB_STEP_SUMMARY
+      #     echo "- 📦 Packaging into Docker container" >> $GITHUB_STEP_SUMMARY
+      #     echo "- 🔒 Running security scans" >> $GITHUB_STEP_SUMMARY
   build:
     runs-on: ubuntu-latest
     needs: test
     steps:
       - name: Build Go application
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@main
+        uses: dgeorgievski/my-github-actions/.github/actions/go/build@test-go
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
 
+  security-scan:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Set up Go
+        uses: dgeorgievski/my-github-actions/.github/actions/go/setup@test-go
+        with:
+          go-version: ${{ inputs.go-version }}
+      # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
+      - uses: dgeorgievski/my-github-actions/.github/actions/common/static-code-analysis/codeql@test-go
+        with:
+          languages: go
+  release:
+    name: Release ${{ inputs.app-name }}
+    needs: build
+    runs-on: 'ubuntu-latest'
+    outputs:
+      app-version: ${{ steps.semantic-release.outputs.app-version }}
+    steps:
+      - uses: dgeorgievski/my-github-actions/.github/actions/go/release@test-go
+        id: semantic-release
+        with:
+          go-version: ${{ inputs.go-version }}
+          token: ${{ secrets.GITHUB_TOKEN }} 
   package:
     runs-on: ubuntu-latest
-    needs: build
-    outputs:
-      full-image-name: ${{ steps.package.outputs.full-image-name }}
+    needs: [build, release]
+    # outputs:
+    #   full-image-name: ${{ steps.package.outputs.full-image-name }}
     steps:
       - name: Package application
         id: package
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/docker-build-push@main
+        uses: dgeorgievski/my-github-actions/.github/actions/go/package@test-go
         with:
           app-name: ${{ inputs.app-name }}
-          image-tag: ${{ needs.setup.outputs.image-tag }}
+          context: ${{ inputs.docker-context }}
+          docker-file: ${{ inputs.docker-file }}
+          image-tag: ${{ needs.release.outputs.app-version }}
           registry: ${{ inputs.registry }}
-          push-to-registry: ${{ inputs.package-push-to-registry }}
-
+          push: ${{ inputs.docker-push }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
   security:
     runs-on: ubuntu-latest
-    needs: package
+    needs: [release, package]
     steps:
-      - name: CodeQL security scan
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/codeql@main
+      - uses: dgeorgievski/my-github-actions/.github/actions/common/security-scanner/trivy-scan@test-go
         with:
-          app-name: ${{ inputs.app-name }}
-          languages: 'go'
-          go-version: ${{ inputs.go-version }}
-
-      - name: Container vulnerability scan
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/trivy-scan@main
-        with:
-          app-name: ${{ inputs.app-name }}
-          image-tag: ${{ needs.setup.outputs.image-tag }}
-          use-registry-image: ${{ inputs.use-registry-image }}
+          version: ${{ needs.release.outputs.app-version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          severity: 'CRITICAL,HIGH'

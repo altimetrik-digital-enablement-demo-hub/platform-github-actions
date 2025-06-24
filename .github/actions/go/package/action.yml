@@ -1,0 +1,67 @@
+name: Package Go Application into Docker Image
+description: |
+  This action packages a .Go application into a Docker image.
+  
+inputs:
+  app-name:
+    description: Application name
+    required: true
+  context:
+    description: 'Context for docker build'
+    default: '.'
+    required: false
+  docker-file:
+    description: 'Path to the Dockerfile'
+    default: './Dockerfile'
+    required: false
+  image-tag:
+    description: 'Tag for the Docker image'
+    default: 'latest'
+    required: false
+  registry:
+    description: 'Container registry to push the image to'
+    default: 'ghcr.io'
+    required: false
+  push:
+    description: 'Push the image to the registry'
+    default: 'false'
+    required: false
+  token:
+    description: 'A Github PAT'
+    required: true    
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true  
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ inputs.registry }}/${{ github.actor }}/${{ inputs.app-name }}
+        tags: |
+          # type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}},value=${{ inputs.image-tag }}
+          type=semver,pattern={{major}}.{{minor}}
+          
+    - name: Log in to the Container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ github.actor }}
+        password: ${{ inputs.token }}
+
+    - name: Build and push Docker image
+      id: push
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context || '.' }}
+        file: ${{ inputs.docker-file || './Dockerfile' }}
+        push: ${{ inputs.push || false }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
