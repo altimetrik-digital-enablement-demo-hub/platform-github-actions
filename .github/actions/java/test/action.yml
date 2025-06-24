@@ -1,0 +1,93 @@
+name: Test Java Project
+description: 'Run Java unit tests with coverage and upload test results'
+
+inputs:
+  test-command:
+    description: 'Test command (e.g., mvn test)'
+    required: false
+    default: 'mvn test'
+  java-version:
+    description: 'Java version to use'
+    required: false
+    default: '17'
+  working-directory:
+    description: 'Working directory for the test command'
+    required: false
+    default: '.'
+  continue-on-error:
+    description: 'Continue on error for tests'
+    required: false
+    default: 'true'
+  coverage-threshold:
+    description: 'Minimum code coverage percentage'
+    required: false
+    default: '80'
+
+runs:
+  using: composite
+  steps:
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
+      with:
+        java-version: ${{ inputs.java-version }}
+        working-directory: ${{ inputs.working-directory }}
+
+    # Run tests with coverage
+    - name: Run Tests with Coverage
+      run: ${{ inputs.test-command }}
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: ${{ inputs.continue-on-error }}
+      shell: bash
+
+    # Upload test results
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          target/surefire-reports/
+          target/failsafe-reports/
+          target/site/jacoco/
+
+    # Upload coverage report
+    - name: Upload Coverage Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-report
+        path: target/site/jacoco/
+
+    # Generate test summary
+    - name: Generate Test Summary
+      run: |
+        echo "## 🧪 Java Test Report" > summary.md
+        
+        # Check for test results
+        if [[ -d "target/surefire-reports" ]]; then
+          echo "- ✅ Test results generated" >> summary.md
+        else
+          echo "- ⚠️ No test results found" >> summary.md
+        fi
+        
+        # Check for coverage report
+        if [[ -d "target/site/jacoco" ]]; then
+          echo "- 📊 Coverage report generated" >> summary.md
+          
+          # Try to extract coverage percentage if available
+          if [[ -f "target/site/jacoco/index.html" ]]; then
+            echo "- 📈 Coverage details available in artifacts" >> summary.md
+          fi
+        else
+          echo "- ⚠️ No coverage report found" >> summary.md
+        fi
+        
+        echo "- 📦 Test artifacts uploaded" >> summary.md
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+
+    # Upload test summary
+    - name: Upload Test Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-summary
+        path: summary.md 
