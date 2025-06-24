@@ -157,7 +157,7 @@ jobs:
       packages: read  # Required to pull from GHCR
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/trivy-scan@testing
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@testing
         if: ${{ inputs.run-trivy == true }}
         with:
           version: ${{ needs.versioning.outputs.new-tag }}
@@ -165,7 +165,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/grype-scan@testing
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/grype-scan@testing
         if: ${{ inputs.run-grype == true }}
         with:
           version: ${{ needs.versioning.outputs.new-tag }}
