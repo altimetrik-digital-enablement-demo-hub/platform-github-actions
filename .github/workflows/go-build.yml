@@ -33,14 +33,6 @@ on:
         type: boolean
         default: true
 
-    outputs:
-      image-tag:
-        description: 'Generated image tag'
-        value: ${{ jobs.setup.outputs.image-tag }}
-      full-image-name:
-        description: 'Full image name with registry'
-        value: ${{ jobs.push-to-registry.outputs.full-image-name }}
-
 permissions:
   actions: read
   contents: write
@@ -56,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Lint Go code
-        uses: dgeorgievski/my-github-actions/.github/actions/go/lint@test-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@main
         with:
           go-version: ${{ inputs.go-version }}
   test:
@@ -64,28 +56,15 @@ jobs:
     needs: lint
     steps:
       - name: Run unit tests
-        uses: dgeorgievski/my-github-actions/.github/actions/go/unit-test@test-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@main
         with:
           go-version: ${{ inputs.go-version }}
-      
-      # - name: Generate Test Summary
-      #   if: always()
-      #   run: |
-      #     echo "## Test Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-      #     echo "✅ Unit tests completed" >> $GITHUB_STEP_SUMMARY
-      #     echo "📊 Coverage report generated" >> $GITHUB_STEP_SUMMARY
-      #     echo "📦 Test artifacts uploaded" >> $GITHUB_STEP_SUMMARY
-      #     echo "" >> $GITHUB_STEP_SUMMARY
-      #     echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-      #     echo "- 🏗️ Building application binary" >> $GITHUB_STEP_SUMMARY
-      #     echo "- 📦 Packaging into Docker container" >> $GITHUB_STEP_SUMMARY
-      #     echo "- 🔒 Running security scans" >> $GITHUB_STEP_SUMMARY
   build:
     runs-on: ubuntu-latest
     needs: test
     steps:
       - name: Build Go application
-        uses: dgeorgievski/my-github-actions/.github/actions/go/build@test-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@main
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
@@ -99,11 +78,11 @@ jobs:
       contents: read
     steps:
       - name: Set up Go
-        uses: dgeorgievski/my-github-actions/.github/actions/go/setup@test-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
         with:
           go-version: ${{ inputs.go-version }}
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: dgeorgievski/my-github-actions/.github/actions/common/static-code-analysis/codeql@test-go
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
         with:
           languages: go
   release:
@@ -113,7 +92,7 @@ jobs:
     outputs:
       app-version: ${{ steps.semantic-release.outputs.app-version }}
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/go/release@test-go
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/release@main
         id: semantic-release
         with:
           go-version: ${{ inputs.go-version }}
@@ -126,7 +105,7 @@ jobs:
     steps:
       - name: Package application
         id: package
-        uses: dgeorgievski/my-github-actions/.github/actions/go/package@test-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@main
         with:
           app-name: ${{ inputs.app-name }}
           context: ${{ inputs.docker-context }}
@@ -140,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [release, package]
     steps:
-      - uses: dgeorgievski/my-github-actions/.github/actions/common/security-scanner/trivy-scan@test-go
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@main
         with:
           version: ${{ needs.release.outputs.app-version }}
           token: ${{ secrets.GITHUB_TOKEN }}

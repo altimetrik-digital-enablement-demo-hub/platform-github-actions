@@ -18,7 +18,7 @@ runs:
   using: 'composite'  
   steps:
     - name: Set up Go
-      uses: dgeorgievski/my-github-actions/.github/actions/go/setup@test-go
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
       with:
         go-version: ${{ inputs.go-version }}
         git-fetch-depth: 0
