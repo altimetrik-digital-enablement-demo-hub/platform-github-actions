@@ -26,7 +26,7 @@ runs:
       with:
         distribution: 'temurin'
         java-version: ${{ inputs.java-version }}
-        # cache: 'maven'
+        cache: 'maven'
 
     # Install dependencies (Maven will download dependencies automatically)
     - name: Install dependencies
