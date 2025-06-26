@@ -68,12 +68,6 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      # This step checks out the code from the repository
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
-        with:
-          java-version: ${{ inputs.java-version }}
-          working-directory: ${{ inputs.working-directory }}
-
       # This job sets up Java and runs the lint command
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/lint@main
         with:
@@ -87,12 +81,6 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      # This step checks out the code from the repository
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
-        with:
-          java-version: ${{ inputs.java-version }}
-          working-directory: ${{ inputs.working-directory }}
-
       # This job sets up Java and runs the build command
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/build@main
         with:
@@ -106,12 +94,6 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      # This step checks out the code from the repository
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
-        with:
-          java-version: ${{ inputs.java-version }}
-          working-directory: ${{ inputs.working-directory }}
-
       # This step runs the unit tests using the new Java test action
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/test@main
         with:
@@ -175,7 +157,7 @@ jobs:
       packages: read  # Required to pull from GHCR
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/trivy-scan@main
         if: ${{ inputs.run-trivy == true }}
         with:
           version: ${{ needs.versioning.outputs.new-tag }}
@@ -183,24 +165,24 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/grype-scan@main
         if: ${{ inputs.run-grype == true }}
         with:
           version: ${{ needs.versioning.outputs.new-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
   # This job packages the Java project, creating an artifact for deployment or distribution
-  # package:
-  #   needs: versioning
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     # This step packages the Java project
-  #     - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/package@main
-  #       with:
-  #         package-command: ${{ inputs.package-command }}
-  #         artifact-name: ${{ inputs.artifact-name }}
-  #         java-version: ${{ inputs.java-version }}
-  #         working-directory: ${{ inputs.working-directory }}
+  package:
+    needs: versioning
+    runs-on: ubuntu-latest
+    steps:
+      # This step packages the Java project
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/package@main
+        with:
+          package-command: ${{ inputs.package-command }}
+          artifact-name: ${{ inputs.artifact-name }}
+          java-version: ${{ inputs.java-version }}
+          working-directory: ${{ inputs.working-directory }}
 
   # This job generates a dashboard summarizing the results of the previous jobs
   dashboard:
@@ -209,4 +191,4 @@ jobs:
     if: always()
     steps:
       # This job generates a dashboard summarizing the results of the previous jobs
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-dashboard@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-dashboard@main 

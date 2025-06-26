@@ -11,11 +11,6 @@ on:
         required: false
         type: string
         default: 'csharp'
-      git-fetch-depth:
-        description: 'Git fetch depth for the repository. Default 1; can be 0 for full history.'
-        required: false
-        type: string
-        default: '1'
       dotnet-version:
         description: 'Version of .NET SDK to use. Default 9.0.300; can be any valid .NET SDK version.'
         required: false
@@ -57,7 +52,7 @@ on:
         type: string
         default: 'ghcr.io'
       docker-context:
-        description: 'Context for Docker build. Default src/NetWebApi.API.'
+        description: 'Context for Docker build. Default "."'
         required: false
         type: string
         default: '.'
@@ -78,6 +73,14 @@ jobs:
     if: ${{ inputs.language == 'csharp' }}     
     runs-on: 'ubuntu-latest'
     steps:
+      # This step sets up the .NET environment
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+          fetch-depth: 1
+          fetch-tags: false 
+
+      # This step is used for executing the linting process of csharp code using CSharpier
       - name: csharpier
         if: ${{ inputs.dotnet-linter-csharpier == true }}
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/csharpier@main
@@ -86,6 +89,8 @@ jobs:
           app-name: ${{ inputs.app-name }}
           dotnet-version: ${{ inputs.dotnet-version }}
           restore: ${{ inputs.dotnet-tools-restore }}
+      
+      # This step is used for executing the linting process of csharp code using Roslynator
       - name: roslynator
         if: ${{ inputs.dotnet-linter-roslynator == true }}
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/roslynator@main
@@ -100,6 +105,14 @@ jobs:
     needs: lint
     runs-on: 'ubuntu-latest'     
     steps:
+      # This step sets up the .NET environment
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+          fetch-depth: 1
+          fetch-tags: false 
+
+      # This step runs the .NET tests
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/test@main
         with:
           verbosity: ${{ inputs.dotnet-test-verbosity }}
@@ -109,30 +122,50 @@ jobs:
     needs: lint
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/codeql@main
+      # This step sets up the .NET environment for CodeQL analysis
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
         with:
-          app-name: ${{ inputs.app-name }}  
+          dotnet-version: ${{ inputs.dotnet-version }}
+          fetch-depth: 1
+          fetch-tags: false 
+      
+      # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
+        with:
+          languages: 'csharp'
+   
+  
   build:
     name: Build ${{ inputs.app-name }}
     needs: [test, codeql]
     runs-on: 'ubuntu-latest'
-    outputs:
-      app_version: ${{ steps.build.outputs.app_version }}
     steps:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/build@main
         id: build
         with:
           app-name: ${{ inputs.app-name }}
-          language: ${{ inputs.language }}
           dotnet-version: ${{ inputs.dotnet-version }}
-          git-fetch-depth: ${{ inputs.git-fetch-depth }}   
+
+  
+  release:
+    name: Release ${{ inputs.app-name }}
+    needs: build
+    runs-on: 'ubuntu-latest'
+    outputs:
+      app-version: ${{ steps.versionize.outputs.app-version }}
+    steps:
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/release@main
+        id: versionize
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+          git-fetch-depth: 0   
           git-fetch-tags: "true"
           token: ${{ secrets.GITHUB_TOKEN }}  
-  
+
   package:
     name: Package ${{ inputs.app-name }}
-    needs: build
-    if: needs.build.outputs.app_version != '' 
+    needs: release
+    if: needs.release.outputs.app-version != '' 
     runs-on: 'ubuntu-latest'
     steps:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/package@main
@@ -142,13 +175,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           context: ${{ inputs.docker-context }}
           docker-file: ${{ inputs.docker-file }}
-          image-tag: ${{ needs.build.outputs.app_version }}
+          image-tag: ${{ needs.release.outputs.app-version }}
           registry: ${{ inputs.registry }}
           push: ${{ inputs.docker-push }}
   
   security:
     name: Security Scan for ${{ inputs.app-name }}
-    needs: [build, package]
+    needs: [release, package]
     runs-on: 'ubuntu-latest'
     steps:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/security-scan/trivy@main
@@ -157,7 +190,7 @@ jobs:
         with:
           registry: ghcr.io
           image-name: altimetrik-digital-enablement-demo-hub/${{ inputs.app-name }}
-          image-tag: ${{ needs.build.outputs.app_version }}
+          image-tag: ${{ needs.release.outputs.app-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
@@ -167,7 +200,7 @@ jobs:
         with:
           registry: ghcr.io
           image-name: ${{ inputs.app-name }}
-          image-tag: ${{ needs.build.outputs.app_version }}
+          image-tag: ${{ needs.release.outputs.app-version }}
           docker-file: ${{ inputs.docker-file }}
           token: ${{ secrets.GITHUB_TOKEN }}
           
