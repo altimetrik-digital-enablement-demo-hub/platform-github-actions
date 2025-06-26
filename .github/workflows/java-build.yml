@@ -68,6 +68,12 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
+      # This step sets up the Java environment
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
+        with:
+          java-version: ${{ inputs.java-version }}
+          working-directory: ${{ inputs.working-directory }}
+
       # This job sets up Java and runs the lint command
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/lint@main
         with:
@@ -81,6 +87,12 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
+      # This step sets up the Java environment
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
+        with:
+          java-version: ${{ inputs.java-version }}
+          working-directory: ${{ inputs.working-directory }}
+
       # This job sets up Java and runs the build command
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/build@main
         with:
@@ -94,6 +106,12 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
+      # This step sets up the Java environment
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
+        with:
+          java-version: ${{ inputs.java-version }}
+          working-directory: ${{ inputs.working-directory }}
+          
       # This step runs the unit tests using the new Java test action
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/test@main
         with:
@@ -134,7 +152,7 @@ jobs:
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@main
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
-  dockerBuildAndPush:
+  docker-build-and-push:
     runs-on: ubuntu-latest
     needs: versioning
     if: ${{ needs.versioning.outputs.new-tag != '' }}
@@ -148,7 +166,7 @@ jobs:
           version: ${{ needs.versioning.outputs.new-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  dockerScan:
+  docker-scan:
     runs-on: ubuntu-latest
     needs: [versioning, dockerBuildAndPush]
     if: ${{ needs.versioning.outputs.new-tag != '' }}
@@ -171,23 +189,10 @@ jobs:
           version: ${{ needs.versioning.outputs.new-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # This job packages the Java project, creating an artifact for deployment or distribution
-  package:
-    needs: versioning
-    runs-on: ubuntu-latest
-    steps:
-      # This step packages the Java project
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/package@main
-        with:
-          package-command: ${{ inputs.package-command }}
-          artifact-name: ${{ inputs.artifact-name }}
-          java-version: ${{ inputs.java-version }}
-          working-directory: ${{ inputs.working-directory }}
-
   # This job generates a dashboard summarizing the results of the previous jobs
   dashboard:
     runs-on: ubuntu-latest
-    needs: [lint, unit-test, dockerScan]
+    needs: [lint, unit-test, docker-scan]
     if: always()
     steps:
       # This job generates a dashboard summarizing the results of the previous jobs
