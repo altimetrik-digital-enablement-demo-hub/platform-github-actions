@@ -75,13 +75,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # This job sets up Node.js and runs the lint command
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/python/setup@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/python/setup@v0
         with:
           python-version: ${{ inputs.python-version }}
           working-directory: ${{ inputs.working-directory }}
 
       # This job sets up Node.js and runs the lint command
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/python/lint@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/python/lint@v0
         with:
           lint-command: ${{ inputs.lint-command }}
           continue-on-error: ${{ inputs.contine-on-error }}
@@ -92,12 +92,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This job sets up Python and runs unit tests
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/python/setup@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/python/setup@v0
         with:
           python-version: ${{ inputs.python-version }}
           working-directory: ${{ inputs.working-directory }}
       # This step runs the unit tests using Jest
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/python/unittest@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/python/unittest@v0
         with:
           test-command: ${{ inputs.test-command }}
           continue-on-error: ${{ inputs.continue-on-error }}
@@ -112,7 +112,7 @@ jobs:
       contents: read
     steps:
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v0
         with:
           languages: python
 
@@ -127,7 +127,7 @@ jobs:
     steps:
       # This step checks out the code from the repository
       - id: generate-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v0
 
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
@@ -140,7 +140,7 @@ jobs:
       packages: write  # Required to push to GHCR
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -156,7 +156,7 @@ jobs:
       packages: read  # Required to pull from GHCR
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run_trivy == true }}
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
@@ -164,7 +164,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
   
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run_grype == true }}
         with:
           version: ${{ needs.versioning.outputs.new_tag }}

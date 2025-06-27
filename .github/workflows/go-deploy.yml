@@ -53,7 +53,7 @@ jobs:
     steps:
       - name: Deploy to local Kubernetes cluster using Helm
         if: inputs.target == 'local-k8s'
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/deploy/local-k8s-helm@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/deploy/local-k8s-helm@v0
         with:
           release-name: ${{ inputs.release-name }}
           namespace: ${{ inputs.namespace }}

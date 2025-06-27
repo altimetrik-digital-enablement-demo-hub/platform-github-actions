@@ -74,7 +74,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     steps:
       # This step sets up the .NET environment
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
           fetch-depth: 1
@@ -83,7 +83,7 @@ jobs:
       # This step is used for executing the linting process of csharp code using CSharpier
       - name: csharpier
         if: ${{ inputs.dotnet-linter-csharpier == true }}
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/csharpier@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/csharpier@v0
         continue-on-error: true
         with:
           app-name: ${{ inputs.app-name }}
@@ -93,7 +93,7 @@ jobs:
       # This step is used for executing the linting process of csharp code using Roslynator
       - name: roslynator
         if: ${{ inputs.dotnet-linter-roslynator == true }}
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/roslynator@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/roslynator@v0
         continue-on-error: true
         with:
           app-name: ${{ inputs.app-name }}
@@ -106,14 +106,14 @@ jobs:
     runs-on: 'ubuntu-latest'     
     steps:
       # This step sets up the .NET environment
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
           fetch-depth: 1
           fetch-tags: false 
 
       # This step runs the .NET tests
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/test@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/test@v0
         with:
           verbosity: ${{ inputs.dotnet-test-verbosity }}
 
@@ -123,14 +123,14 @@ jobs:
     runs-on: 'ubuntu-latest'
     steps:
       # This step sets up the .NET environment for CodeQL analysis
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
           fetch-depth: 1
           fetch-tags: false 
       
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v0
         with:
           languages: 'csharp'
    
@@ -141,14 +141,14 @@ jobs:
     runs-on: 'ubuntu-latest'
     steps:
       # This step sets up the .NET environment for building the application
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
           fetch-depth: 1
           fetch-tags: false 
 
       # This step builds the .NET application
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/build@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/build@v0
         id: build
         with:
           app-name: ${{ inputs.app-name }}
@@ -162,7 +162,7 @@ jobs:
     outputs:
       app-version: ${{ steps.versionize.outputs.app-version }}
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/release@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/release@v0
         id: versionize
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
@@ -180,7 +180,7 @@ jobs:
       packages: write  # Required to push to GHCR
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
         with:
           version: ${{ needs.release.outputs.app-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -192,7 +192,7 @@ jobs:
   #   if: needs.release.outputs.app-version != '' 
   #   runs-on: 'ubuntu-latest'
   #   steps:
-  #     - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/package@main
+  #     - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/package@v0
   #       with:
   #         language: ${{ inputs.language }}
   #         app-name: ${{ inputs.app-name }}
@@ -212,14 +212,14 @@ jobs:
       packages: read 
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run_trivy == true }}
         with:
           version: ${{ needs.release.outputs.app-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
       
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@v0
         if: ${{ inputs.run_trivy == true }}
         with:
           tool: 'Trivy'
@@ -228,13 +228,13 @@ jobs:
           high_keyword: 'HIGH'
 
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run_grype == true }}
         with:
           version: ${{ needs.release.outputs.app-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@v0
         if: ${{ inputs.run_grype == true }}
         with:
           tool: 'Grype'

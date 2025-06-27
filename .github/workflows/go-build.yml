@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Lint Go code
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@v0
         with:
           go-version: ${{ inputs.go-version }}
   test:
@@ -56,7 +56,7 @@ jobs:
     needs: lint
     steps:
       - name: Run unit tests
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@v0
         with:
           go-version: ${{ inputs.go-version }}
   build:
@@ -64,7 +64,7 @@ jobs:
     needs: test
     steps:
       - name: Build Go application
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@v0
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
@@ -78,11 +78,11 @@ jobs:
       contents: read
     steps:
       - name: Set up Go
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v0
         with:
           go-version: ${{ inputs.go-version }}
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v0
         with:
           languages: go
   release:
@@ -92,7 +92,7 @@ jobs:
     outputs:
       app-version: ${{ steps.semantic-release.outputs.app-version }}
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/release@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/release@v0
         id: semantic-release
         with:
           go-version: ${{ inputs.go-version }}
@@ -105,7 +105,7 @@ jobs:
     steps:
       - name: Package application
         id: package
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@v0
         with:
           app-name: ${{ inputs.app-name }}
           context: ${{ inputs.docker-context }}
@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [release, package]
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         with:
           version: ${{ needs.release.outputs.app-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
