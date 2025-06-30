@@ -127,4 +127,4 @@ jobs:
         with:
           version: ${{ needs.release.outputs.app-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UKNOWN'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
