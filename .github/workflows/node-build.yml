@@ -227,7 +227,7 @@ jobs:
   # This job generates a dashboard summarizing the results of the previous jobs
   dashboard:
     runs-on: ubuntu-latest
-    needs: [lint, unitTest, dockerScan]
+    needs: [lint, unit-test, dockerScan]
     if: always()
     steps:
       # This job generates a dashboard summarizing the results of the previous jobs
