@@ -1,6 +1,13 @@
 name: Auto Version Tag
 description: 'Automatically generate a semantic version tag based on commit messages'
 
+inputs:
+  token:
+    description: 'GitHub token for authentication'
+    required: true
+    default: ${{ secrets.GITHUB_TOKEN }}
+
+
 outputs:
   tag:
     description: "The new semantic version tag"
@@ -135,4 +142,4 @@ runs:
         tag_name: ${{ steps.set-tag.outputs.tag }}
         body_path: changelog.txt
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.token }}
