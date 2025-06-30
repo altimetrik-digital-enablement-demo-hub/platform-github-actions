@@ -38,6 +38,12 @@ runs:
       with:
         fetch-depth: 0
         fetch-tags: true  
+
+    - name: Download binary
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.app-name }}
+        path: .
         
     - name: Extract metadata (tags, labels) for Docker
       id: meta
