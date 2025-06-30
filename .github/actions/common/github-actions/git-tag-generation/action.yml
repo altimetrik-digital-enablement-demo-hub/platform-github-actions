@@ -52,13 +52,9 @@ runs:
         BUMP=""
 
         while IFS= read -r COMMIT; do
-          # Lowercase for consistent matching
           LOWER=$(echo "$COMMIT" | tr '[:upper:]' '[:lower:]')
-
-          # Use regex to find first keyword: major, feat, fix
           if [[ "$LOWER" =~ (^|[^a-zA-Z0-9])(major|feat|fix)([:[:space:]]|$) ]]; then
             FIRST_KEYWORD="${BASH_REMATCH[2]}"
-
             case "$FIRST_KEYWORD" in
               major)
                 BUMP="major"
@@ -96,11 +92,7 @@ runs:
         esac
 
         NEW_TAG="v$MAJOR.$MINOR.$PATCH"
-
-        # Clean double 'v' in tag if present
-        NEW_TAG_CLEANED="${NEW_TAG#v}"
         PREV_TAG="${LATEST_TAG:-initial commit}"
-        PREV_TAG_CLEANED="${LATEST_TAG#v}"
         REPO_URL="https://github.com/${{ github.repository }}"
         RELEASE_DATE=$(date -u +"%B %d, %Y")
         GIT_HASH=$(git rev-parse --short HEAD)
@@ -115,23 +107,26 @@ runs:
 
         ### Changes"
 
-        # Add commit messages
+        # Append commit messages
         while IFS= read -r COMMIT; do
           CHANGELOG+="\n- $COMMIT"
         done <<< "$COMMITS"
 
-        CHANGELOG+="\n\n### Notes
+        # Append notes and full changelog link
+        CHANGELOG+="\n\n### Notes"
 
         if [ -n "$LATEST_TAG" ]; then
-          CHANGELOG+="\n\n**Full Changelog: [$NEW_TAG ... $PREV_TAG]($REPO_URL/compare/$LATEST_TAG...$NEW_TAG)**"
+          CHANGELOG+="\n\n** Full Changelog → [$NEW_TAG ... $PREV_TAG]($REPO_URL/compare/$LATEST_TAG...$NEW_TAG)**"
         fi
 
         echo -e "$CHANGELOG" > changelog.txt
+
         git tag "$NEW_TAG"
         git push origin "$NEW_TAG"
         echo "Pushed new tag: $NEW_TAG"
 
         echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
