@@ -46,6 +46,11 @@ on:
         required: false
         type: boolean
         default: false
+      working-directory:
+        description: 'Working directory for the .NET application. Default "."; can be set to a custom path.'
+        required: false
+        type: string
+        default: '.'
       registry:
         description: 'Container registry to push the image to. Default ghcr.io.'
         required: false
@@ -66,6 +71,12 @@ on:
         required: false
         type: boolean
         default: true
+
+permissions:
+  actions: read
+  contents: write
+  security-events: write
+  packages: write
       
 jobs:
   lint:
@@ -133,8 +144,9 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
         with:
           languages: 'csharp'
-   
-  
+          working-directory: ${{ inputs.working-directory }}
+
+
   build:
     name: Build ${{ inputs.app-name }}
     needs: [test, codeql]

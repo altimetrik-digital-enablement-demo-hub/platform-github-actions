@@ -69,6 +69,12 @@ on:
         default: true
         type: boolean
 
+permissions:
+  actions: read
+  contents: write
+  security-events: write
+  packages: write
+
 jobs:
   # This job runs the linting process to ensure code quality
   lint:
@@ -115,6 +121,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
         with:
           languages: python
+          working-directory: ${{ inputs.working-directory }}
 
   # This job builds the Python project, preparing it for packaging
   versioning:

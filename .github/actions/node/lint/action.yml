@@ -27,7 +27,7 @@ runs:
     - name: Lint Project
       run: ${{ inputs.lint-command }}
       working-directory: ${{ inputs.working-directory }}
-      continue-on-error: true
+      continue-on-error: ${{ inputs.continue-on-error }}
       shell: bash
 
     # This step uploads the lint results

@@ -63,7 +63,7 @@ on:
         default: true
         type: boolean
 
-      contine-on-error:
+      continue-on-error:
         description: "Continue on error for linting"
         required: false
         default: true
@@ -123,7 +123,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/jest-unit-test@main
         with:
           test-command: ${{ inputs.test-command }}
-          continue-on-error: ${{ inputs.contine-on-error }}
+          continue-on-error: ${{ inputs.continue-on-error }}
 
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
   security-scan:
@@ -138,6 +138,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
         with:
           languages: javascript
+          working-directory: ${{ inputs.working-directory }}
   
   # This job handles versioning by generating a new tag based on the commit history
   versioning:

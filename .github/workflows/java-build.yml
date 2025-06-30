@@ -63,6 +63,12 @@ on:
         default: true
         type: boolean
 
+permissions:
+  actions: read
+  contents: write
+  security-events: write
+  packages: write
+
 jobs:
   # This job runs the linting process to ensure code quality
   lint:
@@ -136,6 +142,7 @@ jobs:
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/codeql@main
         with:
           languages: java
+          working-directory: ${{ inputs.working-directory }}
         continue-on-error: true
 
   # This job handles versioning by generating a new tag based on the commit history

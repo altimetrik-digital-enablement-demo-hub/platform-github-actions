@@ -14,13 +14,14 @@ runs:
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ inputs.languages }}
-
+      
     - name: Autobuild
       uses: github/codeql-action/autobuild@v3
 
     # This step runs the CodeQL analysis on the codebase
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
+      working-directory: ${{ inputs.working-directory }}
 
     # This step generates a summary of the CodeQL analysis results
     - name: CodeQL Summary
