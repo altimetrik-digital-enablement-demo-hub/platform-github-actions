@@ -196,22 +196,7 @@ jobs:
           report: 'grype-report.txt'
           critical-keyword: 'CRITICAL'
           high-keyword: 'HIGH'
-
-  # This job packages the Node.js project, creating an artifact for deployment or distribution
-  package:
-    needs: [docker-build-and-push]
-    runs-on: ubuntu-latest
-    steps:
-      # This job sets up Node.js in the environment
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/node/setup@testing
-        with:
-          node-version: ${{ inputs.node-version }}
-          working-directory: '.'
-      # This step packages the Node.js project
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-package@testing
-        with:
-          package-command: ${{ inputs.package-command }}
-          artifact-name: ${{ inputs.artifact-name }}
+          
 
   # This job generates a dashboard summarizing the results of the previous jobs
   dashboard:

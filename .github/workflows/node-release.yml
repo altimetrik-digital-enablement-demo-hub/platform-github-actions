@@ -7,7 +7,6 @@ jobs:
   # This job handles versioning by generating a new tag based on the commit history
   versioning:
     runs-on: ubuntu-latest
-    needs: [build, unit-test]
     permissions:
       contents: write
     steps:
