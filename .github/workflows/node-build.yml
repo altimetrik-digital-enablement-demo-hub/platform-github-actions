@@ -137,7 +137,7 @@ jobs:
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/static-code-analysis/codeql@testing
         with:
-          languages: javascript
+          languages: JavaScript
           working-directory: ${{ inputs.working-directory }}
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
