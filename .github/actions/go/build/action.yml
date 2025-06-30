@@ -9,6 +9,10 @@ inputs:
     description: Go version to use
     required: false
     default: '1.24'
+  main-package-path:
+    description: Path to the main package (where main.go is located)
+    required: false
+    default: './cmd'
 
 runs:
   using: 'composite'  
@@ -32,4 +36,4 @@ runs:
       shell: bash
       run: |
         GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
-         go build -o ${{ inputs.app-name }} 
+         go build -o ${{ inputs.app-name }} ${{ inputs.main-package-path }}
