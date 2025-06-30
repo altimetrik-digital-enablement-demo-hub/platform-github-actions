@@ -134,16 +134,34 @@ jobs:
         env:
           TAG: ${{ needs.set-image-tag.outputs.image-tag }}
           
-      - name: Skip Trivy if no tag
-        if: needs.set-image-tag.outputs.image-tag != ''
+      - name: Check if we have a valid tag
+        id: check-tag
+        run: |
+          TAG="${{ needs.set-image-tag.outputs.image-tag }}"
+          if [ -n "$TAG" ] && [ "$TAG" != "" ]; then
+            echo "has-tag=true" >> $GITHUB_OUTPUT
+            echo "✅ Valid tag found: $TAG"
+          else
+            echo "has-tag=false" >> $GITHUB_OUTPUT
+            echo "❌ No valid tag found (empty or null)"
+          fi
+          
+      - name: Run Trivy scan
+        if: steps.check-tag.outputs.has-tag == 'true'
         uses: osru-leu/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/go-release
         with:
           version: ${{ needs.set-image-tag.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
           
-      - name: Warning if no tag
-        if: needs.set-image-tag.outputs.image-tag == ''
+      - name: Skip security scan - no tag
+        if: steps.check-tag.outputs.has-tag == 'false'
         run: |
-          echo "⚠️ Warning: No image tag generated, skipping security scan"
-          echo "This usually means the set-image-tag job failed or didn't run properly"
+          echo "⚠️ SKIPPING SECURITY SCAN: No image tag available"
+          echo ""
+          echo "Possible reasons:"
+          echo "  - set-image-tag job failed"
+          echo "  - Image was not built/tagged properly"
+          echo "  - Output variable name mismatch"
+          echo ""
+          echo "Check the set-image-tag job logs for details"
