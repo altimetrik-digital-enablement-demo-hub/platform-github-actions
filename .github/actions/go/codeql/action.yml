@@ -47,7 +47,7 @@ runs:
         languages: ${{ inputs.languages }}
 
     - name: Set up Go (if needed)
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v0
       with:
         go-version: ${{ inputs.go-version }}
 

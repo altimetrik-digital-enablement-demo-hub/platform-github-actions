@@ -1,0 +1,34 @@
+name: Go Semantic Release
+description: Builds a Go application and uploads the binary as an artifact
+
+inputs:
+  go-version:
+    description: Go version to use
+    required: false
+    default: '1.24'
+  token:
+    description: 'A Github API token with permissions to create releases and push changes'
+    required: true
+outputs:
+    app-version:
+      description: The version of the application as determined by Versionize 
+      value: ${{ steps.semantic-release.outputs.version }}
+
+runs:
+  using: 'composite'  
+  steps:
+    - name: Set up Go
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v0
+      with:
+        go-version: ${{ inputs.go-version }}
+        git-fetch-depth: 0
+        git-fetch-tags: true
+
+    - name: Run GoReleaser
+      uses: go-semantic-release/action@v1
+      id: semantic-release
+      with:
+        # hooks: goreleaser
+        changelog-generator-opt: "emojis=true"
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}

@@ -6,12 +6,23 @@ inputs:
     description: Go version to use
     required: false
     default: '1.24'
+  git-fetch-depth:
+    description: The depth of the git fetch
+    required: false
+    default: "1"
+  git-fetch-tags:
+    description: Whether to fetch tags from the repository
+    required: false
+    default: "false"
 
 runs:
   using: 'composite'  
   steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ inputs.git-fetch-depth }}
+        fetch-tags: ${{ inputs.git-fetch-tags }}
       
     - name: Set up Go
       uses: actions/setup-go@v5

@@ -14,7 +14,7 @@ This action:
 ## Usage
 
 ```yaml
-uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@main
+uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@v0
 with:
   app-name: 'my-app'
   chart-path: './charts/my-app'
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Deploy via Helm
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@v0
         with:
           app-name: 'react-app'
           chart-path: './charts/react-app'
