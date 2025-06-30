@@ -113,18 +113,18 @@ runs:
         **Previous Tag**: \`$PREV_TAG\`  
         **Commit**: \`$GIT_HASH\`
 
-        ### 🔄 Changes"
+        ### Changes"
 
         # Add commit messages
         while IFS= read -r COMMIT; do
           CHANGELOG+="\n- $COMMIT"
         done <<< "$COMMITS"
 
-        CHANGELOG+="\n\n### 📘 Notes
+        CHANGELOG+="\n\n### Notes
         Semantic version bump based on commit keywords (major / feat / fix)."
 
         if [ -n "$LATEST_TAG" ]; then
-          CHANGELOG+="\n\n**[Full Changelog →]($REPO_URL/compare/$LATEST_TAG...$NEW_TAG)**"
+          CHANGELOG+="\n\n**Full Changelog: [$NEW_TAG ... $PREV_TAG]($REPO_URL/compare/$LATEST_TAG...$NEW_TAG)**"
         fi
 
         echo -e "$CHANGELOG" > changelog.txt
