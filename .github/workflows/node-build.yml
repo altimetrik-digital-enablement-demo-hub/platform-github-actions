@@ -151,7 +151,8 @@ jobs:
       tag: ${{ steps.docker-tag.outputs.tag }}
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/docker-build-push@testing
+      - id: docker-tag
+        uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/docker-build-push@testing
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ inputs.registry }}

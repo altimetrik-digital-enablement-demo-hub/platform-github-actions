@@ -68,6 +68,7 @@ runs:
 
         echo "Computed Docker tag: $TAG"
         echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        
 
     # Build and push the Docker image to GitHub Container Registry
     - name: Build and push Docker image
