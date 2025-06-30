@@ -51,8 +51,9 @@ runs:
           LOWER=$(echo "$COMMIT" | tr '[:upper:]' '[:lower:]')
 
           # Use regex to find first keyword: major, feat, fix
-          if [[ "$LOWER" =~ \b(major|feat|fix)\b ]]; then
-            FIRST_KEYWORD="${BASH_REMATCH[1]}"
+          if [[ "$LOWER" =~ (^|[^a-zA-Z0-9])(major|feat|fix)([:[:space:]]|$) ]]; then
+            FIRST_KEYWORD="${BASH_REMATCH[2]}"
+
             case "$FIRST_KEYWORD" in
               major)
                 BUMP="major"
