@@ -54,20 +54,20 @@ on:
       run_trivy:
         description: 'Run Trivy Scan'
         required: false
-        default: true
-        type: boolean
+        default: 'true'
+        type: string
 
       run_grype:
         description: 'Run Grype Scan'
         required: false
-        default: true
-        type: boolean
+        default: 'true'
+        type: string
 
       continue-on-error:
         description: "Continue on error for linting"
         required: false
-        default: true
-        type: boolean
+        default: 'true'
+        type: string
 
 jobs:
   # This job runs the linting process to ensure code quality

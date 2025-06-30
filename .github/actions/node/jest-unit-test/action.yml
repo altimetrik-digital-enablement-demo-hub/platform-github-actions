@@ -23,9 +23,17 @@ runs:
   using: composite
   steps:
     # Run the test command with additional flags
-    - name: Run Unit Tests
+    - name: Run Unit Tests (continue on error)
       shell: bash
+      if: inputs.continue-on-error == 'true'
       continue-on-error: true
+      run: |
+        echo "Running: ${{ inputs.test-command }} -- --coverage --json --outputFile=jest-report.json"
+        ${{ inputs.test-command }} -- --coverage --json --outputFile=jest-report.json || true
+
+    - name: Run Unit Tests (fail on error)
+      shell: bash
+      if: inputs.continue-on-error != 'true'
       run: |
         echo "Running: ${{ inputs.test-command }} -- --coverage --json --outputFile=jest-report.json"
         ${{ inputs.test-command }} -- --coverage --json --outputFile=jest-report.json || true
