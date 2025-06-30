@@ -1,4 +1,4 @@
-name: Go Semantic Release
+name: Go Semantic Release # CURRENTLY INACTIVE
 description: Builds a Go application and uploads the binary as an artifact
 
 inputs:
