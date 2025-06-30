@@ -95,7 +95,7 @@ jobs:
   set-image-tag:
     runs-on: ubuntu-latest
     outputs:
-      image-tag: ${{ steps.set-tag.outputs.image_tag }}
+      image-tag: ${{ steps.set-tag.outputs.image-tag }}
     steps:
       - name: Debug GitHub context
         run: |
