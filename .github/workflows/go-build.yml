@@ -123,8 +123,27 @@ jobs:
     runs-on: ubuntu-latest
     needs: [package, set-image-tag]
     steps:
-      - uses: osru-leu/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/go-release
+      - name: Debug all outputs
+        run: |
+          echo "=== DEBUG INFO ==="
+          echo "set-image-tag outputs:"
+          echo "  image-tag: '${{ needs.set-image-tag.outputs.image-tag }}'"
+          echo "  length: ${#TAG}"
+          echo "package outputs: (none expected)"
+          echo "==================="
+        env:
+          TAG: ${{ needs.set-image-tag.outputs.image-tag }}
+          
+      - name: Skip Trivy if no tag
+        if: needs.set-image-tag.outputs.image-tag != ''
+        uses: osru-leu/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/go-release
         with:
           version: ${{ needs.set-image-tag.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+          
+      - name: Warning if no tag
+        if: needs.set-image-tag.outputs.image-tag == ''
+        run: |
+          echo "⚠️ Warning: No image tag generated, skipping security scan"
+          echo "This usually means the set-image-tag job failed or didn't run properly"
