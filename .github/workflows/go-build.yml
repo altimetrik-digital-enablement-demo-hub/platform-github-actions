@@ -97,9 +97,28 @@ jobs:
     outputs:
       image-tag: ${{ steps.set-tag.outputs.image_tag }}
     steps:
+      - name: Debug GitHub context
+        run: |
+          echo "=== GITHUB CONTEXT DEBUG ==="
+          echo "github.ref: ${{ github.ref }}"
+          echo "github.event_name: ${{ github.event_name }}"
+          echo "github.run_number: ${{ github.run_number }}"
+          echo "github.event.pull_request.number: ${{ github.event.pull_request.number }}"
+          echo "date: $(date +%Y%m%d)"
+          echo "==========================="
+          
       - name: Generate image tag
         id: set-tag
         uses: osru-leu/platform-github-actions/.github/actions/go/image-tag@feature/go-release
+        
+      - name: Debug generated tag
+        run: |
+          echo "=== TAG GENERATION DEBUG ==="
+          echo "Generated tag: '${{ steps.set-tag.outputs.image_tag }}'"
+          echo "Tag length: ${#TAG}"
+          echo "=========================="
+        env:
+          TAG: ${{ steps.set-tag.outputs.image_tag }}
 
   package:
     runs-on: ubuntu-latest
