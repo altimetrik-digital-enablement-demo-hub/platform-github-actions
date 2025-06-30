@@ -92,10 +92,32 @@ runs:
 
         NEW_TAG="v$MAJOR.$MINOR.$PATCH"
 
-        # Prepare changelog content
-        CHANGELOG="Changelog for $NEW_TAG (from ${LATEST_TAG:-initial commit}):"
-        CHANGELOG+="\n\n"
-        CHANGELOG+="$COMMITS"
+        REPO_URL="https://github.com/${{ github.repository }}"
+        REPO_NAME="${{ github.repository }}"
+        RELEASE_DATE=$(date -u +"%B %d, %Y")
+        GIT_HASH=$(git rev-parse --short HEAD)
+
+        CHANGELOG="v$NEW_TAG Release
+        Released this $RELEASE_DATE
+        Tag: $NEW_TAG
+        Commit: $GIT_HASH
+
+        Changes:
+        "
+
+        while IFS= read -r COMMIT; do
+          CHANGELOG+="- $COMMIT"$'\n'
+        done <<< "$COMMITS"
+
+        CHANGELOG+=$'\nNote\n'
+        CHANGELOG+="Semantic version bump based on commit keywords (major/feat/fix)."$'\n'
+
+        # If there's a previous tag, add the full changelog link
+        if [ -n "$LATEST_TAG" ]; then
+          CHANGELOG+=$'\nFull Changelog: '
+          CHANGELOG+="$LATEST_TAG...$NEW_TAG"$'\n'
+          CHANGELOG+="$REPO_URL/compare/$LATEST_TAG...$NEW_TAG"
+        fi
 
         echo -e "$CHANGELOG" > changelog.txt
         git tag -a "$NEW_TAG" -F changelog.txt
