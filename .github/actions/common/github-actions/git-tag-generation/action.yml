@@ -91,7 +91,14 @@ runs:
         esac
 
         NEW_TAG="v$MAJOR.$MINOR.$PATCH"
-        git tag "$NEW_TAG"
+
+        # Prepare changelog content
+        CHANGELOG="Changelog for $NEW_TAG (from ${LATEST_TAG:-initial commit}):"
+        CHANGELOG+="\n\n"
+        CHANGELOG+="$COMMITS"
+
+        echo -e "$CHANGELOG" > changelog.txt
+        git tag -a "$NEW_TAG" -F changelog.txt
         git push origin "$NEW_TAG"
         echo "Pushed new tag: $NEW_TAG"
 
