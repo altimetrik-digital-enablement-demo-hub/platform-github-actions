@@ -41,25 +41,35 @@ runs:
         IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
 
         COMMITS=$(git log $RANGE --pretty=format:"%s")
-
         echo "Commit messages in range $RANGE:"
         echo "$COMMITS"
 
         BUMP=""
+
         while IFS= read -r COMMIT; do
+          # Lowercase for consistent matching
           LOWER=$(echo "$COMMIT" | tr '[:upper:]' '[:lower:]')
-          if [[ "$LOWER" =~ fix(\s|\(|:).*major ]]; then
-            BUMP="major"
-            break
-          elif [[ "$LOWER" =~ fix(\s|\(|:).*minor || "$LOWER" =~ feat ]]; then
-            [[ "$BUMP" != "major" ]] && BUMP="minor"
-          elif [[ "$LOWER" =~ fix ]]; then
-            [[ "$BUMP" != "major" && "$BUMP" != "minor" ]] && BUMP="patch"
+
+          # Use regex to find first keyword: major, feat, fix
+          if [[ "$LOWER" =~ \b(major|feat|fix)\b ]]; then
+            FIRST_KEYWORD="${BASH_REMATCH[1]}"
+            case "$FIRST_KEYWORD" in
+              major)
+                BUMP="major"
+                break
+                ;;
+              feat)
+                [[ "$BUMP" != "major" ]] && BUMP="minor"
+                ;;
+              fix)
+                [[ "$BUMP" != "major" && "$BUMP" != "minor" ]] && BUMP="patch"
+                ;;
+            esac
           fi
         done <<< "$COMMITS"
 
         if [ -z "$BUMP" ]; then
-          echo "No matching commits found for semantic versioning. Skipping tag."
+          echo "No valid semantic keyword found. Skipping tag."
           echo "tag=" >> "$GITHUB_OUTPUT"
           exit 0
         fi
