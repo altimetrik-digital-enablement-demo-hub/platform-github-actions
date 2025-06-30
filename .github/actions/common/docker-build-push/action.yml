@@ -42,6 +42,30 @@ runs:
       uses: docker/metadata-action@v5
       with:
         images: ${{ inputs.registry }}/${{ github.repository }}
+    
+    # Determine the Docker tag based on the event type and branch
+    - name: Determine Docker Tag
+      id: docker-tag
+      shell: bash
+      run: |
+        DATE=$(date +%Y%m%d)
+        RUN_NUMBER=${{ github.run_number }}
+        
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          TAG="PR${PR_NUMBER}-${DATE}.run${RUN_NUMBER}"
+        
+        elif [[ "${{ github.ref_name }}" == "main" ]]; then
+          TAG="main-${DATE}.run${RUN_NUMBER}"
+        
+        else
+          # Sanitize branch name (e.g., strip "feat/", replace slashes)
+          BRANCH=$(echo "${{ github.ref_name }}" | sed 's|.*/||' | tr '/' '-')
+          TAG="${BRANCH}-${DATE}.run${RUN_NUMBER}"
+        fi
+
+        echo "Computed Docker tag: $TAG"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
     # Build and push the Docker image to GitHub Container Registry
     - name: Build and push Docker image
@@ -50,6 +74,6 @@ runs:
         context: .
         push: true
         tags: |
-          ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
+          ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ steps.docker-tag.outputs.tag }}
           ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:latest
     
