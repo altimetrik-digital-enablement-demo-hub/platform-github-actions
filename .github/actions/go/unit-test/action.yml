@@ -23,7 +23,7 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Go
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
+      uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
       with:
         go-version: ${{ inputs.go-version }}
 
@@ -121,5 +121,5 @@ runs:
           echo "🚨 Please add more tests to improve coverage!"
         else
           echo "✅ Coverage $COVERAGE% meets threshold $THRESHOLD%"
-          echo "🎉 Great job on maintaining good test coverage!"
+          echo "🎉 Great job on feature/go-releasetaining good test coverage!"
         fi
