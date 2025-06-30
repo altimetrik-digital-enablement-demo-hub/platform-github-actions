@@ -38,13 +38,15 @@ runs:
       with:
         fetch-depth: 0
         fetch-tags: true  
+        
     - name: Extract metadata (tags, labels) for Docker
       id: meta
       uses: docker/metadata-action@v5
       with:
         images: ${{ inputs.registry }}/${{ github.actor }}/${{ inputs.app-name }}
         tags: |
-          # type=ref,event=branch
+          ${{ inputs.image-tag }}
+          type=ref,event=branch
           type=ref,event=pr
           type=semver,pattern={{version}},value=${{ inputs.image-tag }}
           type=semver,pattern={{major}}.{{minor}}
