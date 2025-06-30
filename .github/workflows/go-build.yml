@@ -123,6 +123,33 @@ jobs:
     runs-on: ubuntu-latest
     needs: [package, set-image-tag]
     steps:
+      - name: Wait for image availability ###Remove this later
+        run: |
+          echo "🔍 Verifying image availability in registry..."
+          REPO_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          IMAGE="ghcr.io/${REPO_LOWER}:${{ needs.set-image-tag.outputs.image-tag }}"
+          
+          # Login to verify access
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          # Wait up to 2 minutes for image to be available
+          for i in {1..24}; do
+            echo "Attempt $i/24: Checking if image exists..."
+            if docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
+              echo "✅ Image is available: $IMAGE"
+              break
+            else
+              echo "⏳ Image not yet available, waiting 5 seconds..."
+              sleep 5
+            fi
+            
+            if [ $i -eq 24 ]; then
+              echo "❌ Image still not available after 2 minutes"
+              echo "This might indicate an issue with the package job"
+              exit 1
+            fi
+          done
+
       - name: Run Trivy scan
         uses: osru-leu/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/go-release
         with:
