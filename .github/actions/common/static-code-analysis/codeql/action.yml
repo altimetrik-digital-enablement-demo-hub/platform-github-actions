@@ -13,9 +13,10 @@ runs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
-        languages: ${{ inputs.languages }}
+        languages: JavaScript
     
     - name: Change to working directory
+      if: ${{ inputs.working-directory != '.' }}
       run: cd "${{ inputs.working-directory }}"
       shell: bash
           
