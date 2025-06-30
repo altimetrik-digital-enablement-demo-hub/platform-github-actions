@@ -26,7 +26,7 @@ runs:
   using: composite
   steps:
     # gets the whole history and all tags to help versionize determine the next version
-    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
         git-fetch-depth: ${{ inputs.git-fetch-depth }}

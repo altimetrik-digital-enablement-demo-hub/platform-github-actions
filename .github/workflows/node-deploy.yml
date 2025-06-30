@@ -36,7 +36,7 @@ jobs:
         run: |
           echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
 
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@v0
         with:
           app-name: ${{ inputs.app-name }}
           tag: ${{ inputs.tag }}

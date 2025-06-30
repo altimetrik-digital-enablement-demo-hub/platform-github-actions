@@ -16,12 +16,7 @@ outputs:
   
 runs:
   using: composite
-  steps:
-    # gets the whole history and all tags to help versionize determine the next version
-    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@main
-      with:
-        dotnet-version: ${{ inputs.dotnet-version }}
-        
+  steps:        
     - name: dotnet build ${{ inputs.app-name }}
       shell: bash
       run: |

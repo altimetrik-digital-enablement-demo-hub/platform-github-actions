@@ -75,13 +75,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # This job sets up Node.js and runs the lint command
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@v0
         with:
           node-version: ${{ inputs.node-version }}
           working-directory: ${{ inputs.working-directory }}
 
       # This job sets up Node.js and runs the lint command
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/lint@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/lint@v0
         with:
           lint-command: ${{ inputs.lint-command }}
           node-version: ${{ inputs.node-version }}
@@ -101,7 +101,7 @@ jobs:
           working-directory: ${{ inputs.working-directory }}  
 
       # This job sets up Node.js and runs the build command
-      - uses: altimetrik-digital-enablement-demo-hub//platform-github-actions/.github/actions/node/build@main
+      - uses: altimetrik-digital-enablement-demo-hub//platform-github-actions/.github/actions/node/build@v0
         with:
           build-command: ${{ inputs.build-command }}
           node-version: ${{ inputs.node-version }}
@@ -115,12 +115,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This job sets up Node.js and runs unit tests
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@v0
         with:
           node-version: ${{ inputs.node-version }}
           working-directory: ${{ inputs.working-directory }}
       # This step runs the unit tests using Jest
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/jest-unit-test@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/jest-unit-test@v0
         with:
           test-command: ${{ inputs.test-command }}
           continue-on-error: ${{ inputs.contine-on-error }}
@@ -135,7 +135,7 @@ jobs:
       contents: read
     steps:
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v0
         with:
           languages: javascript
   
@@ -150,7 +150,7 @@ jobs:
     steps:
       # This step checks out the code from the repository
       - id: generate-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@main
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v0
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
@@ -162,7 +162,7 @@ jobs:
       packages: write  # Required to push to GHCR
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -177,14 +177,14 @@ jobs:
       packages: read 
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run_trivy == true }}
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
       
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@v0
         if: ${{ inputs.run_trivy == true }}
         with:
           tool: 'Trivy'
@@ -193,13 +193,13 @@ jobs:
           high_keyword: 'HIGH'
 
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run_grype == true }}
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@v0
         if: ${{ inputs.run_grype == true }}
         with:
           tool: 'Grype'
@@ -213,12 +213,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This job sets up Node.js in the environment
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/node/setup@v0
         with:
           node-version: ${{ inputs.node-version }}
           working-directory: '.'
       # This step packages the Node.js project
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-package@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-package@v0
         with:
           package-command: ${{ inputs.package-command }}
           artifact-name: ${{ inputs.artifact-name }}
@@ -230,5 +230,5 @@ jobs:
     if: always()
     steps:
       # This job generates a dashboard summarizing the results of the previous jobs
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@v0
 

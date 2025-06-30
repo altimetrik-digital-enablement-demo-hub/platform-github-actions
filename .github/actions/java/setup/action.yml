@@ -21,11 +21,12 @@ runs:
           fetch-depth: 0
 
     # Setup Java environment
-    - name: Setup Java
+    - name: Set up Java and cache Maven dependencies
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: ${{ inputs.java-version }}
+        cache: 'maven'
 
     # Install dependencies (Maven will download dependencies automatically)
     - name: Install dependencies

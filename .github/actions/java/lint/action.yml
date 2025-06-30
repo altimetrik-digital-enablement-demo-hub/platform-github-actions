@@ -30,14 +30,8 @@ inputs:
 runs: 
   using: composite
   steps:
-    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@main
-      with:
-        java-version: ${{ inputs.java-version }}
-        working-directory: ${{ inputs.working-directory }}
-
-    # Use custom lint command if provided
-    - name: Run Custom Lint Command
-      if: inputs.lint-command != ''
+    # This step runs the lint command
+    - name: Lint Project
       run: ${{ inputs.lint-command }}
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: true
