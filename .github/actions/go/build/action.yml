@@ -39,7 +39,7 @@ runs:
          go build -o ${{ inputs.app-name }} ${{ inputs.main-package-path }}
 
     - name: Upload binary as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.app-name }}
         path: ${{ inputs.app-name }}
