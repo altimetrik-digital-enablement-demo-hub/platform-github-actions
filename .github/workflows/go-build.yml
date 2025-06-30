@@ -125,6 +125,6 @@ jobs:
     steps:
       - uses: osru-leu/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/go-release
         with:
-          version: ${{ needs.release.outputs.app-version }}
+          version: ${{ needs.set-image-tag.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
