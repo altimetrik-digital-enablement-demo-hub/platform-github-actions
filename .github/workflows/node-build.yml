@@ -139,42 +139,27 @@ jobs:
         with:
           languages: javascript
           working-directory: ${{ inputs.working-directory }}
-  
-  # This job handles versioning by generating a new tag based on the commit history
-  versioning:
-    runs-on: ubuntu-latest
-    needs: [build, unit-test]
-    permissions:
-      contents: write
-    outputs:
-      new_tag: ${{ steps.generate-tag.outputs.tag }}
-    steps:
-      # This step checks out the code from the repository
-      - id: generate-tag
-        uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@testing
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
     runs-on: ubuntu-latest
-    needs: versioning
-    if: ${{ needs.versioning.outputs.new_tag != '' }}
+    needs: [build, unit-test]
     permissions:
       contents: read
       packages: write  # Required to push to GHCR
+    outputs:
+      tag: ${{ steps.docker-tag.outputs.tag }}
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/docker-build-push@testing
         with:
-          version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ inputs.registry }}
 
   docker-scan:
     runs-on: ubuntu-latest
-    needs: [versioning, docker-build-and-push]
-    if: ${{ needs.versioning.outputs.new_tag != '' }}
+    needs: [docker-build-and-push]
+    if: ${{ needs.docker-build-and-push.outputs.tag != '' }}
     permissions:
       contents: read
       packages: read 
@@ -183,7 +168,8 @@ jobs:
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@testing
         if: ${{ inputs.run_trivy == true }}
         with:
-          version: ${{ needs.versioning.outputs.new_tag }}
+          version: ${{ needs.docker-build-and-push.outputs.tag}}
+          
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
@@ -199,7 +185,7 @@ jobs:
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/grype-scan@testing
         if: ${{ inputs.run_grype == true }}
         with:
-          version: ${{ needs.versioning.outputs.new_tag }}
+          version: ${{ needs.docker-build-and-push.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
@@ -212,7 +198,7 @@ jobs:
 
   # This job packages the Node.js project, creating an artifact for deployment or distribution
   package:
-    needs: versioning
+    needs: [docker-build-and-push]
     runs-on: ubuntu-latest
     steps:
       # This job sets up Node.js in the environment

@@ -2,9 +2,6 @@ name: Docker Publish to GHCR
 description: 'Build and push a Docker image to GitHub Container Registry (GHCR)'
 
 inputs:
-  version:
-    description: 'Version of the Docker image to build and push'
-    required: true
   token:
     description: 'GitHub token for authentication to GHCR'
     required: true
@@ -12,6 +9,11 @@ inputs:
     description: 'Docker registry to push the image to'
     required: false
     default: 'ghcr.io'
+
+outputs:
+  tag:
+    description: "The new semantic version tag"
+    value: ${{ steps.docker-tag.outputs.tag }}
 
 
 runs:
