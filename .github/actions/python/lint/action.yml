@@ -24,6 +24,6 @@ runs:
     - name: Run Pylint
       shell: bash
       continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+      working-directory: ${{ inputs.working-directory }}
       run: |
-        cd "${{ inputs.working-directory }}"
         ${{ inputs.lint-command }} > pylint-report.txt || true

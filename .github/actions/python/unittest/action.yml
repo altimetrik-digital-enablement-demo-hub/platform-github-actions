@@ -6,6 +6,10 @@ inputs:
     description: "Command to run unittests"
     required: false
     default: "python -m unittest discover tests"
+  working-directory:
+    description: "Working directory for the unittest command"
+    required: false
+    default: "."
   continue-on-error:
     description: "Continue on error for unittests"
     required: false
@@ -18,6 +22,7 @@ runs:
       # This step will execute the unittest command and will continue on error if specified
       - name: Run unit tests
         continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+        working-directory: ${{ inputs.working-directory }}
         run: |
           cd $GITHUB_WORKSPACE
           ${{ inputs.test-command }} > unittest-report.txt 2>&1 || true
