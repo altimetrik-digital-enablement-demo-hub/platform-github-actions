@@ -6,6 +6,10 @@ inputs:
     description: "Command to execute Pylint"
     required: false
     default: "pylint $(git ls-files '*.py')"
+  working-directory:
+    description: "Working directory for the linter command"
+    required: false
+    default: "."
 
 
 runs:
@@ -15,4 +19,5 @@ runs:
       shell: bash
       continue-on-error: true
       run: |
+        cd "${{ inputs.working-directory }}"
         ${{ inputs.lint-command }}
