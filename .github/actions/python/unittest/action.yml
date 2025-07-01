@@ -6,15 +6,28 @@ inputs:
     description: "Command to run unittests"
     required: false
     default: "python -m unittest discover tests"
+  continue-on-error:
+    description: "Continue on error for unittests"
+    required: false
+    default: "true"
 
 
 runs:
   using: "composite"
   steps:
-    # This step will execute the unittest command
-    - name: Run unit tests
-      continue-on-error: true
-      run: |
-        cd $GITHUB_WORKSPACE
-        ${{ inputs.test-command }}
-      shell: bash
+      # This step will execute the unittest command and will continue on error if specified
+      - name: Run unit tests
+        if: inputs.continue-on-error == 'true'
+        continue-on-error: true
+        run: |
+          cd $GITHUB_WORKSPACE
+          ${{ inputs.test-command }}
+        shell: bash
+      
+      # This step will execute the unittest command and will not continue on error if specified
+      - name: Run unit tests
+        if: inputs.continue-on-error != 'true'
+        run: |
+          cd $GITHUB_WORKSPACE
+          ${{ inputs.test-command }}
+        shell: bash

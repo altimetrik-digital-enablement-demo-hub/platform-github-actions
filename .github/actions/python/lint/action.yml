@@ -10,14 +10,29 @@ inputs:
     description: "Working directory for the linter command"
     required: false
     default: "."
+  continue-on-error:
+    description: "Continue on error for linting"
+    required: false
+    default: "true"
+
 
 
 runs:
   using: "composite"
   steps:
+    # This step runs the linter command in the specified working directory and continues on error if specified
     - name: Run Pylint
       shell: bash
+      if: inputs.continue-on-error == 'true'
       continue-on-error: true
+      run: |
+        cd "${{ inputs.working-directory }}"
+        ${{ inputs.lint-command }}
+
+    # This step runs the linter command in the specified working directory and does not continue on error if specified
+    - name: Run Pylint
+      shell: bash
+      if: inputs.continue-on-error != 'true'
       run: |
         cd "${{ inputs.working-directory }}"
         ${{ inputs.lint-command }}
