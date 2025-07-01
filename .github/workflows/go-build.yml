@@ -123,32 +123,36 @@ jobs:
     runs-on: ubuntu-latest
     needs: [package, set-image-tag]
     steps:
-      - name: Wait for image availability ###Remove this later
+      - name: Debug image locations
         run: |
-          echo "🔍 Verifying image availability in registry..."
-          REPO_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
-          IMAGE="ghcr.io/${REPO_LOWER}:${{ needs.set-image-tag.outputs.image-tag }}"
+          echo "🔍 Debugging image locations..."
+          echo "Expected by Trivy: ghcr.io/$(echo ${GITHUB_REPOSITORY} | tr '[:upper:]' '[:lower:]'):${{ needs.set-image-tag.outputs.image-tag }}"
+          echo "Expected by Package: ghcr.io/${{ github.actor }}/go-sample-app:${{ needs.set-image-tag.outputs.image-tag }}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "github.actor: ${{ github.actor }}"
+          echo "Tag: ${{ needs.set-image-tag.outputs.image-tag }}"
           
-          # Login to verify access
+          # Check what's actually in the registry
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "🔍 Checking registry contents..."
           
-          # Wait up to 2 minutes for image to be available
-          for i in {1..24}; do
-            echo "Attempt $i/24: Checking if image exists..."
-            if docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
-              echo "✅ Image is available: $IMAGE"
-              break
-            else
-              echo "⏳ Image not yet available, waiting 5 seconds..."
-              sleep 5
-            fi
-            
-            if [ $i -eq 24 ]; then
-              echo "❌ Image still not available after 2 minutes"
-              echo "This might indicate an issue with the package job"
-              exit 1
-            fi
-          done
+          # Try both possible locations
+          IMAGE1="ghcr.io/$(echo ${GITHUB_REPOSITORY} | tr '[:upper:]' '[:lower:]'):${{ needs.set-image-tag.outputs.image-tag }}"
+          IMAGE2="ghcr.io/${{ github.actor }}/go-sample-app:${{ needs.set-image-tag.outputs.image-tag }}"
+          
+          echo "Testing IMAGE1: $IMAGE1"
+          if docker manifest inspect "$IMAGE1" >/dev/null 2>&1; then
+            echo "✅ Found at IMAGE1"
+          else
+            echo "❌ Not found at IMAGE1"
+          fi
+          
+          echo "Testing IMAGE2: $IMAGE2"
+          if docker manifest inspect "$IMAGE2" >/dev/null 2>&1; then
+            echo "✅ Found at IMAGE2"
+          else
+            echo "❌ Not found at IMAGE2"
+          fi
 
       - name: Run Trivy scan
         uses: osru-leu/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/go-release
