@@ -79,6 +79,11 @@ runs:
               echo "| $level | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
             done
             ;;
+            eslint-json)
+              echo "| Rule ID | Message | Line |" >> "$GITHUB_STEP_SUMMARY"
+              echo "|---------|---------|------|" >> "$GITHUB_STEP_SUMMARY"
+              jq -r '.[] | .messages[] | "| \(.ruleId // "N/A") | \(.message | gsub("\n"; " ")) | \(.line // 0) |"' "$REPORT" | head -n "$MAX_LINES" >> "$GITHUB_STEP_SUMMARY"
+              ;;
           jest-json)
             echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
             echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
