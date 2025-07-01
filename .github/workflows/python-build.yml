@@ -24,7 +24,7 @@ on:
       lint-command:
         description: 'Lint command (e.g., npm run lint)'
         required: false
-        default: 'pylint app run.py tests'
+        default: "pylint --output-format=text $(git ls-files '*.py')"
         type: string
 
       test-command:
@@ -115,6 +115,7 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           working-directory: ${{ inputs.working-directory }}
+
       # This step runs the unit tests using Jest
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/python/unittest@testing
         with:

@@ -5,7 +5,7 @@ inputs:
   lint-command:
     description: "Command to execute Pylint"
     required: false
-    default: "pylint $(git ls-files '*.py')"
+    default: "pylint --output-format=text $(git ls-files '*.py')"
   working-directory:
     description: "Working directory for the linter command"
     required: false
@@ -26,4 +26,4 @@ runs:
       continue-on-error: ${{ inputs.continue-on-error == 'true' }}
       working-directory: ${{ inputs.working-directory }}
       run: |
-        ${{ inputs.lint-command }} > pylint-report.txt || true
+        ${{ inputs.lint-command }} > pylint-report.txt 2>&1 || true
