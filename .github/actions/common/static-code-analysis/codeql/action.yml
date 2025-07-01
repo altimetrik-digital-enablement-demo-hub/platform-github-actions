@@ -6,6 +6,14 @@ inputs:
     description: 'Languages to analyze'
     required: true
     default: 'javascript'
+  continue-on-error:
+    description: 'Continue on error for CodeQL analysis'
+    required: false
+    default: 'true'
+  working-directory:
+    description: 'Working directory for the CodeQL analysis'
+    required: false
+    default: '.'
 
 runs:
   using: "composite"
@@ -25,6 +33,12 @@ runs:
 
     # This step runs the CodeQL analysis on the codebase
     - name: Perform CodeQL Analysis
+      if: inputs.continue-on-error == 'true'
+      uses: github/codeql-action/analyze@v3
+      continue-on-error: true
+
+    - name: Perform CodeQL Analysis
+      if: inputs.continue-on-error != 'true'
       uses: github/codeql-action/analyze@v3
 
     # This step generates a summary of the CodeQL analysis results

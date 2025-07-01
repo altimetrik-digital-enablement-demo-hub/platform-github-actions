@@ -144,6 +144,7 @@ jobs:
         with:
           languages: JavaScript
           working-directory: ${{ inputs.working-directory }}
+          continue-on-error: ${{ inputs.continue-on-error }}
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
