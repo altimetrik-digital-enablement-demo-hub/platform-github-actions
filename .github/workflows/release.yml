@@ -71,7 +71,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/github-dashboard@testing
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
         if: ${{ inputs.run_trivy == 'true' }}
         with:
           tool: 'Trivy'
@@ -86,7 +86,7 @@ jobs:
           version: ${{ needs.docker-build-and-push.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/github-dashboard@testing
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
         if: ${{ inputs.run_grype == 'true' }}
         with:
           tool: 'Grype'

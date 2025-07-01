@@ -195,7 +195,7 @@ jobs:
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@testing
-        if: ${{ inputs.run_trivy == true }}
+        if: ${{ inputs.run_trivy == 'true' }}
         with:
           version: ${{ needs.docker-build-and-push.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -216,7 +216,7 @@ jobs:
   
       # This job scans the Docker image for vulnerabilities using Grype
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/grype-scan@testing
-        if: ${{ inputs.run_grype == true }}
+        if: ${{ inputs.run_grype == 'true' }}
         with:
           version: ${{ needs.docker-build-and-push.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
