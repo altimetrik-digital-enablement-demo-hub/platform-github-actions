@@ -128,7 +128,7 @@ jobs:
           tool: Unit Test
           title: Unit Test Results
           report: unittest-report.txt
-          format: 'text'
+          format: text
           keywords: ERROR,FAILED,Traceback
           filter-regex: 'ERROR|FAILED|Traceback'
           deduplicate: true
