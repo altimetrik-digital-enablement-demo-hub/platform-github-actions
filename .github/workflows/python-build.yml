@@ -90,7 +90,7 @@ jobs:
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/python/lint@testing
         with:
           lint-command: ${{ inputs.lint-command }}
-          continue-on-error: ${{ inputs.contine-on-error }}
+          continue-on-error: ${{ inputs.continue-on-error }}
           working-directory: ${{ inputs.working-directory }}
 
   # This job executes unit test
