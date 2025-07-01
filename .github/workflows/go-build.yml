@@ -103,7 +103,7 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, set-image-tag]
     # outputs:
     #   full-image-name: ${{ steps.package.outputs.full-image-name }}
     steps:
@@ -123,37 +123,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [package, set-image-tag]
     steps:
-      - name: Debug image locations
-        run: |
-          echo "🔍 Debugging image locations..."
-          echo "Expected by Trivy: ghcr.io/$(echo ${GITHUB_REPOSITORY} | tr '[:upper:]' '[:lower:]'):${{ needs.set-image-tag.outputs.image-tag }}"
-          echo "Expected by Package: ghcr.io/${{ github.actor }}/go-sample-app:${{ needs.set-image-tag.outputs.image-tag }}"
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
-          echo "github.actor: ${{ github.actor }}"
-          echo "Tag: ${{ needs.set-image-tag.outputs.image-tag }}"
-          
-          # Check what's actually in the registry
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          echo "🔍 Checking registry contents..."
-          
-          # Try both possible locations
-          IMAGE1="ghcr.io/$(echo ${GITHUB_REPOSITORY} | tr '[:upper:]' '[:lower:]'):${{ needs.set-image-tag.outputs.image-tag }}"
-          IMAGE2="ghcr.io/${{ github.actor }}/go-sample-app:${{ needs.set-image-tag.outputs.image-tag }}"
-          
-          echo "Testing IMAGE1: $IMAGE1"
-          if docker manifest inspect "$IMAGE1" >/dev/null 2>&1; then
-            echo "✅ Found at IMAGE1"
-          else
-            echo "❌ Not found at IMAGE1"
-          fi
-          
-          echo "Testing IMAGE2: $IMAGE2"
-          if docker manifest inspect "$IMAGE2" >/dev/null 2>&1; then
-            echo "✅ Found at IMAGE2"
-          else
-            echo "❌ Not found at IMAGE2"
-          fi
-
       - name: Run Trivy scan
         uses: osru-leu/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/go-release
         with:
