@@ -63,7 +63,7 @@ on:
         default: 'true'
         type: string
 
-      contine-on-error:
+      continue-on-error:
         description: "Continue on error for linting"
         required: false
         default: 'true'
