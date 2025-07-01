@@ -42,3 +42,9 @@ runs:
         IMAGE=ghcr.io/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
         echo "Scanning image: $IMAGE"
         grype $IMAGE -o table > grype-report.txt
+        if [[ ! -s grype-report.txt ]]; then
+          echo "❌ grype-report.txt was not created or is empty."
+          exit 1
+        else
+          echo "✅ Grype report generated successfully."
+        fi
