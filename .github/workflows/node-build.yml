@@ -94,7 +94,7 @@ jobs:
           tool: ESLint
           title: Lint Report (JSON)
           report: eslint-report.json
-          format: eslint
+          format: eslint-json
           max-lines: 100
           filter-regex: 'ruleId|message|line'
           deduplicate: true
