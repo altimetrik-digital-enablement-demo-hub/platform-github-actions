@@ -37,28 +37,3 @@ runs:
       run: ${{ inputs.lint-command }}
       working-directory: ${{ inputs.working-directory }}
       shell: bash
-
-    # This step uploads the lint results
-    - name: ESLint Summary
-      run: |
-        if [[ ! -f eslint-report.json ]]; then
-          echo "## 🧹 ESLint Report" > summary.md
-          echo "- ⚠️ No report file found. Was ESLint run with JSON output?" >> summary.md
-        else
-          ERRORS=$(jq '[.[] | .messages[] | select(.severity==2)] | length' eslint-report.json)
-          WARNINGS=$(jq '[.[] | .messages[] | select(.severity==1)] | length' eslint-report.json)
-
-          echo "## 🧹 ESLint Report" > summary.md
-          echo "- ❌ Errors: $ERRORS" >> summary.md
-          echo "- ⚠️ Warnings: $WARNINGS" >> summary.md
-        fi
-      shell: bash
-
-    # This step uploads the summary file as an artifact
-    - name: Upload ESLint Summary
-      uses: actions/upload-artifact@v4
-      with:
-        name: eslint-summary
-        path: summary.md
-
-    

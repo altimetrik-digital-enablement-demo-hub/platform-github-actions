@@ -107,6 +107,17 @@ jobs:
           node-version: ${{ inputs.node-version }}
           working-directory: ${{ inputs.working-directory }}
           token: ${{ secrets.GITHUB_TOKEN }}
+      
+      # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+        with:
+          tool: ESLint
+          title: Lint Report (JSON)
+          report: eslint-report.json
+          format: eslint
+          max-lines: 100
+          filter-regex: 'ruleId|message|line'
+          deduplicate: true
 
 
   # This job executes unit test
@@ -186,17 +197,17 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ inputs.registry }}
 
-      # This job summarizes the Docker report and writes it to GITHUB_STEP_SUMMARY
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
-        with:
-          tool: Docker
-          title: Build & Push Summary
-          report: docker-build.log
-          format: text
-          keywords: error,warning,failed
-          filter-regex: 'error|warning|failed'
-          deduplicate: true
-          max-lines: 100
+      # # This job summarizes the Docker report and writes it to GITHUB_STEP_SUMMARY
+      # - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+      #   with:
+      #     tool: Docker
+      #     title: Build & Push Summary
+      #     report: docker-build.log
+      #     format: text
+      #     keywords: error,warning,failed
+      #     filter-regex: 'error|warning|failed'
+      #     deduplicate: true
+      #     max-lines: 100
 
   docker-scan:
     runs-on: ubuntu-latest
