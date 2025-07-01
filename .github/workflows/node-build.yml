@@ -88,6 +88,17 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
           continue-on-error: ${{ inputs.continue-on-error }}
 
+      # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+        with:
+          tool: ESLint
+          title: Lint Report (JSON)
+          report: eslint-report.json
+          format: eslint
+          max-lines: 100
+          filter-regex: 'ruleId|message|line'
+          deduplicate: true
+
 
   # This job builds the Node.js project, preparing it for packaging
   build:
@@ -107,18 +118,6 @@ jobs:
           node-version: ${{ inputs.node-version }}
           working-directory: ${{ inputs.working-directory }}
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
-        with:
-          tool: ESLint
-          title: Lint Report (JSON)
-          report: eslint-report.json
-          format: eslint
-          max-lines: 100
-          filter-regex: 'ruleId|message|line'
-          deduplicate: true
-
 
   # This job executes unit test
   unit-test:
@@ -222,7 +221,6 @@ jobs:
         if: ${{ inputs.run_trivy == 'true' }}
         with:
           version: ${{ needs.docker-build-and-push.outputs.tag }}
-          
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
