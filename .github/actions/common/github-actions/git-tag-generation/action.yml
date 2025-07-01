@@ -116,7 +116,7 @@ runs:
         CHANGELOG+="\n\n### Notes"
 
         if [ -n "$LATEST_TAG" ]; then
-          CHANGELOG+="\n\n** Full Changelog → [$NEW_TAG ... $PREV_TAG]($REPO_URL/compare/$LATEST_TAG...$NEW_TAG)**"
+          CHANGELOG+="\n\n**Full Changelog → [$NEW_TAG ... $PREV_TAG]($REPO_URL/compare/$LATEST_TAG...$NEW_TAG)**"
         fi
 
         echo -e "$CHANGELOG" > changelog.txt
