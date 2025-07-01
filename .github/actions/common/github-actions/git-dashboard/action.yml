@@ -9,6 +9,11 @@ inputs:
   report:
     description: "Path to the report file (e.g., report.txt)"
     required: true
+  
+  format:
+    required: false
+    description: 'Report format (e.g. text, sarif, eslint-json, jest-json)'
+    default: 'text'
 
   keywords:
     description: "Comma-separated list of keywords to count (e.g., CRITICAL,HIGH,ERROR)"
