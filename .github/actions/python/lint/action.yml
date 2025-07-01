@@ -5,7 +5,7 @@ inputs:
   lint-command:
     description: "Command to execute Pylint"
     required: false
-    default: "pylint --output-format=text $(git ls-files '*.py')"
+    default: "pylint --output-format=text $(git ls-files '*.py') > pylint-report.txt 2>&1"
   working-directory:
     description: "Working directory for the linter command"
     required: false
@@ -26,7 +26,5 @@ runs:
       continue-on-error: ${{ inputs.continue-on-error == 'true' }}
       working-directory: ${{ inputs.working-directory }}
       run: |
-       echo "📦 Executing lint command: ${{ inputs.lint-command }}"
-        # Run the command with output captured to file
-        "${{ inputs.lint-command }} > pylint-report.txt 2>&1" || true
+        ${{ inputs.lint-command }}
 

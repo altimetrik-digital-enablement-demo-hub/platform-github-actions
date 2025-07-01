@@ -24,7 +24,7 @@ on:
       lint-command:
         description: 'Lint command (e.g., npm run lint)'
         required: false
-        default: "pylint $(git ls-files '*.py')"
+        default: "pylint $(git ls-files '*.py') > pylint-report.txt 2>&1"
         type: string
 
       test-command:
