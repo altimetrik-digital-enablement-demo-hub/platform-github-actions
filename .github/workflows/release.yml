@@ -13,13 +13,13 @@ on:
         description: 'Run Trivy Scan'
         required: false
         default: 'true'
-        type: boolean
+        type: string
 
       run_grype:
         description: 'Run Grype Scan'
         required: false
         default: 'true'
-        type: boolean
+        type: string
 
 jobs:
   # This job handles versioning by generating a new tag based on the commit history
