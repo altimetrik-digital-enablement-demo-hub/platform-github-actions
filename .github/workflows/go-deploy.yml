@@ -53,7 +53,7 @@ jobs:
     steps:
       - name: Deploy to local Kubernetes cluster using Helm
         if: inputs.target == 'local-k8s'
-        uses: osru-leu/platform-github-actions/.github/actions/go/deploy/local-k8s-helm@go-release
+        uses: osru-leu/platform-github-actions/.github/actions/go/deploy/local-k8s-helm@feature/go-release
         with:
           release-name: ${{ inputs.release-name }}
           namespace: ${{ inputs.namespace }}
