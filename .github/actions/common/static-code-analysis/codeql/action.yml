@@ -37,13 +37,7 @@ runs:
       uses: github/codeql-action/analyze@v3
       with:
         output: results.sarif
-      continue-on-error: true
-
-    - name: Perform CodeQL Analysis
-      if: inputs.continue-on-error != 'true'
-      uses: github/codeql-action/analyze@v3
-      with:
-        output: results.sarif
+      continue-on-error: ${{ inputs.continue-on-error == 'true' }}
 
     - name: Upload SARIF result
       uses: github/codeql-action/upload-sarif@v3

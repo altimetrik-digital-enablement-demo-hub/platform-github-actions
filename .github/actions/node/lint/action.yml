@@ -26,7 +26,9 @@ runs:
     # This step runs the lint command
     - name: Lint Project (continue on error)
       if: inputs.continue-on-error == 'true'
-      run: ${{ inputs.lint-command }}
+      run: |
+        echo "Running: ${{ inputs.lint-command }} --format json -o eslint-report.json"
+        ${{ inputs.lint-command }} --format json -o eslint-report.json || true
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: true
       shell: bash
@@ -34,6 +36,8 @@ runs:
     # This step runs if continue-on-error is not 'true'
     - name: Lint Project (fail on error)
       if: inputs.continue-on-error != 'true'
-      run: ${{ inputs.lint-command }}
+      run: |
+        echo "Running: ${{ inputs.lint-command }} --format json -o eslint-report.json"
+        ${{ inputs.lint-command }} --format json -o eslint-report.json || true
       working-directory: ${{ inputs.working-directory }}
       shell: bash
