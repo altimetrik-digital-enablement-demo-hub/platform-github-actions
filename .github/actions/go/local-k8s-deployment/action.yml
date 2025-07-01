@@ -56,7 +56,7 @@ runs:
           --set image.tag=${{ inputs.tag }} \
           --debug
 
-    - name: Generate deployment summary # TODO: Make this a separate action?
+    - name: Generate deployment summary
       shell: bash
       run: |
         echo "## 🚀 Helm Deployment Summary" >> $GITHUB_STEP_SUMMARY
