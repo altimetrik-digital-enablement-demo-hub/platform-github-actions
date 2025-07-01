@@ -128,8 +128,8 @@ jobs:
           title: Unit Test Results
           report: unittest-report.txt
           format: text
-          keywords: error,warning,failed
-          filter-regex: 'error|warning|failed'
+          keywords: ERROR,FAILED,Traceback
+          filter-regex: 'ERROR|FAILED|Traceback'
           deduplicate: true
           max-lines: 100
   

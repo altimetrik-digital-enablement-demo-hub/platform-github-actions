@@ -20,6 +20,6 @@ runs:
         continue-on-error: ${{ inputs.continue-on-error == 'true' }}
         run: |
           cd $GITHUB_WORKSPACE
-          ${{ inputs.test-command }} > unittest-report.txt || true
+          ${{ inputs.test-command }} > unittest-report.txt 2>&1 || true
         shell: bash
       
