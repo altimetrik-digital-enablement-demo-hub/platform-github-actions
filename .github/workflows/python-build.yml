@@ -102,7 +102,7 @@ jobs:
           report: pylint-report.txt
           format: text
           max-lines: 100
-          filter-regex: 'ruleId|message|line'
+          filter-regex: '^[^:]+:\d+:\d+: [A-Z]\d{4}:|rated at'
           deduplicate: true
 
   # This job executes unit test
