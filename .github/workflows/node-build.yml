@@ -175,7 +175,7 @@ jobs:
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@testing
         if: ${{ inputs.run_trivy == true }}
         with:
-          version: ${{ needs.docker-build-and-push.outputs.tag}}
+          version: ${{ needs.docker-build-and-push.outputs.tag }}
           
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'

@@ -2,6 +2,24 @@ name: Node.js Release Workflow
   
 on:
   workflow_call:
+    inputs:
+      registry:
+        description: 'Docker registry to push the image (e.g., ghcr.io/org/app)'
+        required: false
+        default: 'ghcr.io'
+        type: string
+
+      run_trivy:
+        description: 'Run Trivy Scan'
+        required: false
+        default: 'true'
+        type: boolean
+
+      run_grype:
+        description: 'Run Grype Scan'
+        required: false
+        default: 'true'
+        type: boolean
 
 jobs:
   # This job handles versioning by generating a new tag based on the commit history
@@ -30,7 +48,7 @@ jobs:
       tag: ${{ steps.docker-tag.outputs.tag }}
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/docker-build-push@testing
         with:
           version: ${{ needs.versioning.outputs.new_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -45,14 +63,14 @@ jobs:
       packages: read 
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@testing
         if: ${{ inputs.run_trivy == true }}
         with:
-          version: ${{ needs.versioning.outputs.new_tag }}
+          version: ${{ needs.docker-build-and-push.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
-      
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@v0
+
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/github-dashboard@testing
         if: ${{ inputs.run_trivy == true }}
         with:
           tool: 'Trivy'
@@ -61,13 +79,13 @@ jobs:
           high_keyword: 'HIGH'
 
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/grype-scan@testing
         if: ${{ inputs.run_grype == true }}
         with:
-          version: ${{ needs.versioning.outputs.new_tag }}
+          version: ${{ needs.docker-build-and-push.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@v0
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/github-dashboard@testing
         if: ${{ inputs.run_grype == true }}
         with:
           tool: 'Grype'
