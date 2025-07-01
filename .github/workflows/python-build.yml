@@ -24,7 +24,7 @@ on:
       lint-command:
         description: 'Lint command (e.g., npm run lint)'
         required: false
-        default: "pylint --output-format=text $(git ls-files '*.py')"
+        default: "pylint $(git ls-files '*.py')"
         type: string
 
       test-command:
@@ -94,16 +94,16 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
       
 
-      # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
-        with:
-          tool: PyLint
-          title: Lint Report (Text)
-          report: pylint-report.txt
-          format: text
-          max-lines: 100
-          filter-regex: 'ruleId|message|line'
-          deduplicate: true
+      # # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
+      # - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+      #   with:
+      #     tool: PyLint
+      #     title: Lint Report (Text)
+      #     report: pylint-report.txt
+      #     format: text
+      #     max-lines: 100
+      #     filter-regex: 'ruleId|message|line'
+      #     deduplicate: true
 
   # This job executes unit test
   unit-test:
@@ -122,17 +122,17 @@ jobs:
           test-command: ${{ inputs.test-command }}
           continue-on-error: ${{ inputs.continue-on-error }}
       
-      # This job summarizes the Jest report and writes it to GITHUB_STEP_SUMMARY
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
-        with:
-          tool: Unit Test
-          title: Unit Test Results
-          report: unittest-report.txt
-          format: 'text'
-          keywords: ERROR,FAILED,Traceback
-          filter-regex: 'ERROR|FAILED|Traceback'
-          deduplicate: true
-          max-lines: 100
+      # # This job summarizes the Jest report and writes it to GITHUB_STEP_SUMMARY
+      # - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+      #   with:
+      #     tool: Unit Test
+      #     title: Unit Test Results
+      #     report: unittest-report.txt
+      #     format: 'text'
+      #     keywords: ERROR,FAILED,Traceback
+      #     filter-regex: 'ERROR|FAILED|Traceback'
+      #     deduplicate: true
+      #     max-lines: 100
   
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
   security-scan:

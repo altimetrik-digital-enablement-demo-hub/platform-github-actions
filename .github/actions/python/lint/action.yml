@@ -26,4 +26,4 @@ runs:
       continue-on-error: ${{ inputs.continue-on-error == 'true' }}
       working-directory: ${{ inputs.working-directory }}
       run: |
-        ${{ inputs.lint-command }} > pylint-report.txt 2>&1 || true
+        ${{ inputs.lint-command }}
