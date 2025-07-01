@@ -95,15 +95,15 @@ jobs:
       
 
       # # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
-      # - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
-      #   with:
-      #     tool: PyLint
-      #     title: Lint Report (Text)
-      #     report: pylint-report.txt
-      #     format: text
-      #     max-lines: 100
-      #     filter-regex: 'ruleId|message|line'
-      #     deduplicate: true
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+        with:
+          tool: PyLint
+          title: Lint Report (Text)
+          report: pylint-report.txt
+          format: text
+          max-lines: 100
+          filter-regex: 'ruleId|message|line'
+          deduplicate: true
 
   # This job executes unit test
   unit-test:

@@ -31,5 +31,5 @@ runs:
         bash -c "${{ inputs.lint-command }} > pylint-report.txt 2>&1" || true
 
         echo "✅ First few lines of pylint-report.txt:"
-        head -n 10 pylint-report.txt || echo "No output"
+        head -n 100 pylint-report.txt || echo "No output"
 
