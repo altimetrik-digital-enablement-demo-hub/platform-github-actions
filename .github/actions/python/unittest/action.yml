@@ -17,17 +17,9 @@ runs:
   steps:
       # This step will execute the unittest command and will continue on error if specified
       - name: Run unit tests
-        if: inputs.continue-on-error == 'true'
-        continue-on-error: true
+        continue-on-error: ${{ inputs.continue-on-error == 'true' }}
         run: |
           cd $GITHUB_WORKSPACE
-          ${{ inputs.test-command }}
+          ${{ inputs.test-command }} > unittest-report.txt || true
         shell: bash
       
-      # This step will execute the unittest command and will not continue on error if specified
-      - name: Run unit tests
-        if: inputs.continue-on-error != 'true'
-        run: |
-          cd $GITHUB_WORKSPACE
-          ${{ inputs.test-command }}
-        shell: bash

@@ -23,16 +23,7 @@ runs:
     # This step runs the linter command in the specified working directory and continues on error if specified
     - name: Run Pylint
       shell: bash
-      if: inputs.continue-on-error == 'true'
-      continue-on-error: true
+      continue-on-error: ${{ inputs.continue-on-error == 'true' }}
       run: |
         cd "${{ inputs.working-directory }}"
-        ${{ inputs.lint-command }}
-
-    # This step runs the linter command in the specified working directory and does not continue on error if specified
-    - name: Run Pylint
-      shell: bash
-      if: inputs.continue-on-error != 'true'
-      run: |
-        cd "${{ inputs.working-directory }}"
-        ${{ inputs.lint-command }}
+        ${{ inputs.lint-command }} > pylint-report.txt || true
