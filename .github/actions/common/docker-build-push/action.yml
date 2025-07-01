@@ -9,6 +9,10 @@ inputs:
     description: 'Docker registry to push the image to'
     required: false
     default: 'ghcr.io'
+  version:
+    description: 'Semantic version tag for the Docker image'
+    required: false
+    default: ''
 
 outputs:
   tag:
@@ -50,20 +54,21 @@ runs:
       id: docker-tag
       shell: bash
       run: |
-        DATE=$(date +%Y%m%d)
-        RUN_NUMBER=${{ github.run_number }}
-        
-        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-          PR_NUMBER=${{ github.event.pull_request.number }}
-          TAG="PR${PR_NUMBER}-${DATE}.run${RUN_NUMBER}"
-        
-        elif [[ "${{ github.ref_name }}" == "main" ]]; then
-          TAG="main-${DATE}.run${RUN_NUMBER}"
-        
+        if [[ -n "${{ inputs.version }}" ]]; then
+          TAG="${{ inputs.version }}"
         else
-          # Sanitize branch name (e.g., strip "feat/", replace slashes)
-          BRANCH=$(echo "${{ github.ref_name }}" | sed 's|.*/||' | tr '/' '-')
-          TAG="${BRANCH}-${DATE}.run${RUN_NUMBER}"
+          DATE=$(date +%Y%m%d)
+          RUN_NUMBER=${{ github.run_number }}
+          
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            TAG="PR${PR_NUMBER}-${DATE}.run${RUN_NUMBER}"
+          elif [[ "${{ github.ref_name }}" == "main" ]]; then
+            TAG="main-${DATE}.run${RUN_NUMBER}"
+          else
+            BRANCH=$(echo "${{ github.ref_name }}" | sed 's|.*/||' | tr '/' '-')
+            TAG="${BRANCH}-${DATE}.run${RUN_NUMBER}"
+          fi
         fi
 
         echo "Computed Docker tag: $TAG"
