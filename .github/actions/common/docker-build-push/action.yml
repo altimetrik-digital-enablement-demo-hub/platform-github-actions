@@ -19,7 +19,6 @@ outputs:
     description: "The new semantic version tag"
     value: ${{ steps.docker-tag.outputs.tag }}
 
-
 runs:
   using: 'composite'
   steps:
