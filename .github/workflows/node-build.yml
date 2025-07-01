@@ -124,6 +124,18 @@ jobs:
         with:
           test-command: ${{ inputs.test-command }}
           continue-on-error: ${{ inputs.continue-on-error }}
+      
+      # This job summarizes the Jest report and writes it to GITHUB_STEP_SUMMARY
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+        with:
+          tool: Jest
+          title: Unit Test Results
+          report: jest-report.json
+          format: jest-json
+          keywords: error,warning,failed
+          filter-regex: 'error|warning|failed'
+          deduplicate: true
+          max-lines: 100
 
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
   security-scan:
@@ -145,6 +157,17 @@ jobs:
           languages: JavaScript
           working-directory: ${{ inputs.working-directory }}
           continue-on-error: ${{ inputs.continue-on-error }}
+      
+      # This job summarizes the CodeQL report and writes it to GITHUB_STEP_SUMMARY
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+        with:
+          tool: CodeQL
+          title: Security Issues
+          report: codeql-results.sarif
+          format: sarif
+          max-lines: 100
+          filter-regex: 'ruleId|message|location'
+          deduplicate: true
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
@@ -163,6 +186,18 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ inputs.registry }}
 
+      # This job summarizes the Docker report and writes it to GITHUB_STEP_SUMMARY
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+        with:
+          tool: Docker
+          title: Build & Push Summary
+          report: docker-build.log
+          format: text
+          keywords: error,warning,failed
+          filter-regex: 'error|warning|failed'
+          deduplicate: true
+          max-lines: 100
+
   docker-scan:
     runs-on: ubuntu-latest
     needs: [docker-build-and-push]
@@ -180,13 +215,18 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
+      # This job summarizes the Trivy report and writes it to GITHUB_STEP_SUMMARY
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
         if: ${{ inputs.run_trivy == true }}
         with:
-          tool: 'Trivy'
-          report: 'trivy-report.txt'
-          critical_keyword: 'CRITICAL'
-          high_keyword: 'HIGH'
+          tool: Trivy
+          title: Trivy Vulnerability Report
+          report: trivy-report.txt
+          format: text
+          keywords: CRITICAL,HIGH
+          filter-regex: 'CRITICAL|HIGH'
+          deduplicate: false
+          max-lines: 50
 
       # This job scans the Docker image for vulnerabilities using Grype
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/grype-scan@testing
@@ -195,23 +235,16 @@ jobs:
           version: ${{ needs.docker-build-and-push.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
         if: ${{ inputs.run_grype == true }}
         with:
-          tool: 'Grype'
-          report: 'grype-report.txt'
-          critical-keyword: 'CRITICAL'
-          high-keyword: 'HIGH'
-
-
-  # This job generates a dashboard summarizing the results of the previous jobs
-  dashboard:
-    runs-on: ubuntu-latest
-    needs: [lint, unit-test, docker-scan]
-    if: always()
-    steps:
-      # This job generates a dashboard summarizing the results of the previous jobs
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tool: Grype
+          title: Grype Vulnerability Report
+          report: grype-report.txt
+          format: text
+          keywords: CRITICAL,HIGH,MEDIUM
+          filter-regex: 'CRITICAL|HIGH|MEDIUM'
+          deduplicate: false
+          max-lines: 100
 

@@ -53,27 +53,3 @@ runs:
         path: test-results/junit.xml
         reporter: jest-junit
         fail-on-error: false
-
-    # Summarize Jest JSON report
-    - name: Summarize Jest Results
-      shell: bash
-      run: |
-        if [[ ! -f jest-report.json ]]; then
-          echo "## 🧪 Jest Unit Test Report" > summary.md
-          echo "- ⚠️ No Jest report found. Was Jest run correctly?" >> summary.md
-        else
-          PASSED=$(jq '.numPassedTests' jest-report.json)
-          FAILED=$(jq '.numFailedTests' jest-report.json)
-          TOTAL=$(jq '.numTotalTests' jest-report.json)
-
-          echo "## 🧪 Jest Unit Test Report" > summary.md
-          echo "- 🟢 Passed: $PASSED" >> summary.md
-          echo "- 🔴 Failed: $FAILED" >> summary.md
-          echo "- 📊 Total: $TOTAL" >> summary.md
-        fi
-
-    - name: Upload ESLint Summary
-      uses: actions/upload-artifact@v4
-      with:
-        name: jest-summary
-        path: summary.md
