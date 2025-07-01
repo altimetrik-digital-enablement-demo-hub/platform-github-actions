@@ -26,6 +26,7 @@ runs:
       continue-on-error: ${{ inputs.continue-on-error == 'true' }}
       working-directory: ${{ inputs.working-directory }}
       run: |
-        pylint app run.py test > pylint-report.txt 2>&1 || true
-        head -n 10 pylint-report.txt || echo "No output"
+       echo "📦 Executing lint command: ${{ inputs.lint-command }}"
+        # Run the command with output captured to file
+        "${{ inputs.lint-command }} > pylint-report.txt 2>&1" || true
 
