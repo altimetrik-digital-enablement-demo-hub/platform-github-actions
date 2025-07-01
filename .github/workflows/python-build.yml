@@ -223,14 +223,14 @@ jobs:
 
       
       # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
-        if: ${{ inputs.run_grype == 'true' }}
-        with:
-          tool: Grype
-          title: Grype Vulnerability Report
-          report: grype-report.txt
-          format: text
-          keywords: CRITICAL,HIGH,MEDIUM
-          filter-regex: 'CRITICAL|HIGH|MEDIUM'
-          deduplicate: false
-          max-lines: 100
+      # - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+      #   if: ${{ inputs.run_grype == 'true' }}
+      #   with:
+      #     tool: Grype
+      #     title: Grype Vulnerability Report
+      #     report: grype-report.txt
+      #     format: text
+      #     keywords: CRITICAL,HIGH,MEDIUM
+      #     filter-regex: 'CRITICAL|HIGH|MEDIUM'
+      #     deduplicate: false
+      #     max-lines: 100
