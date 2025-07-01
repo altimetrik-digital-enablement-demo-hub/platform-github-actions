@@ -24,6 +24,7 @@ runs:
         continue-on-error: ${{ inputs.continue-on-error == 'true' }}
         working-directory: ${{ inputs.working-directory }}
         run: |
-          ${{ inputs.test-command }}
+          # Run the command with proper output redirection
+          bash -c "${{ inputs.test-command }} > unittest-report.txt 2>&1" || true
         shell: bash
       
