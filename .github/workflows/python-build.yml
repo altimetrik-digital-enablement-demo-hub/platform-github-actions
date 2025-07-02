@@ -101,8 +101,7 @@ jobs:
           title: Lint Report (Text)
           report: pylint-report.txt
           max-lines: 100
-          fail-on-thresholds: |
-            Code Quality < 5.0
+          thresholds: "Code Quality|<|5.0"
 
   # This job executes unit test
   unit-test:
@@ -222,5 +221,4 @@ jobs:
           tool: Grype
           title: Grype Vulnerability Report
           report: grype-report.txt
-          format: text
           max-lines: 100
