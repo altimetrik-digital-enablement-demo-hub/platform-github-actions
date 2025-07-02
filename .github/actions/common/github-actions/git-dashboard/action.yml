@@ -2,6 +2,10 @@ name: "Summarize Report"
 description: "Summarize a tool's report and write to GITHUB_STEP_SUMMARY in a clean markdown format"
 
 inputs:
+  working-directory:
+    description: "Working directory where the report file is located"
+    required: false
+    default: "."
   tool:
     description: "Tool name (e.g., Trivy, CodeQL, Docker)"
     required: true
