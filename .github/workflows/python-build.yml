@@ -100,7 +100,6 @@ jobs:
           tool: PyLint
           title: Lint Report (Text)
           report: pylint-report.txt
-          format: text
           max-lines: 100
           fail-on-thresholds: |
             Code Quality < 6.0
@@ -128,7 +127,6 @@ jobs:
           tool: Unit Test
           title: Unit Test Results
           report: unittest-report.txt
-          format: text
           fail-on-keywords: ERROR,FAILED,Traceback
           max-lines: 100
 
@@ -163,8 +161,7 @@ jobs:
           report: codeql-results.sarif
           format: sarif
           max-lines: 100
-          filter-regex: 'ruleId|message|location'
-          deduplicate: true
+
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
@@ -208,9 +205,6 @@ jobs:
           title: Trivy Vulnerability Report
           report: trivy-report.txt
           format: text
-          keywords: CRITICAL,HIGH
-          filter-regex: 'CRITICAL|HIGH'
-          deduplicate: false
           max-lines: 50
   
       # This job scans the Docker image for vulnerabilities using Grype
@@ -222,14 +216,11 @@ jobs:
 
       
       # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
-      # - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
-      #   if: ${{ inputs.run_grype == 'true' }}
-      #   with:
-      #     tool: Grype
-      #     title: Grype Vulnerability Report
-      #     report: grype-report.txt
-      #     format: text
-      #     keywords: CRITICAL,HIGH,MEDIUM
-      #     filter-regex: 'CRITICAL|HIGH|MEDIUM'
-      #     deduplicate: false
-      #     max-lines: 100
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+        if: ${{ inputs.run_grype == 'true' }}
+        with:
+          tool: Grype
+          title: Grype Vulnerability Report
+          report: grype-report.txt
+          format: text
+          max-lines: 100

@@ -15,11 +15,6 @@ inputs:
     description: 'Report format (e.g. text, sarif, eslint-json, jest-json)'
     default: 'auto'
 
-  keywords:
-    description: "Comma-separated list of keywords to count (e.g., CRITICAL,HIGH,ERROR)"
-    required: false
-    default: "CRITICAL,HIGH"
-
   title:
     description: "Optional title for the summary section"
     required: false
@@ -29,16 +24,6 @@ inputs:
     description: "Number of lines from the report to include"
     required: false
     default: "100"
-
-  filter-regex:
-    description: "Optional regex to filter lines before including in summary"
-    required: false
-    default: ""
-
-  deduplicate:
-    description: "If true, remove duplicate lines from filtered output"
-    required: false
-    default: "false"
   
   fail-on-keywords:
     description: "Comma-separated list of keywords. If any is found in report, step fails"
@@ -61,13 +46,14 @@ runs:
         REPORT="${{ inputs.report }}"
         FORMAT="${{ inputs.format }}"
         TITLE="${{ inputs.title }}"
-        MAX_LINES="${{ inputs['max-lines'] }}"
-        FAIL_KEYWORDS="${{ inputs['fail-on-keywords'] }}"
+        MAX_LINES="${{ inputs.max-lines }}"
+        FAIL_KEYWORDS="${{ inputs.fail-on-keywords }}"
+        FAIL_THRESHOLDS="${{ inputs.fail-on-thresholds }}"
 
-        echo "Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
-        echo "Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo "Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
-        echo "Format (input): $FORMAT" >> "$GITHUB_STEP_SUMMARY"
+        echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
+        echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
+        echo "📝 Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
+        echo "🔎 Format (input): $FORMAT" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         if [[ ! -f "$REPORT" ]]; then
@@ -91,6 +77,9 @@ runs:
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         FAIL_FOUND=0
+        declare -A METRICS
+        declare -A KEYWORD_COUNTS
+        KEYWORDS_TO_SCAN=("ERROR" "FAILED" "FAIL" "Traceback" "Exception")
 
         case "$FORMAT" in
           sarif)
@@ -99,6 +88,7 @@ runs:
             for level in error warning note; do
               COUNT=$(jq "[.runs[].results[] | select(.level == \"$level\")] | length" "$REPORT" 2>/dev/null || echo 0)
               echo "| $level | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
+              [[ "$level" == "error" ]] && METRICS["Errors"]="$COUNT"
             done
             ;;
           json)
@@ -112,30 +102,49 @@ runs:
             for tag in testsuite testcase error failure skipped; do
               COUNT=$(grep -c "<$tag" "$REPORT" || true)
               echo "| <$tag> | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
+              METRICS["$tag"]="$COUNT"
             done
             ;;
           text|*)
-            echo "| Keyword | Count |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
-            for word in ERROR FAILED FAIL Traceback Exception; do
+            KEYWORDS_FOUND=0
+            for word in "${KEYWORDS_TO_SCAN[@]}"; do
               COUNT=$(grep -ic "$word" "$REPORT" || true)
-              echo "| $word | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
+              KEYWORD_COUNTS["$word"]="$COUNT"
+              [[ "$COUNT" -gt 0 ]] && KEYWORDS_FOUND=1
             done
 
-            echo "" >> "$GITHUB_STEP_SUMMARY"
+            if [[ "$KEYWORDS_FOUND" -eq 1 ]]; then
+              echo "| Keyword | Count |" >> "$GITHUB_STEP_SUMMARY"
+              echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
+              for word in "${KEYWORDS_TO_SCAN[@]}"; do
+                echo "| $word | ${KEYWORD_COUNTS[$word]} |" >> "$GITHUB_STEP_SUMMARY"
+              done
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
             echo "### 🔎 Pattern Matches" >> "$GITHUB_STEP_SUMMARY"
             echo "| Pattern | Match |" >> "$GITHUB_STEP_SUMMARY"
             echo "|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
 
             MATCH=$(grep -Eo "Ran [0-9]+ test(s)? in [0-9\.]+s" "$REPORT" | head -n 1)
-            [[ -n "$MATCH" ]] && echo "| Ran tests | $MATCH |" >> "$GITHUB_STEP_SUMMARY"
+            [[ -n "$MATCH" ]] && echo "| Ran Tests | $MATCH |" >> "$GITHUB_STEP_SUMMARY"
+            TESTS=$(echo "$MATCH" | grep -Eo "[0-9]+" | head -n 1)
+            [[ -n "$TESTS" ]] && METRICS["Tests Ran"]="$TESTS"
 
             MATCH=$(grep -Eo "rated at [0-9\.]+/10" "$REPORT" | head -n 1)
-            [[ -n "$MATCH" ]] && echo "| Code Quality | $MATCH |" >> "$GITHUB_STEP_SUMMARY"
+            if [[ -n "$MATCH" ]]; then
+              RATING=$(echo "$MATCH" | grep -Eo "[0-9\.]+(?=/10)")
+              echo "| Code Quality | $MATCH |" >> "$GITHUB_STEP_SUMMARY"
+              METRICS["Code Quality"]="$RATING"
+            fi
 
             MATCHES=$(grep -Eo "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" | head -n 2)
             while IFS= read -r line; do
               echo "| Vulnerabilities | $line |" >> "$GITHUB_STEP_SUMMARY"
+              HIGH=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
+              CRITICAL=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
+              [[ -n "$HIGH" ]] && METRICS["HIGH"]="$HIGH"
+              [[ -n "$CRITICAL" ]] && METRICS["CRITICAL"]="$CRITICAL"
             done <<< "$MATCHES"
             ;;
         esac
@@ -148,14 +157,14 @@ runs:
         echo '```' >> "$GITHUB_STEP_SUMMARY"
         echo "</details>" >> "$GITHUB_STEP_SUMMARY"
 
-        # Fail check
+        # Fail if certain keywords are found
         if [[ -n "$FAIL_KEYWORDS" ]]; then
           IFS=',' read -ra KEYWORDS <<< "$FAIL_KEYWORDS"
           for word in "${KEYWORDS[@]}"; do
             MATCH=$(grep -i "$word" "$REPORT" | head -n 1)
             if [[ -n "$MATCH" ]]; then
               echo "❌ Keyword '$word' found in report, failing step"
-              exit 1
+              FAIL_FOUND=1
             fi
           done
         fi
@@ -180,19 +189,19 @@ runs:
 
             if [[ -n "$ACTUAL" ]]; then
               python3 -c "
-            try:
-              exit(0) if float($ACTUAL) $OP float($VALUE) else exit(1)
-            except:
-              exit(1)
-            " || FAIL_THIS=1
-                        else
-                          STATUS="❓"
-                          FAIL_THIS=1
-                        fi
+          try:
+            exit(0) if float($ACTUAL) $OP float($VALUE) else exit(1)
+          except:
+            exit(1)
+          " || FAIL_THIS=1
+            else
+              STATUS="❓"
+              FAIL_THIS=1
+            fi
 
-                        [[ "$FAIL_THIS" == "1" ]] && STATUS="❌" && FAIL_FOUND=1
-                        echo "| $METRIC | $OP | $VALUE | ${ACTUAL:-N/A} | $STATUS |" >> "$GITHUB_STEP_SUMMARY"
-                      done
-                    fi
+            [[ "$FAIL_THIS" == "1" ]] && STATUS="❌" && FAIL_FOUND=1
+            echo "| $METRIC | $OP | $VALUE | ${ACTUAL:-N/A} | $STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          done
+        fi
 
         exit $FAIL_FOUND
