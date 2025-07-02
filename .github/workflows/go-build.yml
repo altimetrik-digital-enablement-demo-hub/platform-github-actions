@@ -74,7 +74,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
           main-package-path: ${{ inputs.main-package-path }}
 
-  security-scan:
+  static-code-analysis:
     needs: build-go
     runs-on: ubuntu-latest
     permissions:
@@ -118,7 +118,7 @@ jobs:
           push: ${{ inputs.docker-push }}
           token: ${{ secrets.GITHUB_TOKEN }}
           
-  security:
+  container-security:
     runs-on: ubuntu-latest
     needs: [package, set-image-tag]
     steps:
