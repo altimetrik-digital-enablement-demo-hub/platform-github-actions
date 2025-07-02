@@ -42,6 +42,7 @@ runs:
       shell: bash
       run: |
         set +e
+        # Inputs
         TOOL="${{ inputs.tool }}"
         REPORT="${{ inputs.report }}"
         FORMAT="${{ inputs.format }}"
@@ -50,16 +51,27 @@ runs:
         FAIL_KEYWORDS="${{ inputs['fail-on-keywords'] }}"
         FAIL_THRESHOLDS="${{ inputs['fail-on-thresholds'] }}"
 
-        echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
-        echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo "📝 Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
+        # Init
+        FAIL_FOUND=0
+        declare -A METRICS
+        declare -A KEYWORD_COUNTS
+        KEYWORDS=("ERROR" "FAILED" "FAIL" "Traceback" "Exception")
+
+        # Header
+        echo "## 🧩 $TOOL - $TITLE" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "🔍 **Tool**: \`$TOOL\`" >> "$GITHUB_STEP_SUMMARY"
+        echo "📄 **Report**: \`$REPORT\`" >> "$GITHUB_STEP_SUMMARY"
+        echo "📝 **Title**: \`$TITLE\`" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
+        # Check file existence
         if [[ ! -f "$REPORT" ]]; then
-          echo "❌ Report file not found: $REPORT" >> "$GITHUB_STEP_SUMMARY"
+          echo "❌ Report file not found: \`$REPORT\`" >> "$GITHUB_STEP_SUMMARY"
           exit 0
         fi
 
+        # Auto-detect format
         if [[ "$FORMAT" == "auto" ]]; then
           EXT="${REPORT##*.}"
           case "$EXT" in
@@ -69,18 +81,16 @@ runs:
             *) FORMAT="text" ;;
           esac
         fi
-
-        echo "🧠 Detected format: $FORMAT" >> "$GITHUB_STEP_SUMMARY"
-        echo "## 🧩 $TOOL - $TITLE" >> "$GITHUB_STEP_SUMMARY"
+        echo "🧠 Detected format: \`$FORMAT\`" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
-        FAIL_FOUND=0
-        declare -A METRICS
-        declare -A KEYWORD_COUNTS
-        KEYWORDS=("ERROR" "FAILED" "FAIL" "Traceback" "Exception")
+        ######################
+        # FORMAT-SPECIFIC LOGIC
+        ######################
 
         case "$FORMAT" in
           sarif)
+            echo "### 📊 SARIF Summary" >> "$GITHUB_STEP_SUMMARY"
             echo "| Severity | Count |" >> "$GITHUB_STEP_SUMMARY"
             echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
             for lvl in error warning note; do
@@ -90,12 +100,14 @@ runs:
             done
             ;;
           json)
+            echo "### 📊 JSON Report" >> "$GITHUB_STEP_SUMMARY"
             echo "| Key | Value |" >> "$GITHUB_STEP_SUMMARY"
             echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
             jq -r 'to_entries[] | select(.value|type != "object") | "| \(.key) | \(.value) |"' "$REPORT" \
               | head -n "$MAX_LINES" >> "$GITHUB_STEP_SUMMARY"
             ;;
           xml)
+            echo "### 📊 XML Summary" >> "$GITHUB_STEP_SUMMARY"
             echo "| Tag | Count |" >> "$GITHUB_STEP_SUMMARY"
             echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
             for tag in testsuite testcase error failure skipped; do
@@ -104,7 +116,7 @@ runs:
               METRICS["$tag"]="$CNT"
             done
             ;;
-          text|*)
+          *)
             SHOW_KEYWORDS=0
             for w in "${KEYWORDS[@]}"; do
               CNT=$(grep -ic "$w" "$REPORT" || echo 0)
@@ -113,6 +125,7 @@ runs:
             done
 
             if [[ "$SHOW_KEYWORDS" -eq 1 ]]; then
+              echo "### 🧨 Keyword Summary" >> "$GITHUB_STEP_SUMMARY"
               echo "| Keyword | Count |" >> "$GITHUB_STEP_SUMMARY"
               echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
               for w in "${KEYWORDS[@]}"; do
@@ -121,7 +134,7 @@ runs:
               echo "" >> "$GITHUB_STEP_SUMMARY"
             fi
 
-            echo "### 🔎 Pattern Matches" >> "$GITHUB_STEP_SUMMARY"
+            echo "### 🔍 Pattern Matches" >> "$GITHUB_STEP_SUMMARY"
             echo "| Pattern | Match |" >> "$GITHUB_STEP_SUMMARY"
             echo "|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
 
@@ -154,40 +167,32 @@ runs:
             ;;
         esac
 
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        echo "<details><summary>📄 Raw Report (Top $MAX_LINES lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        echo '```' >> "$GITHUB_STEP_SUMMARY"
-        head -n "$MAX_LINES" "$REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo '```' >> "$GITHUB_STEP_SUMMARY"
-        echo "</details>" >> "$GITHUB_STEP_SUMMARY"
-
-        # Fail on keywords
+        ######################
+        # FAIL ON KEYWORDS
+        ######################
         if [[ -n "$FAIL_KEYWORDS" ]]; then
           IFS=',' read -ra FKW <<< "$FAIL_KEYWORDS"
           for w in "${FKW[@]}"; do
-            w=$(echo "$w" | xargs) # Trim whitespace
-            if [[ -n "$w" ]]; then
-              if grep -iq -- "$w" "$REPORT"; then
-                FAIL_FOUND=1
-                echo "❌ Keyword '$w' found, failing step" >> "$GITHUB_STEP_SUMMARY"
-              fi
+            w=$(echo "$w" | xargs)
+            if [[ -n "$w" ]] && grep -iq -- "$w" "$REPORT"; then
+              FAIL_FOUND=1
+              echo "❌ Keyword '\`$w\`' found, failing step." >> "$GITHUB_STEP_SUMMARY"
             fi
           done
         fi
 
+        ######################
+        # THRESHOLD CHECKS
+        ######################
         if [[ -n "$FAIL_THRESHOLDS" ]]; then
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### 🚨 Threshold Checks" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Metric | Operator | Value | Actual | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|--------|----------|-------|--------|--------|"
+          echo "| Metric | Operator | Threshold | Actual | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|----------|-----------|--------|--------|"
 
           IFS=',' read -ra TARR <<< "$FAIL_THRESHOLDS"
           for rule in "${TARR[@]}"; do
-            # Trim whitespace
             rule=$(echo "$rule" | xargs)
-
-            # Match rule like: "Code Quality < 6.0"
             if [[ "$rule" =~ ^(.+)[[:space:]]*([\<\>\=\!]+)[[:space:]]*([0-9\.]+)$ ]]; then
               MET="${BASH_REMATCH[1]}"
               OP="${BASH_REMATCH[2]}"
@@ -196,7 +201,6 @@ runs:
               STAT="✅"
               FAIL_THIS=0
 
-              # Only compare if ACT is numeric
               if [[ "$ACT" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
                 python3 -c "
         import sys
@@ -209,13 +213,27 @@ runs:
                 FAIL_THIS=1
               fi
 
-              [[ $FAIL_THIS -eq 1 ]] && STAT="❌" && FAIL_FOUND=1
+              [[ "$FAIL_THIS" -eq 1 ]] && STAT="❌" && FAIL_FOUND=1
               echo "| $MET | $OP | $TH | $ACT | $STAT |" >> "$GITHUB_STEP_SUMMARY"
             else
               FAIL_FOUND=1
-              echo "| Invalid threshold: $rule | - | - | - | ❌ |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Invalid rule: $rule | - | - | - | ❌ |" >> "$GITHUB_STEP_SUMMARY"
             fi
           done
         fi
 
+        ######################
+        # RAW REPORT SNIPPET
+        ######################
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "<details><summary>📄 Raw Report (Top $MAX_LINES lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+        head -n "$MAX_LINES" "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+        echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+
+        ######################
+        # FINAL EXIT
+        ######################
         exit $FAIL_FOUND
