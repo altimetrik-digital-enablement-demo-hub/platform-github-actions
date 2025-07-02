@@ -168,7 +168,8 @@ runs:
                 LABEL="Vulnerabilities"
                 [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
 
-                PATTERN_TABLE+="| $LABEL | $line |"
+                PATTERN_TABLE+="| $LABEL | $line |
+                "
 
                 # Extract numbers and accumulate
                 H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
