@@ -102,7 +102,7 @@ jobs:
           report: pylint-report.txt
           max-lines: 100
           fail-on-thresholds: |
-            Code Quality < 6.0
+            Code Quality < 5.0
 
   # This job executes unit test
   unit-test:

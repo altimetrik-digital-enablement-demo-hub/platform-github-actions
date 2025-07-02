@@ -179,28 +179,36 @@ runs:
           IFS=$'\n'
           for line in $FAIL_THRESHOLDS; do
             [[ "$line" =~ ^[[:space:]]*$ ]] && continue
-            METRIC=$(echo "$line" | awk '{print $1 " " $2}')
-            OP=$(echo "$line" | awk '{print $3}')
-            VALUE=$(echo "$line" | awk '{print $4}')
 
-            ACTUAL="${METRICS[$METRIC]}"
-            STATUS="✅"
-            FAIL_THIS=0
+            # Use regex to capture: metric name, operator, value
+            if [[ "$line" =~ ^(.+)\ ([\<\>\=\!]+)\ ([0-9\.]+)$ ]]; then
+              METRIC="${BASH_REMATCH[1]}"
+              OP="${BASH_REMATCH[2]}"
+              VALUE="${BASH_REMATCH[3]}"
 
-            if [[ -n "$ACTUAL" ]]; then
-              python3 -c "
-          try:
-            exit(0) if float($ACTUAL) $OP float($VALUE) else exit(1)
-          except:
-            exit(1)
-          " || FAIL_THIS=1
+              ACTUAL="${METRICS[$METRIC]}"
+              STATUS="✅"
+              FAIL_THIS=0
+
+              if [[ -n "$ACTUAL" ]]; then
+                python3 -c "
+        try:
+          exit(0) if float($ACTUAL) $OP float($VALUE) else exit(1)
+        except:
+          exit(1)
+        " || FAIL_THIS=1
+              else
+                STATUS="❌"
+                FAIL_THIS=1
+                ACTUAL="N/A"
+              fi
+
+              [[ "$FAIL_THIS" == "1" ]] && STATUS="❌" && FAIL_FOUND=1
+              echo "| $METRIC | $OP | $VALUE | $ACTUAL | $STATUS |" >> "$GITHUB_STEP_SUMMARY"
             else
-              STATUS="❓"
-              FAIL_THIS=1
+              echo "| Invalid threshold line | $line | - | - | ❌ |" >> "$GITHUB_STEP_SUMMARY"
+              FAIL_FOUND=1
             fi
-
-            [[ "$FAIL_THIS" == "1" ]] && STATUS="❌" && FAIL_FOUND=1
-            echo "| $METRIC | $OP | $VALUE | ${ACTUAL:-N/A} | $STATUS |" >> "$GITHUB_STEP_SUMMARY"
           done
         fi
 
