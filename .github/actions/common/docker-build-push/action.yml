@@ -25,16 +25,11 @@ inputs:
     required: false
     default: 'ghcr.io'
 
-<<<<<<< HEAD
 outputs:
   tag:
     description: "The new semantic version tag"
     value: ${{ steps.docker-tag.outputs.tag }}
 
-||||||| parent of dccad49 (test: docker build summary)
-
-=======
->>>>>>> dccad49 (test: docker build summary)
 runs:
   using: 'composite'
   steps:
