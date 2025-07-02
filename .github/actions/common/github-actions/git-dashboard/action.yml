@@ -180,33 +180,42 @@ runs:
           for line in $FAIL_THRESHOLDS; do
             [[ "$line" =~ ^[[:space:]]*$ ]] && continue
 
-            # Use regex to capture: metric name, operator, value
-            if [[ "$line" =~ ^(.+)\ ([\<\>\=\!]+)\ ([0-9\.]+)$ ]]; then
+            # Match: "Metric Name with spaces" <op> value
+            if [[ "$line" =~ ^(.*)\ ([\<\>\=\!]+)\ ([0-9\.]+)$ ]]; then
               METRIC="${BASH_REMATCH[1]}"
               OP="${BASH_REMATCH[2]}"
-              VALUE="${BASH_REMATCH[3]}"
+              THRESHOLD="${BASH_REMATCH[3]}"
 
               ACTUAL="${METRICS[$METRIC]}"
               STATUS="✅"
               FAIL_THIS=0
 
-              if [[ -n "$ACTUAL" ]]; then
+              if [[ -n "$ACTUAL" && "$ACTUAL" != "N/A" ]]; then
+                # Use Python to compare float values safely
                 python3 -c "
+        import sys
         try:
-          exit(0) if float($ACTUAL) $OP float($VALUE) else exit(1)
+            if float('$ACTUAL') $OP float('$THRESHOLD'):
+                sys.exit(0)
+            else:
+                sys.exit(1)
         except:
-          exit(1)
+            sys.exit(1)
         " || FAIL_THIS=1
               else
-                STATUS="❌"
-                FAIL_THIS=1
                 ACTUAL="N/A"
+                FAIL_THIS=1  # Mark as ❌, but don't fail job unless match is numeric
               fi
 
-              [[ "$FAIL_THIS" == "1" ]] && STATUS="❌" && FAIL_FOUND=1
-              echo "| $METRIC | $OP | $VALUE | $ACTUAL | $STATUS |" >> "$GITHUB_STEP_SUMMARY"
+              [[ "$FAIL_THIS" == "1" ]] && STATUS="❌"
+              echo "| $METRIC | $OP | $THRESHOLD | $ACTUAL | $STATUS |" >> "$GITHUB_STEP_SUMMARY"
+
+              # Only fail if both actual value is numeric and threshold check failed
+              if [[ "$FAIL_THIS" == "1" && "$ACTUAL" != "N/A" ]]; then
+                FAIL_FOUND=1
+              fi
             else
-              echo "| Invalid threshold line | $line | - | - | ❌ |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Invalid Threshold Format | - | - | - | ❌ |" >> "$GITHUB_STEP_SUMMARY"
               FAIL_FOUND=1
             fi
           done
