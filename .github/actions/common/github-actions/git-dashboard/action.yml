@@ -48,6 +48,7 @@ runs:
       run: |
         echo "Looking for unittest-report.txt in $GITHUB_WORKSPACE"
         ls -l $GITHUB_WORKSPACE
+        cd $GITHUB_WORKSPACE
 
 
         TOOL="${{ inputs.tool }}"
