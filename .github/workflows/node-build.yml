@@ -154,6 +154,7 @@ jobs:
           fail-on-keywords: ERROR,FAILED,Traceback
           max-lines: 100
 
+
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
   security-scan:
     needs: build

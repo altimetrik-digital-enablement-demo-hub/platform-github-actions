@@ -24,7 +24,7 @@ runs:
   using: composite
   steps:
     # This step runs the lint command
-    - name: Lint Project (continue on error)
+    - name: Lint Project
       run: |
         echo "Running: ${{ inputs.lint-command }} --format json -o eslint-report.json"
         ${{ inputs.lint-command }} --format json -o eslint-report.json || true
