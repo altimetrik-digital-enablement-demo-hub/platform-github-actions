@@ -1,4 +1,4 @@
-name: Go Semantic Release # CURRENTLY INACTIVE
+name: Go Semantic Release # CURRENTLY INACTIVE COULD POSSIBLE MOVE JOBS FROM GO-RELEASE.YML HERE
 description: Builds a Go application and uploads the binary as an artifact
 
 inputs:
@@ -18,7 +18,7 @@ runs:
   using: 'composite'  
   steps:
     - name: Set up Go
-      uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
       with:
         go-version: ${{ inputs.go-version }}
         git-fetch-depth: 0
