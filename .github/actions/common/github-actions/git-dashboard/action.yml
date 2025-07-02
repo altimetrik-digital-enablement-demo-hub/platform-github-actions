@@ -157,31 +157,23 @@ runs:
             add_single_pattern "Code Quality" "rated at [0-9\.]+/10"
 
             # Handle multiple vulnerability lines (e.g., from Trivy)
-            SECTION=""
-            while IFS= read -r line; do
-              # Match section names like "Python (python-pkg)" or "ghcr.io/... (debian 12.11)"
-              if [[ "$line" =~ ^[[:alnum:][:space:].:/_-]+\ \(.*\)$ ]]; then
-                SECTION="$line"
-                continue
-              fi
+           VULN_LINES=$(grep -nE "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" || true)
+          if [[ -n "$VULN_LINES" ]]; then
+            while IFS=: read -r LINENUM line; do
+              # Get previous non-empty line as context (section title)
+              CONTEXT=$(awk "NR==$((LINENUM - 1)) && NF {print; exit}" "$REPORT" | sed 's/[[:space:]]*$//')
+              LABEL="Vulnerabilities"
+              [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
 
-              # Match totals like: Total: 2 (HIGH: 2, CRITICAL: 0)
-              if [[ "$line" =~ ^Total:\ [0-9]+\ \(HIGH:\ [0-9]+,\ CRITICAL:\ [0-9]+\) ]]; then
-                LABEL="Vulnerabilities"
-                [[ -n "$SECTION" ]] && LABEL="$LABEL ($SECTION)"
+              PATTERN_TABLE+="| $LABEL | $line |"
 
-                PATTERN_TABLE+="| $LABEL | $line |
-            "
-
-                # Extract metrics
-                H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
-                C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
-                [[ -n "$H" ]] && METRICS["HIGH"]=$(( METRICS["HIGH"] + H ))
-                [[ -n "$C" ]] && METRICS["CRITICAL"]=$(( METRICS["CRITICAL"] + C ))
-
-                SECTION=""  # Reset after processing
-              fi
-            done < "$REPORT"
+              # Extract numbers and accumulate
+              H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
+              C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
+              [[ -n "$H" ]] && METRICS["HIGH"]=$(( METRICS["HIGH"] + H ))
+              [[ -n "$C" ]] && METRICS["CRITICAL"]=$(( METRICS["CRITICAL"] + C ))
+            done <<< "$VULN_LINES"
+          fi
 
             # Output table only if it has rows
             if [[ -n "$PATTERN_TABLE" ]]; then
