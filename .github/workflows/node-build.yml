@@ -118,6 +118,15 @@ jobs:
           node-version: ${{ inputs.node-version }}
           working-directory: ${{ inputs.working-directory }}
           token: ${{ secrets.GITHUB_TOKEN }}
+        
+      # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
+      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+        with:
+          tool: ESLint
+          title: Lint Report (Text)
+          report: eslint-report.txt
+          max-lines: 100
+          # thresholds: "Code Quality|<|5.0"
 
   # This job executes unit test
   unit-test:
@@ -141,10 +150,8 @@ jobs:
           tool: Jest
           title: Unit Test Results
           report: jest-report.json
-          format: jest-json
-          keywords: error,warning,failed
-          filter-regex: 'error|warning|failed'
-          deduplicate: true
+          format: auto
+          fail-on-keywords: ERROR,FAILED,Traceback
           max-lines: 100
 
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
@@ -176,8 +183,6 @@ jobs:
           report: codeql-results.sarif
           format: sarif
           max-lines: 100
-          filter-regex: 'ruleId|message|location'
-          deduplicate: true
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
@@ -196,18 +201,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ inputs.registry }}
 
-      # # This job summarizes the Docker report and writes it to GITHUB_STEP_SUMMARY
-      # - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
-      #   with:
-      #     tool: Docker
-      #     title: Build & Push Summary
-      #     report: docker-build.log
-      #     format: text
-      #     keywords: error,warning,failed
-      #     filter-regex: 'error|warning|failed'
-      #     deduplicate: true
-      #     max-lines: 100
-
+  # This job scans the Docker image for vulnerabilities using Trivy and Grype
   docker-scan:
     runs-on: ubuntu-latest
     needs: [docker-build-and-push]
@@ -232,10 +226,7 @@ jobs:
           title: Trivy Vulnerability Report
           report: trivy-report.txt
           format: text
-          keywords: CRITICAL,HIGH
-          filter-regex: 'CRITICAL|HIGH'
-          deduplicate: false
-          max-lines: 50
+          max-lines: 100
 
       # This job scans the Docker image for vulnerabilities using Grype
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/grype-scan@testing
@@ -251,9 +242,5 @@ jobs:
           tool: Grype
           title: Grype Vulnerability Report
           report: grype-report.txt
-          format: text
-          keywords: CRITICAL,HIGH,MEDIUM
-          filter-regex: 'CRITICAL|HIGH|MEDIUM'
-          deduplicate: false
           max-lines: 100
 

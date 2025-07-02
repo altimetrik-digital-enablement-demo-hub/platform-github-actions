@@ -94,7 +94,7 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
       
 
-      # # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
+      # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
         with:
           tool: PyLint
@@ -204,7 +204,7 @@ jobs:
           title: Trivy Vulnerability Report
           report: trivy-report.txt
           format: text
-          max-lines: 50
+          max-lines: 100
   
       # This job scans the Docker image for vulnerabilities using Grype
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/grype-scan@testing
