@@ -39,6 +39,11 @@ inputs:
     description: "If true, remove duplicate lines from filtered output"
     required: false
     default: "false"
+  
+  fail-on-keywords:
+    description: "Comma-separated list of keywords. If any is found in report, step fails"
+    required: false
+    default: ""
 
 runs:
   using: 'composite'
@@ -51,6 +56,7 @@ runs:
         FORMAT="${{ inputs.format }}"
         TITLE="${{ inputs.title }}"
         MAX_LINES="${{ inputs['max-lines'] }}"
+        FAIL_KEYWORDS="${{ inputs['fail-on-keywords'] }}"
 
         echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
         echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
@@ -77,6 +83,8 @@ runs:
         echo "" >> "$GITHUB_STEP_SUMMARY"
         echo "## 🧩 $TOOL - $TITLE" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        FAIL_FOUND=0
 
         case "$FORMAT" in
           sarif)
@@ -107,6 +115,22 @@ runs:
               COUNT=$(grep -ic "$word" "$REPORT" || true)
               echo "| $word | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
             done
+
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### 🔎 Pattern Matches" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Pattern | Match |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+            MATCH=$(grep -Eo "Ran [0-9]+ test(s)? in [0-9\.]+s" "$REPORT" | head -n 1)
+            [[ -n "$MATCH" ]] && echo "| Ran tests | $MATCH |" >> "$GITHUB_STEP_SUMMARY"
+
+            MATCH=$(grep -Eo "rated at [0-9\.]+/10" "$REPORT" | head -n 1)
+            [[ -n "$MATCH" ]] && echo "| Code Quality | $MATCH |" >> "$GITHUB_STEP_SUMMARY"
+
+            MATCHES=$(grep -Eo "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" | head -n 2)
+            while IFS= read -r line; do
+              echo "| Vulnerabilities | $line |" >> "$GITHUB_STEP_SUMMARY"
+            done <<< "$MATCHES"
             ;;
         esac
 
@@ -118,5 +142,16 @@ runs:
         echo '```' >> "$GITHUB_STEP_SUMMARY"
         echo "</details>" >> "$GITHUB_STEP_SUMMARY"
 
-        echo "✅ Done summarizing report"
+        # Fail check
+        if [[ -n "$FAIL_KEYWORDS" ]]; then
+          IFS=',' read -ra KEYWORDS <<< "$FAIL_KEYWORDS"
+          for word in "${KEYWORDS[@]}"; do
+            MATCH=$(grep -i "$word" "$REPORT" | head -n 1)
+            if [[ -n "$MATCH" ]]; then
+              echo "❌ Keyword '$word' found in report, failing step"
+              exit 1
+            fi
+          done
+        fi
+
         exit 0
