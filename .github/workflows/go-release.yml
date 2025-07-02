@@ -48,6 +48,15 @@ on:
         required: false
         type: string
         default: './Dockerfile'
+      release_bump:
+        description: 'Release bump type (ignored if version_override is provided)'
+        required: false
+        default: 'Minor'
+        type: string
+      version_override:
+        description: 'Optional: manually specify version (e.g., v1.3.0)'
+        required: false
+        type: string
 
 permissions:
   contents: write

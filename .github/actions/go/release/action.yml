@@ -23,6 +23,45 @@ runs:
         go-version: ${{ inputs.go-version }}
         git-fetch-depth: 0
         git-fetch-tags: true
+        
+    - name: Get latest tag # can be called from another location?
+      id: get_latest_tag
+      shell: bash
+      run: |
+        git fetch --tags
+        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1` 2>/dev/null || echo "v0.0.0")
+        echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
+        echo "Latest tag: $latest_tag"
+
+    - name: Calculate new version # can be called from another location?
+      id: version
+      shell: bash
+      run: |
+        if [ -n "${{ github.event.inputs.version_override }}" ]; then
+          new_version=${{ github.event.inputs.version_override }}
+        else
+          current_version=${LATEST_TAG#v}
+          IFS='.' read -r major minor patch <<< "$current_version"
+          case "${{ github.event.inputs.release_bump }}" in
+            "Major")
+              new_version="v$((major + 1)).0.0"
+              ;;
+            "Minor")
+              new_version="v${major}.$((minor + 1)).0"
+              ;;
+            "Patch")
+              new_version="v${major}.${minor}.$((patch + 1))"
+              ;;
+          esac
+        fi
+        echo "NEW_VERSION=$new_version" >> $GITHUB_ENV
+        echo "Calculated new version: $new_version"
+
+    - name: Create and push new tag
+      shell: bash
+      run: |
+        git tag ${{ env.NEW_VERSION }}
+        git push origin ${{ env.NEW_VERSION }}
 
     - name: Run GoReleaser
       uses: go-semantic-release/action@v1

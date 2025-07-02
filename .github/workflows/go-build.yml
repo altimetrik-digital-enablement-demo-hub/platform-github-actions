@@ -75,7 +75,7 @@ jobs:
           main-package-path: ${{ inputs.main-package-path }}
 
   security-scan:
-    needs: build
+    needs: build-go
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -102,7 +102,7 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
-    needs: [build, set-image-tag]
+    needs: [build-go, set-image-tag]
     # outputs:
     #   full-image-name: ${{ steps.package.outputs.full-image-name }}
     steps:
