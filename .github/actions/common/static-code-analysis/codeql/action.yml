@@ -6,33 +6,43 @@ inputs:
     description: 'Languages to analyze'
     required: true
     default: 'javascript'
+  continue-on-error:
+    description: 'Continue on error for CodeQL analysis'
+    required: false
+    default: 'true'
+  working-directory:
+    description: 'Working directory for the CodeQL analysis'
+    required: false
+    default: '.'
 
 runs:
   using: "composite"
-  steps:
+  steps: 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ inputs.languages }}
-      
+    
+    - name: Change to working directory
+      if: ${{ inputs.working-directory != '.' }}
+      run: cd "${{ inputs.working-directory }}"
+      shell: bash
+          
     - name: Autobuild
       uses: github/codeql-action/autobuild@v3
+      with:
+        working-directory: ${{ inputs.working-directory }}
 
-    # This step runs the CodeQL analysis on the codebase
     - name: Perform CodeQL Analysis
+      continue-on-error: ${{ inputs.continue-on-error }}
       uses: github/codeql-action/analyze@v3
-      working-directory: ${{ inputs.working-directory }}
-
-    # This step generates a summary of the CodeQL analysis results
+      with:
+        output: results.sarif
+      
     - name: CodeQL Summary
       shell: bash
       run: |
         echo "## 🔐 CodeQL Analysis" >> $GITHUB_STEP_SUMMARY
         echo "- Check [Security > Code Scanning Alerts](../../security/code-scanning) for results." >> $GITHUB_STEP_SUMMARY
 
-    # This step uploads the CodeQL summary as an artifact
-    - name: Upload ESLint Summary
-      uses: actions/upload-artifact@v4
-      with:
-        name: codeql-summary
-        path: summary.md
+      

@@ -5,6 +5,18 @@ inputs:
   version:
     description: 'Version of the Docker image to build and push'
     required: true
+  context:
+    description: 'Context for docker build'
+    default: '.'
+    required: false
+  docker-file:
+    description: 'Path to the Dockerfile'
+    default: './Dockerfile'
+    required: false
+  push:
+    description: 'Push the image to the registry'
+    default: 'true'
+    required: false
   token:
     description: 'GitHub token for authentication to GHCR'
     required: true
@@ -13,7 +25,16 @@ inputs:
     required: false
     default: 'ghcr.io'
 
+<<<<<<< HEAD
+outputs:
+  tag:
+    description: "The new semantic version tag"
+    value: ${{ steps.docker-tag.outputs.tag }}
 
+||||||| parent of dccad49 (test: docker build summary)
+
+=======
+>>>>>>> dccad49 (test: docker build summary)
 runs:
   using: 'composite'
   steps:
@@ -42,14 +63,42 @@ runs:
       uses: docker/metadata-action@v5
       with:
         images: ${{ inputs.registry }}/${{ github.repository }}
+    
+    # Determine the Docker tag based on the event type and branch
+    - name: Determine Docker Tag
+      id: docker-tag
+      shell: bash
+      run: |
+        if [[ -n "${{ inputs.version }}" ]]; then
+          TAG="${{ inputs.version }}"
+        else
+          DATE=$(date +%Y%m%d)
+          RUN_NUMBER=${{ github.run_number }}
+          
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            TAG="PR${PR_NUMBER}-${DATE}.run${RUN_NUMBER}"
+          elif [[ "${{ github.ref_name }}" == "main" ]]; then
+            TAG="main-${DATE}.run${RUN_NUMBER}"
+          else
+            BRANCH=$(echo "${{ github.ref_name }}" | sed 's|.*/||' | tr '/' '-')
+            TAG="${BRANCH}-${DATE}.run${RUN_NUMBER}"
+          fi
+        fi
+
+        echo "Computed Docker tag: $TAG"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        
 
     # Build and push the Docker image to GitHub Container Registry
     - name: Build and push Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
-        context: .
-        push: true
+        context: ${{ inputs.context || '.' }}
+        file: ${{ inputs.docker-file || './Dockerfile' }}
+        push: ${{ inputs.push || false }}
+        labels: ${{ steps.meta.outputs.labels }}
         tags: |
           ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
-          ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:latest
+          
     

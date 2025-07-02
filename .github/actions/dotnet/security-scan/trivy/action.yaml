@@ -5,12 +5,7 @@ inputs:
   registry:
     description: 'Container registry. Example: ghcr.io'
     required: true
-    default: 'ghcr.io'
-
-  image-name:
-    description: Docker image name
-    required: true
-    
+    default: 'ghcr.io'  
   image-tag:
     description: 'Docker image tag'
     required: true
@@ -29,6 +24,14 @@ runs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # This step will change the repository name to lowercase
+    - name: Convert repository name to lowercase
+      shell: bash
+      id: repo
+      run: |
+        repo_lower=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+        echo "repo=$repo_lower" >> $GITHUB_OUTPUT
+
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -40,7 +43,7 @@ runs:
     - name: Scan Docker image with Trivy
       uses: aquasecurity/trivy-action@0.28.0
       with:
-        image-ref: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.image-tag }}
+        image-ref: ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ inputs.image-tag }}
         format: table
         exit-code: 0
         output: trivy-report.txt

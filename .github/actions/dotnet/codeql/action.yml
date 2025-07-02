@@ -17,7 +17,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@test-cs
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
         git-fetch-depth: 1

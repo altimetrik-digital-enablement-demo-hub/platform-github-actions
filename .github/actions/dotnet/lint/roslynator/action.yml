@@ -2,13 +2,6 @@ name: build
 description: Lint C# code using CSharpier
 
 inputs:
-  app-name:
-    description: Application name to lint
-    required: true
-  dotnet-version:
-    description: The .NET SDK version to use
-    required: false
-    default: '9.0.300'
   restore:
     description: Whether to restore dotnet tools before linting
     required: false
@@ -17,7 +10,7 @@ inputs:
 runs:
   using: composite
   steps:    
-    - name: Lint ${{ inputs.app-name }}
+    - name: Roslynator global analyze
       if: ${{ inputs.restore == 'false' }}
       shell: bash
       run: |
@@ -29,7 +22,7 @@ runs:
         echo "roslynator analyze this solution"
         roslynator analyze
 
-    - name: Lint ${{ inputs.app-name }}
+    - name: Roslynator tool analyze
       if: ${{ inputs.restore == 'true' }}
       shell: bash
       run: |

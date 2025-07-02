@@ -6,46 +6,21 @@ on:
         description: 'Name of the .NET '
         required: true
         type: string
-      language:
-        description: '.Net programming language used in the application. Default csharp; can be csharp or fsharp.'
-        required: false
-        type: string
-        default: 'csharp'
       dotnet-version:
         description: 'Version of .NET SDK to use. Default 9.0.300; can be any valid .NET SDK version.'
         required: false
         type: string
         default: '9.0.300'
-      dotnet-tools-restore:
-        description: 'Restore .NET tools before running the linter. Default true; can be false to skip tool restoration.'
-        required: false
-        type: boolean
-        default: true
       dotnet-linter-csharpier:
         description: 'Run CSharpier linter on the code. Default true; can be false to skip CSharpier linting.'
         required: false
         type: boolean  
         default: true
-      dotnet-linter-roslynator:
-        description: 'Run Roslynator linter on the code. Default true; can be false to skip Roslynator linting.'
-        required: false
-        type: boolean  
-        default: false
       dotnet-test-verbosity:
         description: 'Verbosity level for .NET tests. Default normal; can be quiet, minimal, normal, detailed, or diagnostic.'
         required: false
         type: string
         default: 'normal'
-      security-trivy:
-        description: 'Run Trivy security scan on the Docker image. Default true; can be false to skip Trivy scan.'
-        required: false
-        type: boolean
-        default: true
-      security-snyk:
-        description: 'Run Snyk security scan on the Docker image. Default true; can be false to skip Snyk scan.'
-        required: false
-        type: boolean
-        default: false
       working-directory:
         description: 'Working directory for the .NET application. Default "."; can be set to a custom path.'
         required: false
@@ -71,186 +46,122 @@ on:
         required: false
         type: boolean
         default: true
+      run-trivy:
+        description: 'Run Trivy Scan'
+        required: false
+        default: true
+        type: boolean
+      run-grype:
+        description: 'Run Grype Scan'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   actions: read
   contents: write
   security-events: write
   packages: write
+  issues: read
+  checks: write
+  pull-requests: write
       
 jobs:
   lint:
-    name: Lint C# code
-    if: ${{ inputs.language == 'csharp' }}     
     runs-on: 'ubuntu-latest'
     steps:
-      # This step sets up the .NET environment
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
-        with:
-          dotnet-version: ${{ inputs.dotnet-version }}
-          fetch-depth: 1
-          fetch-tags: false 
-
-      # This step is used for executing the linting process of csharp code using CSharpier
       - name: csharpier
         if: ${{ inputs.dotnet-linter-csharpier == true }}
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/csharpier@v0
-        continue-on-error: true
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/csharpier@test-cs
         with:
-          app-name: ${{ inputs.app-name }}
           dotnet-version: ${{ inputs.dotnet-version }}
-          restore: ${{ inputs.dotnet-tools-restore }}
-      
-      # This step is used for executing the linting process of csharp code using Roslynator
-      - name: roslynator
-        if: ${{ inputs.dotnet-linter-roslynator == true }}
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/roslynator@v0
-        continue-on-error: true
-        with:
-          app-name: ${{ inputs.app-name }}
-          dotnet-version: ${{ inputs.dotnet-version }}
-          restore: ${{ inputs.dotnet-tools-restore }}
+          git-fetch-depth: 1
+          git-fetch-tags: false
 
-  test:
-    name: Test ${{ inputs.app-name }}
+  unit-test:
     needs: lint
     runs-on: 'ubuntu-latest'     
     steps:
-      # This step sets up the .NET environment
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@test-cs
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
-          fetch-depth: 1
-          fetch-tags: false 
-
-      # This step runs the .NET tests
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/test@v0
+          git-fetch-depth: 1
+          git-fetch-tags: false 
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/test@test-cs
         with:
           verbosity: ${{ inputs.dotnet-test-verbosity }}
 
-  codeql:
-    name: CodeQL Analysis for ${{ inputs.app-name }}
+  security-scan:
     needs: lint
     runs-on: 'ubuntu-latest'
+    continue-on-error: true
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     steps:
       # This step sets up the .NET environment for CodeQL analysis
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@test-cs
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
-          fetch-depth: 1
-          fetch-tags: false 
+          git-fetch-depth: 1
+          git-fetch-tags: false 
       
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@test-cs
         with:
           languages: 'csharp'
           working-directory: ${{ inputs.working-directory }}
 
-
-  build:
-    name: Build ${{ inputs.app-name }}
-    needs: [test, codeql]
+  version:
     runs-on: 'ubuntu-latest'
-    steps:
-      # This step sets up the .NET environment for building the application
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
-        with:
-          dotnet-version: ${{ inputs.dotnet-version }}
-          fetch-depth: 1
-          fetch-tags: false 
-
-      # This step builds the .NET application
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/build@v0
-        id: build
-        with:
-          app-name: ${{ inputs.app-name }}
-          dotnet-version: ${{ inputs.dotnet-version }}
-
-  
-  release:
-    name: Release ${{ inputs.app-name }}
-    needs: build
-    runs-on: 'ubuntu-latest'
+    needs: [lint, unit-test]
+    permissions:
+      contents: write
     outputs:
-      app-version: ${{ steps.versionize.outputs.app-version }}
+      image-tag: ${{ steps.generate-tag.outputs.image-tag }}
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/release@v0
-        id: versionize
-        with:
-          dotnet-version: ${{ inputs.dotnet-version }}
-          git-fetch-depth: 0   
-          git-fetch-tags: "true"
-          token: ${{ secrets.GITHUB_TOKEN }}  
-  
-  # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/image-tag@test-cs
+        id: generate-tag
+
   docker-build-and-push:
-    runs-on: ubuntu-latest
-    needs: release
-    if: ${{ needs.release.outputs.app-version != '' }}
+    runs-on: 'ubuntu-latest'
+    needs: version
+    if: needs.version.outputs.image-tag != ''
     permissions:
       contents: read
       packages: write  # Required to push to GHCR
     steps:
-    # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
+      # This step builds the .NET application
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@test-cs
+        id: build
         with:
-          version: ${{ needs.release.outputs.app-version }}
+          version: ${{ needs.version.outputs.image-tag }}
+          context: ${{ inputs.docker-context }}
+          docker-file: ${{ inputs.docker-file }}
+          push: ${{ inputs.docker-push }}
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ inputs.registry }}
 
-  # package:
-  #   name: Package ${{ inputs.app-name }}
-  #   needs: release
-  #   if: needs.release.outputs.app-version != '' 
-  #   runs-on: 'ubuntu-latest'
-  #   steps:
-  #     - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/package@v0
-  #       with:
-  #         language: ${{ inputs.language }}
-  #         app-name: ${{ inputs.app-name }}
-  #         token: ${{ secrets.GITHUB_TOKEN }}
-  #         context: ${{ inputs.docker-context }}
-  #         docker-file: ${{ inputs.docker-file }}
-  #         image-tag: ${{ needs.release.outputs.app-version }}
-  #         registry: ${{ inputs.registry }}
-  #         push: ${{ inputs.docker-push }}
-  
   docker-scan:
     runs-on: ubuntu-latest
-    needs: [release, docker-build-and-push]
-    if: ${{ needs.release.outputs.app-version != '' }}
+    needs: [version, docker-build-and-push]
+    if: needs.version.outputs.image-tag != '' 
     permissions:
       contents: read
-      packages: read 
+      packages: read  
     steps:
-      # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
-        if: ${{ inputs.run_trivy == true }}
+        # This job scans the Docker image for vulnerabilities using Trivy
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@test-cs
+        if: ${{ inputs.run-trivy == true }}
         with:
-          version: ${{ needs.release.outputs.app-version }}
+          version: ${{ needs.version.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
-      
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@v0
-        if: ${{ inputs.run_trivy == true }}
-        with:
-          tool: 'Trivy'
-          report: 'trivy-report.txt'
-          critical_keyword: 'CRITICAL'
-          high_keyword: 'HIGH'
-
+  
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
-        if: ${{ inputs.run_grype == true }}
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@test-cs
+        if: ${{ inputs.run-grype == true }}
         with:
-          version: ${{ needs.release.outputs.app-version }}
+          version: ${{ needs.version.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/github-dashboard@v0
-        if: ${{ inputs.run_grype == true }}
-        with:
-          tool: 'Grype'
-          report: 'grype-report.txt'
-          critical-keyword: 'CRITICAL'
-          high-keyword: 'HIGH'
-          

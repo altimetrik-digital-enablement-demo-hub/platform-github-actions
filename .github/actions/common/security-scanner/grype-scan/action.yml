@@ -47,7 +47,7 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: Grype-summary
-        path: Grype-summary.txt
+        path: grype-report.txt
     
     # Upload the Grype report as an artifact
     - name: Summarize Grype Report
