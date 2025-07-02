@@ -51,6 +51,7 @@ runs:
     - name: Summarize Report
       shell: bash
       run: |
+        set +e
         TOOL="${{ inputs.tool }}"
         REPORT="${{ inputs.report }}"
         FORMAT="${{ inputs.format }}"
