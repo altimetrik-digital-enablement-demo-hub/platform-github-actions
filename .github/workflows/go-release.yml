@@ -3,6 +3,22 @@ name: Go Release Pipeline
 on:
   workflow_dispatch:
     inputs:
+      release_bump:
+        description: 'Release bump (ignored if version_override is provided)'
+        required: true
+        default: 'Minor'
+        type: choice
+        options:
+          - Major
+          - Minor
+          - Patch
+      version_override:
+        description: 'Optional: manually specify version (e.g., v1.3.0)'
+        required: false
+        type: string
+
+  workflow_call:
+    inputs:
       app-name:
         required: true
         description: 'Name of the application'

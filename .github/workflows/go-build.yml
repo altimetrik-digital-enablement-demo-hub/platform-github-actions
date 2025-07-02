@@ -63,7 +63,7 @@ jobs:
         uses: osru-leu/platform-github-actions/.github/actions/go/unit-test@feature/go-release
         with:
           go-version: ${{ inputs.go-version }}
-  build:
+  build-go:
     runs-on: ubuntu-latest
     needs: test
     steps:
