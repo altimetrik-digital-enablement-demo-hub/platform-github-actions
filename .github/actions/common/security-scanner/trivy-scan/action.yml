@@ -20,9 +20,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
+    # This step is used to log in to the GitHub Container Registry (GHCR) using the provided token
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -59,26 +57,3 @@ runs:
           --username "${{ github.actor }}" \
           --password "${{ inputs.token }}" \
           $IMAGE | tee trivy-report.txt
-
-    - name: Upload Trivy Summary
-      uses: actions/upload-artifact@v4
-      with:
-        name: trivy-summary
-        path: trivy-summary.txt
-
-    # Upload the Trivy report as an artifact
-    - name: Trivy Summary
-      shell: bash
-      run: |
-        CRITICAL=$(grep -c 'CRITICAL' trivy-report.txt || true)
-        HIGH=$(grep -c 'HIGH' trivy-report.txt || true)
-
-        echo "## 🛡️ Trivy Scan" >> $GITHUB_STEP_SUMMARY
-        echo "- 🚨 Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
-        echo "- ⚠️ High: $HIGH" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "<details><summary>📄 View Raw Report (truncated)</summary>" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        head -n 100 trivy-report.txt >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "</details>" >> $GITHUB_STEP_SUMMARY
