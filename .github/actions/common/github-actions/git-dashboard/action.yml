@@ -159,13 +159,13 @@ runs:
             # Handle multiple vulnerability lines (e.g., from Trivy)
             SECTION=""
             while IFS= read -r line; do
-              # Detect section headers (e.g., OS or Python package)
-              if [[ "$line" =~ ^[A-Za-z0-9._:/\ -]+\ \(.*\)$ ]] || [[ "$line" =~ ^[A-Za-z0-9._:/\ -]+\ *$ ]]; then
+              # Match section names like "Python (python-pkg)" or "ghcr.io/... (debian 12.11)"
+              if [[ "$line" =~ ^[[:alnum:][:space:].:/_-]+\ \(.*\)$ ]]; then
                 SECTION="$line"
                 continue
               fi
 
-              # Detect vulnerability totals
+              # Match totals like: Total: 2 (HIGH: 2, CRITICAL: 0)
               if [[ "$line" =~ ^Total:\ [0-9]+\ \(HIGH:\ [0-9]+,\ CRITICAL:\ [0-9]+\) ]]; then
                 LABEL="Vulnerabilities"
                 [[ -n "$SECTION" ]] && LABEL="$LABEL ($SECTION)"
@@ -176,11 +176,10 @@ runs:
                 # Extract metrics
                 H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
                 C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
-                [[ -n "$H" ]] && METRICS["HIGH"]="$H"
-                [[ -n "$C" ]] && METRICS["CRITICAL"]="$C"
+                [[ -n "$H" ]] && METRICS["HIGH"]=$(( METRICS["HIGH"] + H ))
+                [[ -n "$C" ]] && METRICS["CRITICAL"]=$(( METRICS["CRITICAL"] + C ))
 
-                # Reset section if Trivy switches format
-                SECTION=""
+                SECTION=""  # Reset after processing
               fi
             done < "$REPORT"
 
