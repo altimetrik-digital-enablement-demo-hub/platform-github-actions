@@ -46,8 +46,6 @@ runs:
     - name: Summarize Report
       shell: bash
       run: |
-        set +e  # allow script to continue on errors to avoid breaking summary
-
         echo "Looking for ${{ inputs.report }} in $GITHUB_WORKSPACE"
         ls -l "$GITHUB_WORKSPACE"
 
@@ -85,7 +83,12 @@ runs:
 
             IFS=',' read -ra KEYWORDS <<< "$KEYWORDS_STRING"
             for word in "${KEYWORDS[@]}"; do
-              COUNT=$(grep -c "$word" "$REPORT" 2>/dev/null || echo 0)
+              if grep -q "$word" "$REPORT"; then
+                COUNT=$(grep -c "$word" "$REPORT")
+              else
+                echo "⚠️ Keyword '$word' not found in report" >> "$GITHUB_STEP_SUMMARY"
+                COUNT=0
+              fi
               echo "| $word | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
             done
             ;;
@@ -94,7 +97,11 @@ runs:
             echo "| Severity | Count |" >> "$GITHUB_STEP_SUMMARY"
             echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
             for level in error warning note; do
-              COUNT=$(jq "[.runs[].results[] | select(.level == \"$level\")] | length" "$REPORT" 2>/dev/null || echo 0)
+              COUNT=$(jq "[.runs[].results[] | select(.level == \"$level\")] | length" "$REPORT" 2>/dev/null)
+              if [[ -z "$COUNT" ]]; then
+                echo "⚠️ jq failed to parse SARIF level '$level'" >> "$GITHUB_STEP_SUMMARY"
+                COUNT=0
+              fi
               echo "| $level | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
             done
             ;;
@@ -102,16 +109,24 @@ runs:
           eslint-json)
             echo "| Rule ID | Message | Line |" >> "$GITHUB_STEP_SUMMARY"
             echo "|---------|---------|------|" >> "$GITHUB_STEP_SUMMARY"
-            jq -r '.[] | .messages[] | "| \(.ruleId // "N/A") | \(.message | gsub("\n"; " ")) | \(.line // 0) |"' "$REPORT" 2>/dev/null | head -n "$MAX_LINES" >> "$GITHUB_STEP_SUMMARY"
+            if ! jq -e . "$REPORT" >/dev/null 2>&1; then
+              echo "❌ jq failed to parse eslint JSON format" >> "$GITHUB_STEP_SUMMARY"
+            else
+              jq -r '.[] | .messages[] | "| \(.ruleId // "N/A") | \(.message | gsub("\n"; " ")) | \(.line // 0) |"' "$REPORT" | head -n "$MAX_LINES" >> "$GITHUB_STEP_SUMMARY"
+            fi
             ;;
 
           jest-json)
             echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
             echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Total Tests | $(jq '.numTotalTests' "$REPORT" 2>/dev/null || echo 0) |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Passed | $(jq '.numPassedTests' "$REPORT" 2>/dev/null || echo 0) |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Failed | $(jq '.numFailedTests' "$REPORT" 2>/dev/null || echo 0) |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Skipped | $(jq '.numPendingTests' "$REPORT" 2>/dev/null || echo 0) |" >> "$GITHUB_STEP_SUMMARY"
+            if ! jq -e . "$REPORT" >/dev/null 2>&1; then
+              echo "❌ jq failed to parse jest JSON format" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| Total Tests | $(jq '.numTotalTests' "$REPORT") |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Passed      | $(jq '.numPassedTests' "$REPORT") |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Failed      | $(jq '.numFailedTests' "$REPORT") |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Skipped     | $(jq '.numPendingTests' "$REPORT") |" >> "$GITHUB_STEP_SUMMARY"
+            fi
             ;;
 
           *)
