@@ -158,33 +158,31 @@ runs:
 
             # Handle multiple vulnerability lines (e.g., from Trivy)
             VULN_LINES=$(grep -nE "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" || true)
-            PATTERN_TABLE=""
-            if [[ -n "$VULN_LINES" ]]; then
-              while IFS=: read -r LINENUM line; do
-                # Try to grab 2 lines above, skipping separators like ====
-                CONTEXT_LINE=$(awk "NR==$((LINENUM - 2)) {gsub(/^[[:space:]]+|[[:space:]]+$/, \"\"); print; exit}" "$REPORT")
 
-                # Clean context
-                CONTEXT=$(echo "$CONTEXT_LINE" | sed 's/[[:space:]]*$//' | tr -d '=') # Optionally adjust cleanup
+            if [[ -n "$VULN_LINES" ]]; then
+              PATTERN_TABLE=""
+              while IFS=: read -r LINENUM line; do
+                CONTEXT_LINE=$(awk "NR==$((LINENUM - 1)) {gsub(/^[[:space:]]+|[[:space:]]+$/, \"\"); print; exit}" "$REPORT")
+
+                CONTEXT=$(echo "$CONTEXT_LINE" | tr -d '=' | xargs)
                 LABEL="Vulnerabilities"
                 [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
 
-                # Format properly as Markdown row
                 PATTERN_TABLE+="| $LABEL | $line |
             "
-                
-                # Extract and accumulate metrics
+
+                # Extract metrics
                 H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
                 C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
-                [[ -n "$H" ]] && METRICS["HIGH"]=$(( ${METRICS["HIGH"]:-0} + H ))
-                [[ -n "$C" ]] && METRICS["CRITICAL"]=$(( ${METRICS["CRITICAL"]:-0} + C ))
+                [[ -n "$H" ]] && METRICS["HIGH"]="$H"
+                [[ -n "$C" ]] && METRICS["CRITICAL"]="$C"
               done <<< "$VULN_LINES"
 
-              # Now print the table if any rows found
+              # Output table
               if [[ -n "$PATTERN_TABLE" ]]; then
                 echo "### 🔎 Pattern Matches" >> "$GITHUB_STEP_SUMMARY"
                 echo "| Pattern | Match |" >> "$GITHUB_STEP_SUMMARY"
-                echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
+                echo "|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
                 echo "$PATTERN_TABLE" >> "$GITHUB_STEP_SUMMARY"
               fi
             fi
