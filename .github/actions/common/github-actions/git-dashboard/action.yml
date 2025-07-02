@@ -48,7 +48,7 @@ runs:
       run: |
         TOOL="${{ inputs.tool }}"
         TITLE="${{ inputs.title }}"
-        REPORT="${{ inputs.report }}"
+        REPORT="${{ inputs.working-directory }}/${{ inputs.report }}"
         FORMAT="${{ inputs.format }}"
         KEYWORDS_STRING="${{ inputs.keywords }}"
         MAX_LINES="${{ inputs.max-lines }}"

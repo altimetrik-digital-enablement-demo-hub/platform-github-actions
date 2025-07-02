@@ -22,12 +22,13 @@ runs:
       # This step will execute the unittest command and will continue on error if specified
       - name: Run unit tests
         continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+        working-directory: ${{ inputs.working-directory }}
         run: |
           echo "📦 Executing unittest command: ${{ inputs.test-command }}"
           # Run the command with proper output redirection
-          bash -c "${{ inputs.test-command }} >  $GITHUB_WORKSPACE/unittest-report.txt 2>&1" || true
+          bash -c "${{ inputs.test-command }} >  unittest-report.txt 2>&1" || true
 
           echo "✅ First few lines of unittest-report.txt:"
-          head -n 100 $GITHUB_WORKSPACE/unittest-report.txt || echo "No output"
+          head -n 100 unittest-report.txt || echo "No output"
         shell: bash
       
