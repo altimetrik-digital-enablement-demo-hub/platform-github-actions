@@ -138,6 +138,8 @@ runs:
               if ! awk "BEGIN {exit !($ACTUAL $OPERATOR $VALUE)}"; then
                 PASS="❌"
                 FAIL_FOUND=1
+              else
+                PASS="✅"
               fi
             else
               PASS="❌"
