@@ -65,14 +65,12 @@ runs:
           esac
         fi
 
-        echo "🧠 Detected format: $FORMAT" >> "$GITHUB_STEP_SUMMARY"
         echo "## 🧩 $TOOL - $TITLE" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
 
         echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
         echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo "📝 Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         FAIL_FOUND=0
@@ -159,24 +157,32 @@ runs:
             add_single_pattern "Code Quality" "rated at [0-9\.]+/10"
 
             # Handle multiple vulnerability lines (e.g., from Trivy)
-            VULN_LINES=$(grep -Eo "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" || true)
+            SECTION=""
+            while IFS= read -r line; do
+              # Detect section headers (e.g., OS or Python package)
+              if [[ "$line" =~ ^[A-Za-z0-9._:/\ -]+\ \(.*\)$ ]] || [[ "$line" =~ ^[A-Za-z0-9._:/\ -]+\ *$ ]]; then
+                SECTION="$line"
+                continue
+              fi
 
-            if [[ -n "$VULN_LINES" ]]; then
-              while IFS= read -r line; do
-                # Optionally extract a preceding section name (e.g. Python, OS)
-                CONTEXT=$(awk "/$line/{print prev}{prev=\$0}" "$REPORT" | grep -Eo "^[^=]+")
+              # Detect vulnerability totals
+              if [[ "$line" =~ ^Total:\ [0-9]+\ \(HIGH:\ [0-9]+,\ CRITICAL:\ [0-9]+\) ]]; then
                 LABEL="Vulnerabilities"
-                [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
+                [[ -n "$SECTION" ]] && LABEL="$LABEL ($SECTION)"
 
-                PATTERN_TABLE+="| $LABEL | $line |"
+                PATTERN_TABLE+="| $LABEL | $line |
+            "
 
-                # Add metrics for thresholds if not already set
+                # Extract metrics
                 H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
                 C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
                 [[ -n "$H" ]] && METRICS["HIGH"]="$H"
                 [[ -n "$C" ]] && METRICS["CRITICAL"]="$C"
-              done <<< "$VULN_LINES"
-            fi
+
+                # Reset section if Trivy switches format
+                SECTION=""
+              fi
+            done < "$REPORT"
 
             # Output table only if it has rows
             if [[ -n "$PATTERN_TABLE" ]]; then
