@@ -46,113 +46,77 @@ runs:
     - name: Summarize Report
       shell: bash
       run: |
-        echo "Looking for ${{ inputs.report }} in $GITHUB_WORKSPACE"
-        ls -l "$GITHUB_WORKSPACE"
-
         TOOL="${{ inputs.tool }}"
-        TITLE="${{ inputs.title }}"
         REPORT="${{ inputs.report }}"
         FORMAT="${{ inputs.format }}"
-        KEYWORDS_STRING="${{ inputs.keywords }}"
-        MAX_LINES="${{ inputs.max-lines }}"
-        FILTER_REGEX="${{ inputs.filter-regex }}"
-        DEDUPLICATE="${{ inputs.deduplicate }}"
+        TITLE="${{ inputs.title }}"
+        MAX_LINES="${{ inputs['max-lines'] }}"
 
-        echo "📄 Processing report: $REPORT"
+        echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
+        echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
+        echo "📝 Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
+        echo "🔎 Format (input): $FORMAT" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
 
         if [[ ! -f "$REPORT" ]]; then
-          echo "⚠️ Report file not found: $REPORT" >> "$GITHUB_STEP_SUMMARY"
+          echo "❌ Report file not found: $REPORT" >> "$GITHUB_STEP_SUMMARY"
           exit 0
         fi
 
-        echo "## 🧩 ${TOOL} - ${TITLE}" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
+        if [[ "$FORMAT" == "auto" ]]; then
+          EXT="${REPORT##*.}"
+          case "$EXT" in
+            json) FORMAT="json" ;;
+            sarif) FORMAT="sarif" ;;
+            xml) FORMAT="xml" ;;
+            *) FORMAT="text" ;;
+          esac
+        fi
 
-        echo "**🔍 Debug Info:**" >> "$GITHUB_STEP_SUMMARY"
-        echo "- Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
-        echo "- Format: $FORMAT" >> "$GITHUB_STEP_SUMMARY"
-        echo "- Report File: $REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo "- Exists: $(test -f "$REPORT" && echo yes || echo no)" >> "$GITHUB_STEP_SUMMARY"
-        echo "- Filter Regex: ${FILTER_REGEX}" >> "$GITHUB_STEP_SUMMARY"
+        echo "🧠 Detected format: $FORMAT" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "## 🧩 $TOOL - $TITLE" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         case "$FORMAT" in
-          text)
-            echo "| Keyword | Count |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
-
-            IFS=',' read -ra KEYWORDS <<< "$KEYWORDS_STRING"
-            for word in "${KEYWORDS[@]}"; do
-              if grep -q "$word" "$REPORT"; then
-                COUNT=$(grep -c "$word" "$REPORT")
-              else
-                echo "⚠️ Keyword '$word' not found in report" >> "$GITHUB_STEP_SUMMARY"
-                COUNT=0
-              fi
-              echo "| $word | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
-            done
-            ;;
-
           sarif)
             echo "| Severity | Count |" >> "$GITHUB_STEP_SUMMARY"
             echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
             for level in error warning note; do
-              COUNT=$(jq "[.runs[].results[] | select(.level == \"$level\")] | length" "$REPORT" 2>/dev/null)
-              if [[ -z "$COUNT" ]]; then
-                echo "⚠️ jq failed to parse SARIF level '$level'" >> "$GITHUB_STEP_SUMMARY"
-                COUNT=0
-              fi
+              COUNT=$(jq "[.runs[].results[] | select(.level == \"$level\")] | length" "$REPORT" 2>/dev/null || echo 0)
               echo "| $level | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
             done
             ;;
-
-          eslint-json)
-            echo "| Rule ID | Message | Line |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|---------|---------|------|" >> "$GITHUB_STEP_SUMMARY"
-            if ! jq -e . "$REPORT" >/dev/null 2>&1; then
-              echo "❌ jq failed to parse eslint JSON format" >> "$GITHUB_STEP_SUMMARY"
-            else
-              jq -r '.[] | .messages[] | "| \(.ruleId // "N/A") | \(.message | gsub("\n"; " ")) | \(.line // 0) |"' "$REPORT" | head -n "$MAX_LINES" >> "$GITHUB_STEP_SUMMARY"
-            fi
+          json)
+            echo "| Key | Value |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
+            jq -r 'to_entries[] | select(.value|type != "object") | "| \(.key) | \(.value) |"' "$REPORT" 2>/dev/null | head -n "$MAX_LINES" >> "$GITHUB_STEP_SUMMARY"
             ;;
-
-          jest-json)
-            echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-            if ! jq -e . "$REPORT" >/dev/null 2>&1; then
-              echo "❌ jq failed to parse jest JSON format" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "| Total Tests | $(jq '.numTotalTests' "$REPORT") |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| Passed      | $(jq '.numPassedTests' "$REPORT") |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| Failed      | $(jq '.numFailedTests' "$REPORT") |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| Skipped     | $(jq '.numPendingTests' "$REPORT") |" >> "$GITHUB_STEP_SUMMARY"
-            fi
+          xml)
+            echo "| Tag | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
+            for tag in testsuite testcase error failure skipped; do
+              COUNT=$(grep -c "<$tag" "$REPORT" || true)
+              echo "| <$tag> | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
+            done
             ;;
-
-          *)
-            echo "❌ Unknown format: $FORMAT" >> "$GITHUB_STEP_SUMMARY"
-            exit 1
+          text|*)
+            echo "| Keyword | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            for word in ERROR FAILED FAIL Traceback Exception; do
+              COUNT=$(grep -ic "$word" "$REPORT" || true)
+              echo "| $word | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
+            done
             ;;
         esac
 
         echo "" >> "$GITHUB_STEP_SUMMARY"
-        echo "<details><summary>📄 Raw Report (Top ${MAX_LINES} lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+        echo "<details><summary>📄 Raw Report (Top $MAX_LINES lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
         echo '```' >> "$GITHUB_STEP_SUMMARY"
-
-        if [[ -n "$FILTER_REGEX" ]]; then
-          if [[ "$DEDUPLICATE" == "true" ]]; then
-            grep -E "$FILTER_REGEX" "$REPORT" 2>/dev/null | sort | uniq | head -n "$MAX_LINES"
-          else
-            grep -E "$FILTER_REGEX" "$REPORT" 2>/dev/null | head -n "$MAX_LINES"
-          fi
-        else
-          if [[ "$DEDUPLICATE" == "true" ]]; then
-            sort "$REPORT" | uniq | head -n "$MAX_LINES"
-          else
-            head -n "$MAX_LINES" "$REPORT"
-          fi
-        fi >> "$GITHUB_STEP_SUMMARY"
-
+        head -n "$MAX_LINES" "$REPORT" >> "$GITHUB_STEP_SUMMARY"
         echo '```' >> "$GITHUB_STEP_SUMMARY"
         echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "✅ Done summarizing report"
+        exit 0
