@@ -102,8 +102,8 @@ jobs:
           report: pylint-report.txt
           format: text
           max-lines: 100
-          filter-regex: '^[^:]+:\d+:\d+: [A-Z]\d{4}:|rated at'
-          deduplicate: true
+          fail-on-thresholds: |
+            Code Quality < 6.0
 
   # This job executes unit test
   unit-test:
@@ -129,10 +129,9 @@ jobs:
           title: Unit Test Results
           report: unittest-report.txt
           format: text
-          keywords: ERROR,FAILED,Traceback
-          filter-regex: 'ERROR|FAILED|Traceback'
-          deduplicate: true
+          fail-on-keywords: ERROR,FAILED,Traceback
           max-lines: 100
+
   
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
   security-scan:

@@ -13,7 +13,7 @@ inputs:
   format:
     required: false
     description: 'Report format (e.g. text, sarif, eslint-json, jest-json)'
-    default: 'text'
+    default: 'auto'
 
   keywords:
     description: "Comma-separated list of keywords to count (e.g., CRITICAL,HIGH,ERROR)"
@@ -44,6 +44,11 @@ inputs:
     description: "Comma-separated list of keywords. If any is found in report, step fails"
     required: false
     default: ""
+  
+  fail-on-thresholds:
+    description: "Newline-separated thresholds. Format: Metric OP Value (e.g., Code Quality < 6)"
+    required: false
+    default: ""
 
 runs:
   using: 'composite'
@@ -59,10 +64,10 @@ runs:
         MAX_LINES="${{ inputs['max-lines'] }}"
         FAIL_KEYWORDS="${{ inputs['fail-on-keywords'] }}"
 
-        echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
-        echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo "📝 Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
-        echo "🔎 Format (input): $FORMAT" >> "$GITHUB_STEP_SUMMARY"
+        echo "Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
+        echo "Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
+        echo "Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
+        echo "Format (input): $FORMAT" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         if [[ ! -f "$REPORT" ]]; then
@@ -155,4 +160,39 @@ runs:
           done
         fi
 
-        exit 0
+        # Fail if any thresholds are violated
+        if [[ -n "$FAIL_THRESHOLDS" ]]; then
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 🚨 Threshold Checks" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Metric | Operator | Value | Actual | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|----------|-------|--------|--------|"
+
+          IFS=$'\n'
+          for line in $FAIL_THRESHOLDS; do
+            [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+            METRIC=$(echo "$line" | awk '{print $1 " " $2}')
+            OP=$(echo "$line" | awk '{print $3}')
+            VALUE=$(echo "$line" | awk '{print $4}')
+
+            ACTUAL="${METRICS[$METRIC]}"
+            STATUS="✅"
+            FAIL_THIS=0
+
+            if [[ -n "$ACTUAL" ]]; then
+              python3 -c "
+            try:
+              exit(0) if float($ACTUAL) $OP float($VALUE) else exit(1)
+            except:
+              exit(1)
+            " || FAIL_THIS=1
+                        else
+                          STATUS="❓"
+                          FAIL_THIS=1
+                        fi
+
+                        [[ "$FAIL_THIS" == "1" ]] && STATUS="❌" && FAIL_FOUND=1
+                        echo "| $METRIC | $OP | $VALUE | ${ACTUAL:-N/A} | $STATUS |" >> "$GITHUB_STEP_SUMMARY"
+                      done
+                    fi
+
+        exit $FAIL_FOUND
