@@ -26,7 +26,7 @@ runs:
         run: |
           echo "📦 Executing unittest command: ${{ inputs.test-command }}"
           # Run the command with proper output redirection
-          bash -c "${{ inputs.test-command }} > unittest-report.txt 2>&1" || true
+          bash -c "${{ inputs.test-command }} >  $GITHUB_WORKSPACE/unittest-report.txt 2>&1" || true
 
           echo "✅ First few lines of unittest-report.txt:"
           head -n 100 unittest-report.txt || echo "No output"
