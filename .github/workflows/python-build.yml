@@ -101,8 +101,7 @@ jobs:
           title: Lint Report (Text)
           report: pylint-report.txt
           max-lines: 100
-          fail-on-thresholds: |
-            Code Quality < 5.0
+          threshold-checks: "Code Quality,<,5.0"
 
   # This job executes unit test
   unit-test:
@@ -206,6 +205,7 @@ jobs:
           report: trivy-report.txt
           format: text
           max-lines: 50
+          # threshold-checks: "CRITICAL,<=,1"
   
       # This job scans the Docker image for vulnerabilities using Grype
       - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/grype-scan@testing

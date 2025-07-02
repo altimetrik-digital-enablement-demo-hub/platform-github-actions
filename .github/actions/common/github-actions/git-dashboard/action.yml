@@ -30,7 +30,7 @@ inputs:
     required: false
     default: ""
   
-  fail-on-thresholds:
+  threshold-checks:
     description: "Newline-separated thresholds. Format: Metric OP Value (e.g., Code Quality < 6)"
     required: false
     default: ""
@@ -46,14 +46,12 @@ runs:
         REPORT="${{ inputs.report }}"
         FORMAT="${{ inputs.format }}"
         TITLE="${{ inputs.title }}"
-        MAX_LINES="${{ inputs.max-lines }}"
-        FAIL_KEYWORDS="${{ inputs.fail-on-keywords }}"
-        FAIL_THRESHOLDS="${{ inputs.fail-on-thresholds }}"
+        MAX_LINES="${{ inputs['max-lines'] }}"
+        FAIL_KEYWORDS="${{ inputs['fail-on-keywords'] }}"
+        THRESHOLD_CHECKS="${{ inputs['threshold-checks'] }}"
 
         echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
         echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo "📝 Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
-        echo "🔎 Format (input): $FORMAT" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         if [[ ! -f "$REPORT" ]]; then
@@ -65,89 +63,75 @@ runs:
           EXT="${REPORT##*.}"
           case "$EXT" in
             json) FORMAT="json" ;;
-            sarif) FORMAT="sarif" ;;
             xml) FORMAT="xml" ;;
+            sarif) FORMAT="sarif" ;;
             *) FORMAT="text" ;;
           esac
         fi
 
         echo "🧠 Detected format: $FORMAT" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
         echo "## 🧩 $TOOL - $TITLE" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         FAIL_FOUND=0
         declare -A METRICS
-        declare -A KEYWORD_COUNTS
-        KEYWORDS_TO_SCAN=("ERROR" "FAILED" "FAIL" "Traceback" "Exception")
 
-        case "$FORMAT" in
-          sarif)
-            echo "| Severity | Count |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
-            for level in error warning note; do
-              COUNT=$(jq "[.runs[].results[] | select(.level == \"$level\")] | length" "$REPORT" 2>/dev/null || echo 0)
-              echo "| $level | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
-              [[ "$level" == "error" ]] && METRICS["Errors"]="$COUNT"
-            done
-            ;;
-          json)
-            echo "| Key | Value |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
-            jq -r 'to_entries[] | select(.value|type != "object") | "| \(.key) | \(.value) |"' "$REPORT" 2>/dev/null | head -n "$MAX_LINES" >> "$GITHUB_STEP_SUMMARY"
-            ;;
-          xml)
-            echo "| Tag | Count |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
-            for tag in testsuite testcase error failure skipped; do
-              COUNT=$(grep -c "<$tag" "$REPORT" || true)
-              echo "| <$tag> | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
-              METRICS["$tag"]="$COUNT"
-            done
-            ;;
-          text|*)
-            KEYWORDS_FOUND=0
-            for word in "${KEYWORDS_TO_SCAN[@]}"; do
-              COUNT=$(grep -ic "$word" "$REPORT" || true)
-              KEYWORD_COUNTS["$word"]="$COUNT"
-              [[ "$COUNT" -gt 0 ]] && KEYWORDS_FOUND=1
-            done
+        if [[ "$FORMAT" == "text" ]]; then
+          echo "| Keyword | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          for word in ERROR FAILED FAIL Traceback Exception; do
+            COUNT=$(grep -ic "$word" "$REPORT" || true)
+            [[ "$COUNT" -gt 0 ]] && FAIL_FOUND=1
+            echo "| $word | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo ""
 
-            if [[ "$KEYWORDS_FOUND" -eq 1 ]]; then
-              echo "| Keyword | Count |" >> "$GITHUB_STEP_SUMMARY"
-              echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
-              for word in "${KEYWORDS_TO_SCAN[@]}"; do
-                echo "| $word | ${KEYWORD_COUNTS[$word]} |" >> "$GITHUB_STEP_SUMMARY"
-              done
-              echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 🔎 Pattern Matches" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Pattern | Match |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+          MATCH=$(grep -Eo "rated at [0-9]+\.[0-9]+/10" "$REPORT" | head -n 1)
+          if [[ -n "$MATCH" ]]; then
+            VALUE=$(echo "$MATCH" | grep -Eo "[0-9]+\.[0-9]+")
+            METRICS["Code Quality"]="$VALUE"
+            echo "| Code Quality | $MATCH |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          MATCHES=$(grep -Eo "Total: [0-9]+ \\(HIGH: [0-9]+, CRITICAL: [0-9]+\\)" "$REPORT" | head -n 2)
+          while IFS= read -r line; do
+            CRITICAL=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | cut -d' ' -f2)
+            [[ -n "$CRITICAL" ]] && METRICS["CRITICAL"]="$CRITICAL"
+            echo "| Vulnerabilities | $line |" >> "$GITHUB_STEP_SUMMARY"
+          done <<< "$MATCHES"
+        fi
+
+        if [[ -n "$THRESHOLD_CHECKS" ]]; then
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 🚨 Threshold Checks" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Metric | Operator | Value | Actual | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|----------|-------|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+          IFS=$'\n'
+          for check in $(echo "$THRESHOLD_CHECKS" | tr ';' '\n'); do
+            METRIC=$(echo "$check" | cut -d',' -f1)
+            OPERATOR=$(echo "$check" | cut -d',' -f2)
+            EXPECTED=$(echo "$check" | cut -d',' -f3)
+            ACTUAL="${METRICS[$METRIC]:-N/A}"
+            STATUS="❌"
+
+            if [[ "$ACTUAL" != "N/A" ]]; then
+              if awk "BEGIN {exit !($ACTUAL $OPERATOR $EXPECTED)}"; then
+                STATUS="✅"
+              else
+                FAIL_FOUND=1
+              fi
+            else
+              FAIL_FOUND=1
             fi
 
-            echo "### 🔎 Pattern Matches" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Pattern | Match |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
-
-            MATCH=$(grep -Eo "Ran [0-9]+ test(s)? in [0-9\.]+s" "$REPORT" | head -n 1)
-            [[ -n "$MATCH" ]] && echo "| Ran Tests | $MATCH |" >> "$GITHUB_STEP_SUMMARY"
-            TESTS=$(echo "$MATCH" | grep -Eo "[0-9]+" | head -n 1)
-            [[ -n "$TESTS" ]] && METRICS["Tests Ran"]="$TESTS"
-
-            MATCH=$(grep -Eo "rated at [0-9\.]+/10" "$REPORT" | head -n 1)
-            if [[ -n "$MATCH" ]]; then
-              RATING=$(echo "$MATCH" | grep -Eo "[0-9\.]+(?=/10)")
-              echo "| Code Quality | $MATCH |" >> "$GITHUB_STEP_SUMMARY"
-              METRICS["Code Quality"]="$RATING"
-            fi
-
-            MATCHES=$(grep -Eo "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" | head -n 2)
-            while IFS= read -r line; do
-              echo "| Vulnerabilities | $line |" >> "$GITHUB_STEP_SUMMARY"
-              HIGH=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
-              CRITICAL=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
-              [[ -n "$HIGH" ]] && METRICS["HIGH"]="$HIGH"
-              [[ -n "$CRITICAL" ]] && METRICS["CRITICAL"]="$CRITICAL"
-            done <<< "$MATCHES"
-            ;;
-        esac
+            echo "| $METRIC | $OPERATOR | $EXPECTED | $ACTUAL | $STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          done
+        fi
 
         echo "" >> "$GITHUB_STEP_SUMMARY"
         echo "<details><summary>📄 Raw Report (Top $MAX_LINES lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
@@ -157,68 +141,17 @@ runs:
         echo '```' >> "$GITHUB_STEP_SUMMARY"
         echo "</details>" >> "$GITHUB_STEP_SUMMARY"
 
-        # Fail if certain keywords are found
         if [[ -n "$FAIL_KEYWORDS" ]]; then
           IFS=',' read -ra KEYWORDS <<< "$FAIL_KEYWORDS"
           for word in "${KEYWORDS[@]}"; do
-            MATCH=$(grep -i "$word" "$REPORT" | head -n 1)
-            if [[ -n "$MATCH" ]]; then
+            if grep -iq "$word" "$REPORT"; then
               echo "❌ Keyword '$word' found in report, failing step"
-              FAIL_FOUND=1
+              exit 1
             fi
           done
         fi
 
-        # Fail if any thresholds are violated
-        if [[ -n "$FAIL_THRESHOLDS" ]]; then
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### 🚨 Threshold Checks" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Metric | Operator | Value | Actual | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|--------|----------|-------|--------|--------|"
-
-          IFS=$'\n'
-          for line in $FAIL_THRESHOLDS; do
-            [[ "$line" =~ ^[[:space:]]*$ ]] && continue
-
-            # Match: "Metric Name with spaces" <op> value
-            if [[ "$line" =~ ^(.*)\ ([\<\>\=\!]+)\ ([0-9\.]+)$ ]]; then
-              METRIC="${BASH_REMATCH[1]}"
-              OP="${BASH_REMATCH[2]}"
-              THRESHOLD="${BASH_REMATCH[3]}"
-
-              ACTUAL="${METRICS[$METRIC]}"
-              STATUS="✅"
-              FAIL_THIS=0
-
-              if [[ -n "$ACTUAL" && "$ACTUAL" != "N/A" ]]; then
-                # Use Python to compare float values safely
-                python3 -c "
-        import sys
-        try:
-            if float('$ACTUAL') $OP float('$THRESHOLD'):
-                sys.exit(0)
-            else:
-                sys.exit(1)
-        except:
-            sys.exit(1)
-        " || FAIL_THIS=1
-              else
-                ACTUAL="N/A"
-                FAIL_THIS=1  # Mark as ❌, but don't fail job unless match is numeric
-              fi
-
-              [[ "$FAIL_THIS" == "1" ]] && STATUS="❌"
-              echo "| $METRIC | $OP | $THRESHOLD | $ACTUAL | $STATUS |" >> "$GITHUB_STEP_SUMMARY"
-
-              # Only fail if both actual value is numeric and threshold check failed
-              if [[ "$FAIL_THIS" == "1" && "$ACTUAL" != "N/A" ]]; then
-                FAIL_FOUND=1
-              fi
-            else
-              echo "| Invalid Threshold Format | - | - | - | ❌ |" >> "$GITHUB_STEP_SUMMARY"
-              FAIL_FOUND=1
-            fi
-          done
+        if [[ "$FAIL_FOUND" -eq 1 ]]; then
+          echo "❌ Threshold or pattern checks failed"
+          exit 1
         fi
-
-        exit $FAIL_FOUND
