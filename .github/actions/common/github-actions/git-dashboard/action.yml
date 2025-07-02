@@ -67,8 +67,6 @@ runs:
 
         echo "## 🧩 $TOOL - $TITLE" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
-
-
         echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
         echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -78,14 +76,14 @@ runs:
         declare -A KEYWORD_COUNTS
         KEYWORDS=("ERROR" "FAILED" "FAIL" "Traceback" "Exception")
 
-        # Format-specific summary
         case "$FORMAT" in
           sarif)
             TABLE=""
             for lvl in error warning note; do
               CNT=$(jq "[.runs[].results[] | select(.level == \"$lvl\")] | length" "$REPORT" 2>/dev/null || echo 0)
               if [[ "$CNT" -gt 0 ]]; then
-                TABLE+="| $lvl | $CNT |"
+                TABLE+="| $lvl | $CNT |
+                "
                 [[ "$lvl" == "error" ]] && METRICS["Errors"]="$CNT"
               fi
             done
@@ -108,7 +106,8 @@ runs:
             for tag in testsuite testcase error failure skipped; do
               CNT=$(grep -c "<$tag" "$REPORT" || echo 0)
               if [[ "$CNT" -gt 0 ]]; then
-                TABLE+="| <$tag> | $CNT |"
+                TABLE+="| <$tag> | $CNT |
+                "
                 METRICS["$tag"]="$CNT"
               fi
             done
@@ -127,7 +126,8 @@ runs:
               if [[ "$CNT" -gt 0 ]]; then
                 SHOW_KEYWORDS=1
                 FAIL_FOUND=1
-                TABLE+="| $w | $CNT |"
+                TABLE+="| $w | $CNT |
+                "
               fi
             done
             if [[ "$SHOW_KEYWORDS" -eq 1 ]]; then
@@ -147,8 +147,9 @@ runs:
               local match
               match=$(grep -Eo "$pattern" "$REPORT" | head -n 1)
               if [[ -n "$match" ]]; then
-                PATTERN_TABLE+="| $label | $match |"
-                METRICS["$label"]=$(echo "$match" | grep -Eo "[0-9\.]+")
+                PATTERN_TABLE+="| $label | $match |
+                "
+                METRICS["$label"]=$(echo "$match" | grep -Eo "[0-9]+(\.[0-9]+)?")
               fi
             }
 
@@ -160,10 +161,7 @@ runs:
             VULN_LINES=$(grep -nE "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" || true)
             if [[ -n "$VULN_LINES" ]]; then
               while IFS=: read -r LINENUM line; do
-                # Try to grab 2 lines above, skipping separators like ====
                 CONTEXT_LINE=$(awk "NR==$((LINENUM - 2)) {gsub(/^[[:space:]]+|[[:space:]]+$/, \"\"); print; exit}" "$REPORT")
-
-                # Sanitize weird header formatting
                 CONTEXT=$(echo "$CONTEXT_LINE" | sed 's/[[:space:]]*$//' | tr -d '= ')
                 LABEL="Vulnerabilities"
                 [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
@@ -171,14 +169,13 @@ runs:
                 PATTERN_TABLE+="| $LABEL | $line |
                 "
 
-                # Extract numbers and accumulate
+                # Extract numbers and accumulate safely
                 H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
                 C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
-                [[ -n "$H" ]] && METRICS["HIGH"]=$(( METRICS["HIGH"] + H ))
-                [[ -n "$C" ]] && METRICS["CRITICAL"]=$(( METRICS["CRITICAL"] + C ))
+                [[ -n "$H" ]] && METRICS["HIGH"]=$(( ${METRICS["HIGH"]:-0} + H ))
+                [[ -n "$C" ]] && METRICS["CRITICAL"]=$(( ${METRICS["CRITICAL"]:-0} + C ))
               done <<< "$VULN_LINES"
             fi
-
 
             # Output table only if it has rows
             if [[ -n "$PATTERN_TABLE" ]]; then
