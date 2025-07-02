@@ -49,10 +49,10 @@ runs:
         echo "Looking for unittest-report.txt in $GITHUB_WORKSPACE"
         ls -l $GITHUB_WORKSPACE
 
-        
+
         TOOL="${{ inputs.tool }}"
         TITLE="${{ inputs.title }}"
-        REPORT="${{ inputs.working-directory }}/${{ inputs.report }}"
+        REPORT="${{ inputs.report }}"
         FORMAT="${{ inputs.format }}"
         KEYWORDS_STRING="${{ inputs.keywords }}"
         MAX_LINES="${{ inputs.max-lines }}"
