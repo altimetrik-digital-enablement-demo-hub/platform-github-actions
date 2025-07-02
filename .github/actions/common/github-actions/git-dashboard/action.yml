@@ -50,11 +50,6 @@ runs:
         FAIL_KEYWORDS="${{ inputs['fail-on-keywords'] }}"
         FAIL_THRESHOLDS="${{ inputs['fail-on-thresholds'] }}"
 
-        echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
-        echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo "📝 Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-
         if [[ ! -f "$REPORT" ]]; then
           echo "❌ Report file not found: $REPORT" >> "$GITHUB_STEP_SUMMARY"
           exit 0
@@ -72,6 +67,12 @@ runs:
 
         echo "🧠 Detected format: $FORMAT" >> "$GITHUB_STEP_SUMMARY"
         echo "## 🧩 $TOOL - $TITLE" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+
+        echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
+        echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
+        echo "📝 Title: $TITLE" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         FAIL_FOUND=0
@@ -148,8 +149,7 @@ runs:
               local match
               match=$(grep -Eo "$pattern" "$REPORT" | head -n 1)
               if [[ -n "$match" ]]; then
-                PATTERN_TABLE+="| $label | $match |
-            "
+                PATTERN_TABLE+="| $label | $match |"
                 METRICS["$label"]=$(echo "$match" | grep -Eo "[0-9\.]+")
               fi
             }
@@ -168,8 +168,7 @@ runs:
                 LABEL="Vulnerabilities"
                 [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
 
-                PATTERN_TABLE+="| $LABEL | $line |
-            "
+                PATTERN_TABLE+="| $LABEL | $line |"
 
                 # Add metrics for thresholds if not already set
                 H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
