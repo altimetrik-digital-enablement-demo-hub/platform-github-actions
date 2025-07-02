@@ -140,21 +140,46 @@ runs:
 
             # Pattern Match Section
             PATTERN_TABLE=""
-            add_pattern() {
+
+            # Helper function for single-match patterns
+            add_single_pattern() {
               local label="$1"
               local pattern="$2"
               local match
               match=$(grep -Eo "$pattern" "$REPORT" | head -n 1)
               if [[ -n "$match" ]]; then
-                PATTERN_TABLE+="| $label | $match |"
+                PATTERN_TABLE+="| $label | $match |
+            "
                 METRICS["$label"]=$(echo "$match" | grep -Eo "[0-9\.]+")
               fi
             }
 
-            add_pattern "Ran Tests" "Ran [0-9]+ test(s)? in [0-9\.]+s"
-            add_pattern "Code Quality" "rated at [0-9\.]+/10"
-            add_pattern "Vulnerabilities" "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)"
+            # Add basic patterns
+            add_single_pattern "Ran Tests" "Ran [0-9]+ test(s)? in [0-9\.]+s"
+            add_single_pattern "Code Quality" "rated at [0-9\.]+/10"
 
+            # Handle multiple vulnerability lines (e.g., from Trivy)
+            VULN_LINES=$(grep -Eo "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" || true)
+
+            if [[ -n "$VULN_LINES" ]]; then
+              while IFS= read -r line; do
+                # Optionally extract a preceding section name (e.g. Python, OS)
+                CONTEXT=$(awk "/$line/{print prev}{prev=\$0}" "$REPORT" | grep -Eo "^[^=]+")
+                LABEL="Vulnerabilities"
+                [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
+
+                PATTERN_TABLE+="| $LABEL | $line |
+            "
+
+                # Add metrics for thresholds if not already set
+                H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
+                C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
+                [[ -n "$H" ]] && METRICS["HIGH"]="$H"
+                [[ -n "$C" ]] && METRICS["CRITICAL"]="$C"
+              done <<< "$VULN_LINES"
+            fi
+
+            # Output table only if it has rows
             if [[ -n "$PATTERN_TABLE" ]]; then
               echo "### 🔎 Pattern Matches" >> "$GITHUB_STEP_SUMMARY"
               echo "| Pattern | Match |" >> "$GITHUB_STEP_SUMMARY"
