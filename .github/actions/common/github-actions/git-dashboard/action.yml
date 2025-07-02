@@ -157,23 +157,28 @@ runs:
             add_single_pattern "Code Quality" "rated at [0-9\.]+/10"
 
             # Handle multiple vulnerability lines (e.g., from Trivy)
-           VULN_LINES=$(grep -nE "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" || true)
-          if [[ -n "$VULN_LINES" ]]; then
-            while IFS=: read -r LINENUM line; do
-              # Get previous non-empty line as context (section title)
-              CONTEXT=$(awk "NR==$((LINENUM - 1)) && NF {print; exit}" "$REPORT" | sed 's/[[:space:]]*$//')
-              LABEL="Vulnerabilities"
-              [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
+            VULN_LINES=$(grep -nE "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" || true)
+            if [[ -n "$VULN_LINES" ]]; then
+              while IFS=: read -r LINENUM line; do
+                # Try to grab 2 lines above, skipping separators like ====
+                CONTEXT_LINE=$(awk "NR==$((LINENUM - 2)) {gsub(/^[[:space:]]+|[[:space:]]+$/, \"\"); print; exit}" "$REPORT")
 
-              PATTERN_TABLE+="| $LABEL | $line |"
+                # Sanitize weird header formatting
+                CONTEXT=$(echo "$CONTEXT_LINE" | sed 's/[[:space:]]*$//' | tr -d '= ')
+                LABEL="Vulnerabilities"
+                [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
 
-              # Extract numbers and accumulate
-              H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
-              C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
-              [[ -n "$H" ]] && METRICS["HIGH"]=$(( METRICS["HIGH"] + H ))
-              [[ -n "$C" ]] && METRICS["CRITICAL"]=$(( METRICS["CRITICAL"] + C ))
-            done <<< "$VULN_LINES"
-          fi
+                PATTERN_TABLE+="| $LABEL | $line |
+            "
+
+                # Extract numbers and accumulate
+                H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
+                C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
+                [[ -n "$H" ]] && METRICS["HIGH"]=$(( METRICS["HIGH"] + H ))
+                [[ -n "$C" ]] && METRICS["CRITICAL"]=$(( METRICS["CRITICAL"] + C ))
+              done <<< "$VULN_LINES"
+            fi
+
 
             # Output table only if it has rows
             if [[ -n "$PATTERN_TABLE" ]]; then
