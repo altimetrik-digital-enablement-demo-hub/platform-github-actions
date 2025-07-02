@@ -101,7 +101,7 @@ jobs:
           title: Lint Report (Text)
           report: pylint-report.txt
           max-lines: 100
-          threshold-checks: "Code Quality,<,5.0"
+          threshold-checks: "Code Quality:<:5.0"
 
   # This job executes unit test
   unit-test:
