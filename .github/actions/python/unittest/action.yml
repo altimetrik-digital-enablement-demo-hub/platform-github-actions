@@ -30,5 +30,8 @@ runs:
 
           echo "✅ First few lines of unittest-report.txt:"
           head -n 100 unittest-report.txt || echo "No output"
+
+          echo "📂 Contents of GITHUB_WORKSPACE:"
+          ls -l "$GITHUB_WORKSPACE"
         shell: bash
       
