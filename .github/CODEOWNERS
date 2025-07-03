@@ -1,0 +1,21 @@
+# Global owners
+*   @dgeorgievski @KaranbirSinghAhluwalia @dean-chin-altimetrik
+
+# node and python
+/.github/workflows/node-*  @KaranbirSinghAhluwalia
+/.github/workflows/python-* @KaranbirSinghAhluwalia
+/.github/actions/node   @KaranbirSinghAhluwalia
+/.github/actions/python @KaranbirSinghAhluwalia
+/.github/actions/actions/common @KaranbirSinghAhluwalia @dgeorgievski
+
+# java
+/.github/workflows/java-*. @amorattabalt
+/.github/actions/actions/java @amorattabalt
+
+# go
+/.github/workflows/go-*.  @osru-leu
+/.github/actions/actions/go @osru-leu
+
+# csharp
+/.github/workflows/csharp-*   @dgeorgievski
+/.github/actions/actions/dotnet @dgeorgievski

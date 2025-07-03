@@ -36,6 +36,30 @@ Ensure you have the following tools installed:
 
 - **[Git](https://git-scm.com/)**
 
+### 3. GitHub flow
+
+This is a simple variation of the light weight [GitHub flow](https://docs.github.com/en/get-started/using-github/github-flow)
+
+1. Create a Jira ticket. Example: DDH-118
+2. Clone `platform-github-actions`
+3. Create a branch with the following format: <branch-name>/<JIRA_TICKET_NUM>-<description>
+
+   where:
+   - branch-name := feature | fix | testing 
+   - JIRA_TICKET_NUM := DDH-101
+   - description: brief custom description. Example: collaboration
+
+   Full example: `feature/DDH-118-collaboration`
+
+4. Develop, edit and test.
+
+   Testing in sample language repository should be performed with a reference to the new bracnh in `platform-github-actions`.
+   Example: `- uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@feature/DDH-118-collaboration`.
+5. Ensure all GitHub Workflow `uses` references point to a valid `platform-github-actions` tag.
+   Example: `- uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0`.
+6. Push to `platform-github-actions`.
+7. Create a PR and ensure the change is validated with the corresponding sample language repository like `sample-python`.
+8. Squash and merge; Clse the JIRA ticket.
 
 ## 🧪 Setting Up GitHub Actions Runner Locally
 
