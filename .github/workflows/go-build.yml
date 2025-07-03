@@ -53,14 +53,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Lint Go code
-        uses: osru-leu/platform-github-actions/.github/actions/go/lint@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Run unit tests
-        uses: osru-leu/platform-github-actions/.github/actions/go/unit-test@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
   build-go:
@@ -68,7 +68,7 @@ jobs:
     needs: test
     steps:
       - name: Build Go application
-        uses: osru-leu/platform-github-actions/.github/actions/go/build@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@feature/DDH-106-go
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
@@ -83,11 +83,11 @@ jobs:
       contents: read
     steps:
       - name: Set up Go
-        uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: osru-leu/platform-github-actions/.github/actions/common/static-code-analysis/codeql@feature/go-release
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@feature/DDH-106-go
         with:
           languages: go
 
@@ -98,7 +98,7 @@ jobs:
     steps:
       - name: Generate image tag
         id: set-tag
-        uses: osru-leu/platform-github-actions/.github/actions/go/image-tag@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/image-tag@feature/DDH-106-go
 
   package:
     runs-on: ubuntu-latest
@@ -108,7 +108,7 @@ jobs:
     steps:
       - name: Package application
         id: package
-        uses: osru-leu/platform-github-actions/.github/actions/go/package@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@feature/DDH-106-go
         with:
           app-name: ${{ inputs.app-name }}
           context: ${{ inputs.docker-context }}
@@ -123,7 +123,7 @@ jobs:
     needs: [package, set-image-tag]
     steps:
       - name: Run Trivy scan
-        uses: osru-leu/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/DDH-106-go
         with:
           version: ${{ needs.set-image-tag.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}

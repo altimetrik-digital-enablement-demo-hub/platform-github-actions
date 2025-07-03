@@ -84,7 +84,7 @@ jobs:
     steps:
       - name: Calculate semantic version
         id: version-calc
-        uses: osru-leu/platform-github-actions/.github/actions/go/release@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/release@feature/DDH-106-go
         with:
           release_bump: ${{ inputs.release_bump }}
           version_override: ${{ inputs.version_override }}
@@ -99,7 +99,7 @@ jobs:
       release-url: ${{ steps.create-release.outputs.html_url }}
     steps:
       - name: Set up Go
-        uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
           git-fetch-depth: 0
@@ -148,7 +148,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       - name: Build application
-        uses: osru-leu/platform-github-actions/.github/actions/go/build@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@feature/DDH-106-go
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
@@ -186,7 +186,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and push Docker image
-        uses: osru-leu/platform-github-actions/.github/actions/go/package@feature/go-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@feature/DDH-106-go
         with:
           app-name: ${{ inputs.app-name }}
           context: ${{ inputs.docker-context }}
