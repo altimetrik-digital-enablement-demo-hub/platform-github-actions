@@ -94,6 +94,6 @@ runs:
         push: ${{ inputs.push || false }}
         labels: ${{ steps.meta.outputs.labels }}
         tags: |
-          ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ inputs.tag }}
+          ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ inputs.tagsteps.docker-tag.outputs.tag }}
           
     

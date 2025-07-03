@@ -7,11 +7,15 @@ description: |
 inputs:
   version:
     description: 'Docker image version to scan'
-    required: true
+    required: true 
     default: 'latest'
   token:
     description: 'GitHub token for authentication'
     required: true
+  registry:
+    description: 'Docker registry to push the image to'
+    required: false
+    default: 'ghcr.io'
   severity:
     description: 'Comma-separated list of severity levels to include in the scan (e.g., CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN)'
     required: false
@@ -24,7 +28,7 @@ runs:
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
-        registry: ghcr.io
+        registry: ${{ inputs.registry }}
         username: ${{ github.actor }}
         password: ${{ inputs.token }}
     
@@ -50,7 +54,7 @@ runs:
     - name: Run Trivy Scan
       shell: bash
       run: |
-        IMAGE=ghcr.io/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
+        IMAGE=${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
         trivy image --format table --exit-code 0 \
           --vuln-type os,library \
           --severity "${{ inputs.severity }}" \
