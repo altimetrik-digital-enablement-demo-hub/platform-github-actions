@@ -53,13 +53,18 @@ This is a simple variation of the light weight [GitHub flow](https://docs.github
 
 4. Develop, edit and test.
 
+   Use kebab naming convention for Workflows variables and fields. Example: my-var but not, my_var, or myVar.  
+
    Testing in sample language repository should be performed with a reference to the new bracnh in `platform-github-actions`.
    Example: `- uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@feature/DDH-118-collaboration`.
+
 5. Ensure all GitHub Workflow `uses` references point to a valid `platform-github-actions` tag.
    Example: `- uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0`.
 6. Push to `platform-github-actions`.
 7. Create a PR and ensure the change is validated with the corresponding sample language repository like `sample-python`.
 8. Squash and merge; Clse the JIRA ticket.
+
+   Ensure final commit message and body for the merge follows [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/#summary) standard.
 
 ## 🧪 Setting Up GitHub Actions Runner Locally
 
