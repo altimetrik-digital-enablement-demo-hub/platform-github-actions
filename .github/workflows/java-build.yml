@@ -194,7 +194,7 @@ jobs:
       packages: read 
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@vfix/java
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@fix/java
         if: ${{ inputs.run_trivy == 'true' }}
         with:
           version: ${{ needs.docker-build-and-push.outputs.tag }}
