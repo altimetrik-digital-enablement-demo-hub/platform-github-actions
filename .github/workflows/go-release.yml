@@ -3,7 +3,7 @@ name: Go Release Pipeline
 on:
   workflow_dispatch:
     inputs:
-      release_bump:
+      release-bump:
         description: 'Release bump (ignored if version_override is provided)'
         required: true
         default: 'Minor'
