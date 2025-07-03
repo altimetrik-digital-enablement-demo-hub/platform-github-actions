@@ -11,7 +11,7 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Go
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@main
+      uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
       with:
         go-version: ${{ inputs.go-version }}
 
