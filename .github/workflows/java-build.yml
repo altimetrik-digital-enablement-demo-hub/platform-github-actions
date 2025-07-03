@@ -167,6 +167,8 @@ jobs:
     permissions:
       contents: read
       packages: write  # Required to push to GHCR
+    outputs:
+      tag: ${{ steps.docker-tag.outputs.tag }}
     steps:
       # Download the packaged artifacts for Docker build
       - name: Download Package Artifacts
@@ -176,7 +178,8 @@ jobs:
           path: target/
       
       # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@fix/java
+      - id: docker-tag
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@fix/java
         with:
           version: ${{ needs.versioning.outputs.new-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
