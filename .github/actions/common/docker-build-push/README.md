@@ -15,7 +15,7 @@ This action:
 ## Usage
 
 ```yaml
-uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@main
+uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
 with:
   version: '1.0.0'
   token: ${{ secrets.GITHUB_TOKEN }}
@@ -41,7 +41,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@main
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
         with:
           version: '1.0.0'
           token: ${{ secrets.GITHUB_TOKEN }}

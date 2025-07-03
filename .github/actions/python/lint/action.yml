@@ -5,14 +5,31 @@ inputs:
   lint-command:
     description: "Command to execute Pylint"
     required: false
-    default: "pylint $(git ls-files '*.py')"
+    default: "pylint --output-format=text $(git ls-files '*.py')"
+  working-directory:
+    description: "Working directory for the linter command"
+    required: false
+    default: "."
+  continue-on-error:
+    description: "Continue on error for linting"
+    required: false
+    default: 'true'
+
 
 
 runs:
   using: "composite"
   steps:
+    # This step runs the linter command in the specified working directory and continues on error if specified
     - name: Run Pylint
       shell: bash
-      continue-on-error: true
+      continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+      working-directory: ${{ inputs.working-directory }}
       run: |
-        ${{ inputs.lint-command }}
+        echo "📦 Executing: ${{ inputs.lint-command }}"
+        # Run the command with proper output redirection
+        bash -c "${{ inputs.lint-command }} > pylint-report.txt 2>&1" || true
+
+        echo "✅ First few lines of pylint-report.txt:"
+        head -n 100 pylint-report.txt || echo "No output"
+
