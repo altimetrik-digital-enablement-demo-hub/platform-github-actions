@@ -37,12 +37,4 @@ runs:
       continue-on-error: ${{ inputs.continue-on-error }}
       uses: github/codeql-action/analyze@v3
       with:
-        output: results.sarif
-      
-    - name: CodeQL Summary
-      shell: bash
-      run: |
-        echo "## 🔐 CodeQL Analysis" >> $GITHUB_STEP_SUMMARY
-        echo "- Check [Security > Code Scanning Alerts](../../security/code-scanning) for results." >> $GITHUB_STEP_SUMMARY
-
-      
+        output: results.sarif    
