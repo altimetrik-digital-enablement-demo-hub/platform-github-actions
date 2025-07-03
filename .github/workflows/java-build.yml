@@ -106,7 +106,7 @@ jobs:
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
           continue-on-error: ${{ inputs.contine-on-error }}
-          create-artifact: ${{ inputs.create-artifact }}
+          # create-artifact: ${{ inputs.create-artifact }}
 
   # This job builds and packages the Java project (combines build + package)
   build:
@@ -126,7 +126,7 @@ jobs:
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
           artifact-name: ${{ inputs.artifact-name }}
-          create-artifact: ${{ inputs.create-artifact }}
+          # create-artifact: ${{ inputs.create-artifact }}
 
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
   # Note: CodeQL is only available for public repos or private repos with GitHub Advanced Security
@@ -181,45 +181,48 @@ jobs:
           version: ${{ needs.versioning.outputs.new-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  # This job scans the Docker image for vulnerabilities using Trivy and Grype
   docker-scan:
     runs-on: ubuntu-latest
-    needs: [versioning, docker-build-and-push]
-    if: ${{ needs.versioning.outputs.new-tag != '' }}
+    needs: [docker-build-and-push]
+    if: ${{ needs.docker-build-and-push.outputs.tag != '' }}
     permissions:
       contents: read
-      packages: read  # Required to pull from GHCR
+      packages: read 
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@fix/java
-        if: ${{ inputs.run-trivy == true }}
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@vfix/java
+        if: ${{ inputs.run_trivy == 'true' }}
         with:
-          version: ${{ needs.versioning.outputs.new-tag }}
+          version: ${{ needs.docker-build-and-push.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
+      # This job summarizes the Trivy report and writes it to GITHUB_STEP_SUMMARY
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@fix/java
+        if: ${{ inputs.run_trivy == 'true' }}
+        with:
+          tool: Trivy
+          title: Trivy Vulnerability Report
+          report: trivy-report.txt
+          format: text
+          max-lines: 100
+
       # This job scans the Docker image for vulnerabilities using Grype
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@fix/java
-        if: ${{ inputs.run-grype == true }}
+        if: ${{ inputs.run_grype == 'true' }}
         with:
-          version: ${{ needs.versioning.outputs.new-tag }}
+          version: ${{ needs.docker-build-and-push.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # This job generates a generic dashboard summarizing the results of the previous jobs
-  dashboard:
-    runs-on: ubuntu-latest
-    needs: [lint, unit-test, docker-scan]
-    if: always()
-    permissions:
-      contents: write  # Required for GitHub Pages deployment
-    steps:
-      # This job generates a generic dashboard summarizing the results of the previous jobs
+      # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@fix/java
+        if: ${{ inputs.run_grype == 'true' }}
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tool: "CI-Scan"
-          report: "./reports"
-          critical-keyword: "CRITICAL"
-          high-keyword: "HIGH"
+          tool: Grype
+          title: Grype Vulnerability Report
+          report: grype-report.txt
+          max-lines: 100
 
   # This job generates a concise inline summary for the Java CI/CD pipeline
   java-summary:
