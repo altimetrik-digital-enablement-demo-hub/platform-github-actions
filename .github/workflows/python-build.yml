@@ -75,12 +75,6 @@ permissions:
   security-events: write
   packages: write
 
-permissions:
-  actions: read
-  contents: write
-  security-events: write
-  packages: write
-
 jobs:
   # This job runs the linting process to ensure code quality
   lint:
