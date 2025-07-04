@@ -1,0 +1,96 @@
+name: Auto Version Tag (No Release)
+description: 'Calculate semantic version tag based on commit messages without creating GitHub release'
+
+inputs:
+  token:
+    description: 'GitHub token for authentication'
+    required: true
+
+outputs:
+  tag:
+    description: "The new semantic version tag"
+    value: ${{ steps.set-tag.outputs.tag }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Git
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Determine tag from commits
+      shell: bash
+      id: set-tag
+      run: |
+        git fetch --tags
+
+        LATEST_TAG=$(git tag --sort=-v:refname | head -n 1)
+        if [ -z "$LATEST_TAG" ]; then
+          VERSION="0.1.0"
+          RANGE=""
+        else
+          VERSION="${LATEST_TAG#v}"
+          RANGE="$LATEST_TAG..HEAD"
+        fi
+
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+        COMMITS=$(git log $RANGE --pretty=format:"%s")
+        echo "Commit messages in range $RANGE:"
+        echo "$COMMITS"
+
+        BUMP=""
+
+        while IFS= read -r COMMIT; do
+          LOWER=$(echo "$COMMIT" | tr '[:upper:]' '[:lower:]')
+          if [[ "$LOWER" =~ (^|[^a-zA-Z0-9])(major|feat|fix)([:[:space:]]|$) ]]; then
+            FIRST_KEYWORD="${BASH_REMATCH[2]}"
+            case "$FIRST_KEYWORD" in
+              major)
+                BUMP="major"
+                break
+                ;;
+              feat)
+                [[ "$BUMP" != "major" ]] && BUMP="minor"
+                ;;
+              fix)
+                [[ "$BUMP" != "major" && "$BUMP" != "minor" ]] && BUMP="patch"
+                ;;
+            esac
+          fi
+        done <<< "$COMMITS"
+
+        if [ -z "$BUMP" ]; then
+          echo "No valid semantic keyword found. Skipping tag."
+          echo "tag=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        case $BUMP in
+          major)
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            ;;
+          minor)
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            ;;
+          patch)
+            PATCH=$((PATCH + 1))
+            ;;
+        esac
+
+        NEW_TAG="v$MAJOR.$MINOR.$PATCH"
+        echo "Calculated version: $NEW_TAG"
+        echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+
+        # NOTE: Only calculating version, NOT creating tag or release
+        # The calling workflow (go-release.yml) will handle tag/release creation

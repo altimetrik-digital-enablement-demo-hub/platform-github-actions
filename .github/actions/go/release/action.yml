@@ -22,7 +22,7 @@ runs:
   using: 'composite'  
   steps:
     - name: Set up Go
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v0
+      uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
       with:
         fetch-depth: 0
         token: ${{ inputs.token }}
