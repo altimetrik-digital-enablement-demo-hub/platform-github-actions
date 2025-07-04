@@ -87,6 +87,7 @@ jobs:
         with:
           release_bump: ${{ inputs.release_bump }}
           version_override: ${{ inputs.version_override }}
+          go-version: ${{ inputs.go-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
   # Create GitHub Release with changelog

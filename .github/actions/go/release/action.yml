@@ -9,6 +9,10 @@ inputs:
   version_override:
     description: 'Optional: manually specify version (e.g., v1.3.0)'
     required: false
+  go-version:
+    description: 'Go version to use'
+    required: false
+    default: '1.24'
   token:
     description: 'A Github API token with permissions to read repository'
     required: true
@@ -24,8 +28,9 @@ runs:
     - name: Set up Go
       uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
       with:
-        fetch-depth: 0
-        token: ${{ inputs.token }}
+        go-version: ${{ inputs.go-version }}
+        git-fetch-depth: 0
+        git-fetch-tags: true
         
     - name: Get latest tag
       id: get_latest_tag
@@ -63,6 +68,8 @@ runs:
 
     - name: Create and push git tag
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
