@@ -96,8 +96,6 @@ jobs:
           report: eslint-report.json
           format: eslint-json
           max-lines: 100
-          filter-regex: 'ruleId|message|line'
-          deduplicate: true
 
 
   # This job builds the Node.js project, preparing it for packaging
@@ -119,14 +117,6 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
           token: ${{ secrets.GITHUB_TOKEN }}
         
-      # This job summarizes the build report and writes it to GITHUB_STEP_SUMMARY
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@python
-        with:
-          tool: ESLint
-          title: Lint Report (Text)
-          report: eslint-report.txt
-          max-lines: 100
-          # thresholds: "Code Quality|<|5.0"
 
   # This job executes unit test
   unit-test:
