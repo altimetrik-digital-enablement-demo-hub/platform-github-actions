@@ -141,6 +141,7 @@ A new Reusable Workflow or Composite Action must include at least:
 - Inputs documented (in table format if possible)
 - Example usage (for both actions and workflows)
 
+For more details see [CONTRIBUTING.md](./CONTRIBUTING.md)
 ---
 
 ### Testing & Validation
