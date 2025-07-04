@@ -94,7 +94,7 @@ jobs:
           tool: ESLint
           title: Lint Report (JSON)
           report: eslint-report.json
-          format: eslint-json
+          format: json
           max-lines: 100
 
 
@@ -140,7 +140,7 @@ jobs:
           tool: Jest
           title: Unit Test Results
           report: jest-report.json
-          format: auto
+          format: json
           max-lines: 100
 
 
