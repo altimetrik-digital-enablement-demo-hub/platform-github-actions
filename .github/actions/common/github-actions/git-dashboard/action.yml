@@ -41,7 +41,10 @@ runs:
     - name: Summarize Report
       shell: bash
       run: |
-        set +e
+        set +e    
+        shopt -s extglob
+
+        # ---- Inputs ------------------------------------------------------------------
         TOOL="${{ inputs.tool }}"
         REPORT="${{ inputs.report }}"
         FORMAT="${{ inputs.format }}"
@@ -50,201 +53,188 @@ runs:
         FAIL_KEYWORDS="${{ inputs['fail-on-keywords'] }}"
         FAIL_THRESHOLDS="${{ inputs['fail-on-thresholds'] }}"
 
+        # ---- Guard clauses -----------------------------------------------------------
         if [[ ! -f "$REPORT" ]]; then
-          echo "❌ Report file not found: $REPORT" >> "$GITHUB_STEP_SUMMARY"
-          exit 0
+          echo "❌ Report file not found: $REPORT" >>"$GITHUB_STEP_SUMMARY"
+          exit 0          # do not fail the job if the file is missing
         fi
 
+        # ---- Auto‑detect format ------------------------------------------------------
         if [[ "$FORMAT" == "auto" ]]; then
-          EXT="${REPORT##*.}"
-          case "$EXT" in
-            json) FORMAT="json" ;;
+          case "${REPORT##*.}" in
             sarif) FORMAT="sarif" ;;
-            xml) FORMAT="xml" ;;
-            *) FORMAT="text" ;;
+            json)  FORMAT="json"  ;;
+            xml)   FORMAT="xml"   ;;
+            *)     FORMAT="text"  ;;
           esac
         fi
 
-        echo "## 🧩 $TOOL - $TITLE" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        echo "🔍 Tool: $TOOL" >> "$GITHUB_STEP_SUMMARY"
-        echo "📄 Report: $REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
+        # ---- Helper functions --------------------------------------------------------
+        NL=$'\n'
+        add_row() {                # add_row <table_var> <col1> <col2> [<col3>...]
+          local __tbl_name="$1"; shift
+          local -n __tbl_ref="${__tbl_name}"
+          local row="|"; for col in "$@"; do row+=" ${col} |"; done
+          __tbl_ref+="${row}${NL}"
+        }
+
+        print_table() {            # print_table "Header1:Header2" <table_var>
+          local IFS=':'
+          read -r -a hdrs <<<"$1"
+          local -n __tbl_ref="$2"
+          [[ -z "$__tbl_ref" ]] && return
+
+          # header
+          local header="|"; for h in "${hdrs[@]}"; do header+=" ${h} |"; done
+          echo "$header" >>"$GITHUB_STEP_SUMMARY"
+
+          # separator
+          local sep="|"; for _ in "${hdrs[@]}"; do sep+="---|"; done
+          echo "$sep" >>"$GITHUB_STEP_SUMMARY"
+
+          # body
+          printf "%s" "${__tbl_ref}" >>"$GITHUB_STEP_SUMMARY"
+          echo >>"$GITHUB_STEP_SUMMARY"
+        }
+
+        # ---- Preamble ----------------------------------------------------------------
+        {
+          echo "## 🧩 $TOOL - $TITLE"
+          echo
+          echo "🔍 Tool:   $TOOL"
+          echo "📄 Report: $REPORT"
+          echo
+        } >>"$GITHUB_STEP_SUMMARY"
 
         FAIL_FOUND=0
-        declare -A METRICS
-        declare -A KEYWORD_COUNTS
-        KEYWORDS=("ERROR" "FAILED" "FAIL" "Traceback" "Exception")
+        declare -A METRICS KEYWORD_COUNTS
+        KEYWORDS=(ERROR FAILED FAIL Traceback Exception)
 
+        # ---- Report parsing ----------------------------------------------------------
         case "$FORMAT" in
           sarif)
-            TABLE=""
+            ST=""
             for lvl in error warning note; do
-              CNT=$(jq "[.runs[].results[] | select(.level == \"$lvl\")] | length" "$REPORT" 2>/dev/null || echo 0)
-              if [[ "$CNT" -gt 0 ]]; then
-                TABLE+="| $lvl | $CNT |
-                "
-                [[ "$lvl" == "error" ]] && METRICS["Errors"]="$CNT"
-              fi
+              CNT=$(jq "[.runs[].results[] | select(.level==\"$lvl\")] | length" "$REPORT" 2>/dev/null || echo 0)
+              (( CNT > 0 )) && add_row ST "$lvl" "$CNT"
+              [[ "$lvl" == error ]] && METRICS[Errors]="$CNT"
             done
-            if [[ -n "$TABLE" ]]; then
-              echo "| Severity | Count |" >> "$GITHUB_STEP_SUMMARY"
-              echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
-              echo "$TABLE" >> "$GITHUB_STEP_SUMMARY"
-            fi
+            print_table "Severity:Count" ST
             ;;
+
           json)
-            TABLE=$(jq -r 'to_entries[] | select(.value|type != "object") | "| \(.key) | \(.value) |"' "$REPORT" | head -n "$MAX_LINES")
-            if [[ -n "$TABLE" ]]; then
-              echo "| Key | Value |" >> "$GITHUB_STEP_SUMMARY"
-              echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
-              echo "$TABLE" >> "$GITHUB_STEP_SUMMARY"
-            fi
+            JTABLE=""
+            while IFS=$'\t' read -r k v; do add_row JTABLE "$k" "$v"; done < <(
+              jq -r 'to_entries[] | select(.value|type!="object") | "\(.key)\t\(.value)"' "$REPORT" | head -n "$MAX_LINES"
+            )
+            print_table "Key:Value" JTABLE
             ;;
+
           xml)
-            TABLE=""
+            XT=""
             for tag in testsuite testcase error failure skipped; do
               CNT=$(grep -c "<$tag" "$REPORT" || echo 0)
-              if [[ "$CNT" -gt 0 ]]; then
-                TABLE+="| <$tag> | $CNT |
-                "
-                METRICS["$tag"]="$CNT"
-              fi
+              (( CNT > 0 )) && { add_row XT "<$tag>" "$CNT"; METRICS[$tag]="$CNT"; }
             done
-            if [[ -n "$TABLE" ]]; then
-              echo "| Tag | Count |" >> "$GITHUB_STEP_SUMMARY"
-              echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
-              echo "$TABLE" >> "$GITHUB_STEP_SUMMARY"
-            fi
+            print_table "Tag:Count" XT
             ;;
+
           text|*)
-            SHOW_KEYWORDS=0
-            TABLE=""
+            # --- Keyword counts -------------------------------------------------------
+            KWT=""
             for w in "${KEYWORDS[@]}"; do
-              CNT=$(grep -ic "$w" "$REPORT" || echo 0)
-              KEYWORD_COUNTS["$w"]="$CNT"
-              if [[ "$CNT" -gt 0 ]]; then
-                SHOW_KEYWORDS=1
-                FAIL_FOUND=1
-                TABLE+="| $w | $CNT |
-                "
-              fi
+              CNT=$(grep -ic -- "$w" "$REPORT" || echo 0)
+              KEYWORD_COUNTS[$w]="$CNT"
+              (( CNT > 0 )) && { add_row KWT "$w" "$CNT"; }
             done
-            if [[ "$SHOW_KEYWORDS" -eq 1 ]]; then
-              echo "| Keyword | Count |" >> "$GITHUB_STEP_SUMMARY"
-              echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
-              echo "$TABLE" >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-            fi
+            print_table "Keyword:Count" KWT
 
-            # Pattern Match Section
-            PATTERN_TABLE=""
-
-            # Helper function for single-match patterns
-            add_single_pattern() {
-              local label="$1"
-              local pattern="$2"
-              local match
-              match=$(grep -Eo "$pattern" "$REPORT" | head -n 1)
-              if [[ -n "$match" ]]; then
-                PATTERN_TABLE+="| $label | $match |
-                "
-                METRICS["$label"]=$(echo "$match" | grep -Eo "[0-9]+(\.[0-9]+)?")
-              fi
+            # --- Pattern matches ------------------------------------------------------
+            PT=""
+            add_single() {            # add_single <label> <grep‑E pattern>
+              local m
+              m=$(grep -Eo "$2" "$REPORT" | head -n1)
+              [[ -n "$m" ]] && { add_row PT "$1" "$m"; METRICS[$1]="$(grep -Eo "[0-9]+(\.[0-9]+)?" <<<"$m" | head -n1)"; }
             }
 
-            # Add basic patterns
-            add_single_pattern "Ran Tests" "Ran [0-9]+ test(s)? in [0-9\.]+s"
-            add_single_pattern "Code Quality" "rated at [0-9\.]+/10"
+            add_single "Ran Tests"   "Ran [0-9]+ test(s)? in [0-9.]+s"
+            add_single "Code Quality" "rated at [0-9.]+/10"
 
-            # Handle multiple vulnerability lines (e.g., from Trivy)
-            VULN_LINES=$(grep -nE "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" || true)
-            if [[ -n "$VULN_LINES" ]]; then
-              while IFS=: read -r LINENUM line; do
-                CONTEXT_LINE=$(awk "NR==$((LINENUM - 2)) {gsub(/^[[:space:]]+|[[:space:]]+$/, \"\"); print; exit}" "$REPORT")
-                CONTEXT=$(echo "$CONTEXT_LINE" | sed 's/[[:space:]]*$//' | tr -d '= ')
-                LABEL="Vulnerabilities"
-                [[ -n "$CONTEXT" ]] && LABEL="$LABEL ($CONTEXT)"
+            # Trivy‑style vulnerability summary lines
+            while IFS=: read -r linenum line; do
+              ctx=$(awk -v n=$((linenum-2)) 'NR==n {gsub(/^[[:space:]]+|[[:space:]]+$/,"" );print;exit}' "$REPORT")
+              add_row PT "Vulnerabilities${ctx:+ ($ctx)}" "$line"
+              H=$(grep -Eo "HIGH: [0-9]+" <<<"$line" | grep -Eo "[0-9]+")
+              C=$(grep -Eo "CRITICAL: [0-9]+" <<<"$line" | grep -Eo "[0-9]+")
+              (( H )) && METRICS[HIGH]=$(( ${METRICS[HIGH]:-0} + H ))
+              (( C )) && METRICS[CRITICAL]=$(( ${METRICS[CRITICAL]:-0} + C ))
+            done < <(grep -nE "Total: [0-9]+ \(HIGH: [0-9]+, CRITICAL: [0-9]+\)" "$REPORT" || true)
 
-                PATTERN_TABLE+="| $LABEL | $line |
-                "
-
-                # Extract numbers and accumulate safely
-                H=$(echo "$line" | grep -Eo "HIGH: [0-9]+" | grep -Eo "[0-9]+")
-                C=$(echo "$line" | grep -Eo "CRITICAL: [0-9]+" | grep -Eo "[0-9]+")
-                [[ -n "$H" ]] && METRICS["HIGH"]=$(( ${METRICS["HIGH"]:-0} + H ))
-                [[ -n "$C" ]] && METRICS["CRITICAL"]=$(( ${METRICS["CRITICAL"]:-0} + C ))
-              done <<< "$VULN_LINES"
-            fi
-
-            # Output table only if it has rows
-            if [[ -n "$PATTERN_TABLE" ]]; then
-              echo "### 🔎 Pattern Matches" >> "$GITHUB_STEP_SUMMARY"
-              echo "| Pattern | Match |" >> "$GITHUB_STEP_SUMMARY"
-              echo "|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
-              echo "$PATTERN_TABLE" >> "$GITHUB_STEP_SUMMARY"
-            fi
+            [[ -n "$PT" ]] && {
+              echo "### 🔎 Pattern Matches" >>"$GITHUB_STEP_SUMMARY"
+              print_table "Pattern:Match" PT
+            }
             ;;
+
         esac
 
-        # Raw report (top lines)
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        echo "<details><summary>📄 Raw Report (Top $MAX_LINES lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        echo '```' >> "$GITHUB_STEP_SUMMARY"
-        head -n "$MAX_LINES" "$REPORT" >> "$GITHUB_STEP_SUMMARY"
-        echo '```' >> "$GITHUB_STEP_SUMMARY"
-        echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+        # ---- Raw report excerpt ------------------------------------------------------
+        {
+          echo
+          printf '<details><summary>📄 Raw Report (Top %s lines)</summary>\n\n' "$MAX_LINES"
+          echo '```'
+          head -n "$MAX_LINES" "$REPORT"
+          echo '```'
+          echo '</details>'
+        } >>"$GITHUB_STEP_SUMMARY"
 
-        # Fail on keywords
+        # ---- Explicit keyword failure list ------------------------------------------
         if [[ -n "$FAIL_KEYWORDS" ]]; then
-          IFS=',' read -ra FKW <<< "$FAIL_KEYWORDS"
+          IFS=',' read -ra FKW <<<"$FAIL_KEYWORDS"
           for w in "${FKW[@]}"; do
-            w=$(echo "$w" | xargs)
-            if [[ -n "$w" ]]; then
-              if grep -iq -- "$w" "$REPORT"; then
-                FAIL_FOUND=1
-                echo "❌ Keyword '$w' found, failing step" >> "$GITHUB_STEP_SUMMARY"
-              fi
+            w="${w##*( )}"; w="${w%%*( )}"
+            [[ -z "$w" ]] && continue
+            if grep -iq -- "$w" "$REPORT"; then
+              FAIL_FOUND=1
+              echo "❌ Keyword '$w' found, failing step" >>"$GITHUB_STEP_SUMMARY"
             fi
           done
         fi
 
-        # Threshold checks
+        # ---- Threshold checks --------------------------------------------------------
         if [[ -n "$FAIL_THRESHOLDS" ]]; then
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### 🚨 Threshold Checks" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Metric | Operator | Value | Actual | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|--------|----------|-------|--------|--------|"
+          {
+            echo
+            echo "### 🚨 Threshold Checks"
+            echo "| Metric | Operator | Value | Actual | Status |"
+            echo "|--------|----------|-------|--------|--------|"
+          } >>"$GITHUB_STEP_SUMMARY"
 
-          IFS=',' read -ra TARR <<< "$FAIL_THRESHOLDS"
-          for rule in "${TARR[@]}"; do
-            rule=$(echo "$rule" | xargs)
-            if [[ "$rule" =~ ^(.+)[[:space:]]*([\<\>\=\!]+)[[:space:]]*([0-9\.]+)$ ]]; then
-              MET="${BASH_REMATCH[1]}"
-              OP="${BASH_REMATCH[2]}"
-              TH="${BASH_REMATCH[3]}"
-              ACT="${METRICS[$MET]:-N/A}"
-              STAT="✅"
-              FAIL_THIS=0
-
+          IFS=',' read -ra RULES <<<"$FAIL_THRESHOLDS"
+          for rule in "${RULES[@]}"; do
+            rule="${rule##*( )}"; rule="${rule%%*( )}"
+            if [[ "$rule" =~ ^(.+?)[[:space:]]*([<>!=]{1,2})[[:space:]]*([0-9.]+)$ ]]; then
+              MET="${BASH_REMATCH[1]}"; OP="${BASH_REMATCH[2]}"; TH="${BASH_REMATCH[3]}"
+              ACT="${METRICS[$MET]:-N/A}"; STAT="✅"
               if [[ "$ACT" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-                python3 -c "
-        import sys
-        if float('$ACT') $OP float('$TH'):
-            sys.exit(0)
-        else:
-            sys.exit(1)
-        " || FAIL_THIS=1
+                python3 - "$ACT" "$OP" "$TH" <<'PY'
+        import sys, operator
+        act, op, th = float(sys.argv[1]), sys.argv[2], float(sys.argv[3])
+        ops = {
+            '<':operator.lt, '<=':operator.le,
+            '>':operator.gt, '>=':operator.ge,
+            '==':operator.eq, '!=':operator.ne
+        }
+        sys.exit(0 if ops[op](act, th) else 1)
+        PY
+                (( $? )) && { STAT='❌'; FAIL_FOUND=1; }
               else
-                FAIL_THIS=1
+                STAT='❌'; FAIL_FOUND=1
               fi
-
-              [[ $FAIL_THIS -eq 1 ]] && STAT="❌" && FAIL_FOUND=1
-              echo "| $MET | $OP | $TH | $ACT | $STAT |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| $MET | $OP | $TH | $ACT | $STAT |" >>"$GITHUB_STEP_SUMMARY"
             else
               FAIL_FOUND=1
-              echo "| Invalid threshold: $rule | - | - | - | ❌ |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Invalid threshold: $rule | - | - | - | ❌ |" >>"$GITHUB_STEP_SUMMARY"
             fi
           done
         fi
