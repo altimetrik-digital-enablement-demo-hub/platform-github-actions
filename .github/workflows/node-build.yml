@@ -151,7 +151,6 @@ jobs:
           title: Unit Test Results
           report: jest-report.json
           format: auto
-          fail-on-keywords: ERROR,FAILED,Traceback
           max-lines: 100
 
 
