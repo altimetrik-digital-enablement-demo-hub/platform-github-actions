@@ -23,12 +23,20 @@ inputs:
 runs: 
   using: composite
   steps:
-    # This step runs the lint command
-    - name: Lint Project
+     # This step runs the lint command
+    - name: Lint Project (continue on error)
+      if: inputs.continue-on-error == 'true'
       run: |
         echo "Running: ${{ inputs.lint-command }} --format json -o eslint-report.json"
         ${{ inputs.lint-command }} --format json -o eslint-report.json || true
       working-directory: ${{ inputs.working-directory }}
-      continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+      continue-on-error: true
       shell: bash
 
+    - name: Lint Project (fail on error)
+      if: inputs.continue-on-error != 'true'
+      run: |
+        echo "Running: ${{ inputs.lint-command }} --format json -o eslint-report.json"
+        ${{ inputs.lint-command }} --format json -o eslint-report.json || true
+      working-directory: ${{ inputs.working-directory }}
+      shell: bash

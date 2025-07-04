@@ -37,19 +37,3 @@ runs:
       run: |
         echo "Running: ${{ inputs.test-command }} -- --coverage --json --outputFile=jest-report.json"
         ${{ inputs.test-command }} -- --coverage --json --outputFile=jest-report.json || true
-
-    # Upload JUnit XML test results
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: test-results/junit.xml
-
-    # Annotate test failures
-    - name: Annotate test failures
-      uses: dorny/test-reporter@v1
-      with:
-        name: Jest Tests
-        path: test-results/junit.xml
-        reporter: jest-junit
-        fail-on-error: false
