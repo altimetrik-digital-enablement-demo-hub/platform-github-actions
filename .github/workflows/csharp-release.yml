@@ -1,0 +1,109 @@
+name: GitHub release for .Net application
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: 'Name of the .NET '
+        required: true
+        type: string
+      language:
+        description: '.Net programming language used in the application. Default csharp; can be csharp or fsharp.'
+        required: false
+        type: string
+        default: 'csharp'
+      dotnet-version:
+        description: 'Version of .NET SDK to use. Default 9.0.300; can be any valid .NET SDK version.'
+        required: false
+        type: string
+        default: '9.0.300'
+      registry:
+        description: 'Container registry to push the image to. Default ghcr.io.'
+        required: false
+        type: string
+        default: 'ghcr.io'
+      docker-context:
+        description: 'Context for Docker build. Default "."'
+        required: false
+        type: string
+        default: '.'
+      docker-file:
+        description: 'Dockerfile path. Default ./Dockerfile; can be set to a custom Dockerfile path'
+        required: false
+        type: string
+        default: './Dockerfile'
+      docker-push:
+        description: 'Push the Docker image to the registry. Default true'
+        required: false
+        type: boolean
+        default: true
+      run-trivy:
+        description: 'Run Trivy Scan'
+        required: false
+        default: true
+        type: boolean
+      run-grype:
+        description: 'Run Grype Scan'
+        required: false
+        default: true
+        type: boolean
+permissions:
+  actions: read
+  contents: write
+  security-events: write
+  packages: write
+      
+jobs:
+  release:
+    runs-on: 'ubuntu-latest'
+    outputs:
+      app-version: ${{ steps.versionize.outputs.app-version }}
+    steps:
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/release@test-cs
+        id: versionize
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+          git-fetch-depth: 0   
+          git-fetch-tags: "true"
+          token: ${{ secrets.GITHUB_TOKEN }}  
+
+  docker-build-and-push:
+    runs-on: 'ubuntu-latest'
+    needs: release
+    if: needs.release.outputs.app-version != ''
+    permissions:
+      contents: read
+      packages: write  # Required to push to GHCR
+    steps:
+      # This step builds the .NET application
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@test-cs
+        id: build
+        with:
+          version: ${{ needs.release.outputs.app-version }}
+          context: ${{ inputs.docker-context }}
+          docker-file: ${{ inputs.docker-file }}
+          push: ${{ inputs.docker-push }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ inputs.registry }}
+  
+  docker-scan:
+    runs-on: ubuntu-latest
+    needs: [release, docker-build-and-push]
+    if: needs.release.outputs.app-version != ''
+    permissions:
+      contents: read
+      packages: read  
+    steps:
+        # This job scans the Docker image for vulnerabilities using Trivy
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@test-cs
+        if: ${{ inputs.run-trivy == true }}
+        with:
+          version: ${{ needs.release.outputs.app-version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          severity: 'CRITICAL,HIGH'
+  
+      # This job scans the Docker image for vulnerabilities using Grype
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@test-cs
+        if: ${{ inputs.run-grype == true }}
+        with:
+          version: ${{ needs.release.outputs.app-version }}
+          token: ${{ secrets.GITHUB_TOKEN }}

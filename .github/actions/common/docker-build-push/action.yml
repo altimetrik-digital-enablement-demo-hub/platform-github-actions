@@ -2,6 +2,21 @@ name: Docker Publish to GHCR
 description: 'Build and push a Docker image to GitHub Container Registry (GHCR)'
 
 inputs:
+  version:
+    description: 'Version of the Docker image to build and push'
+    required: true
+  context:
+    description: 'Context for docker build'
+    default: '.'
+    required: false
+  docker-file:
+    description: 'Path to the Dockerfile'
+    default: './Dockerfile'
+    required: false
+  push:
+    description: 'Push the image to the registry'
+    default: 'true'
+    required: false
   token:
     description: 'GitHub token for authentication to GHCR'
     required: true
@@ -9,10 +24,6 @@ inputs:
     description: 'Docker registry to push the image to'
     required: false
     default: 'ghcr.io'
-  version:
-    description: 'Semantic version tag for the Docker image'
-    required: false
-    default: ''
 
 outputs:
   tag:
@@ -76,11 +87,13 @@ runs:
 
     # Build and push the Docker image to GitHub Container Registry
     - name: Build and push Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
-        context: .
-        push: true
+        context: ${{ inputs.context || '.' }}
+        file: ${{ inputs.docker-file || './Dockerfile' }}
+        push: ${{ inputs.push || false }}
+        labels: ${{ steps.meta.outputs.labels }}
         tags: |
           ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ steps.docker-tag.outputs.tag }}
-          ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:latest
+          
     

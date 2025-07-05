@@ -10,6 +10,10 @@ inputs:
     description: The .NET SDK version to use
     required: false
     default: '9.0.300'
+  retention-days:
+    description: Number of days to retain test results and coverage reports
+    required: false
+    default: '5'
 
 runs:
   using: composite
@@ -32,18 +36,18 @@ runs:
       with:
         name: test-results
         path: ${{ github.workspace }}/**/TestResults/**/*
-        retention-days: 5
+        retention-days: ${{ inputs.retention-days }}
 
 
     - name: Publish Test Results
-      uses: EnricoMi/publish-unit-test-result-action@v2.16.1
-      if: always()
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      if: (!cancelled())
       with:
-        trx_files: "${{ github.workspace }}/**/*.trx"
-
+        files: "${{ github.workspace }}/**/*.trx"
+        check_name: "Unit Tests Summary"
 
     - name: Combine Coverage Reports # This is because one report is produced per project, and we want one result for all of them.
-      uses: danielpalme/ReportGenerator-GitHub-Action@5.2.4
+      uses: danielpalme/ReportGenerator-GitHub-Action@5
       with:
         reports: "**/*.cobertura.xml" # REQUIRED # The coverage reports that should be parsed (separated by semicolon). Globbing is supported.
         targetdir: "${{ github.workspace }}" # REQUIRED # The directory where the generated report should be saved.

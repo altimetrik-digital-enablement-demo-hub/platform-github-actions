@@ -2,38 +2,101 @@ name: csharpier-lint
 description: Lint C# code using CSharpier
 
 inputs:
-  app-name:
-    description: Application name to lint
-    required: true
   dotnet-version:
-    description: The .NET SDK version to use
+    description: The .NET SDK version to use. Default is '9.0.300'.
     required: false
     default: '9.0.300'
-  restore:
-    description: Whether to restore dotnet tools before linting
+  git-fetch-depth:
+    description: The depth of the git fetch. Default is 0 (full history).
+    required: false
+    default: "0"
+  git-fetch-tags:
+    description: Whether to fetch tags from the repository. Default is true (all tags).
     required: false
     default: "true"
   
 runs:
   using: composite
   steps:
-    - name: Lint global - ${{ inputs.app-name }}
-      if: ${{ inputs.restore == 'false' }}
-      shell: bash
-      run: |
-        echo "PWD: $(pwd)"
-        ls -al
-        echo "installing csharpier tool"
-        dotnet tool install --global csharpier
-        csharpier check .
+    - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+        git-fetch-depth: ${{ inputs.git-fetch-depth }}
+        git-fetch-tags: ${{ inputs.git-fetch-tags }}
 
-    - name: Lint restore - ${{ inputs.app-name }}
-      if: ${{ inputs.restore == 'true' }}
+    - name: CSharpier tool restore
       shell: bash
       run: |
-        echo "PWD: $(pwd)"
-        ls -al
         echo "Restoring project tools"
         dotnet tool restore
-        dotnet csharpier check .
-    
+          
+    - name: CSharpier Summary
+      shell: bash
+      continue-on-error: true
+      run: |
+        set -e
+
+        output=$(dotnet csharpier check . 2>&1 || true)
+        echo "$output" > csharpier-output.txt
+
+        echo "$output"
+
+        current_file=""
+        current_line="1"
+
+        summary_file="csharpier-summary.md"
+        echo "## CSharpier Summary" > "$summary_file"
+        echo "### 🔥 Formatting issues detected" >> "$summary_file"
+        echo "" >> "$summary_file"
+        echo "| File | Line |" >> "$summary_file"
+        echo "|:-----|:----:|" >> "$summary_file"
+
+        while IFS= read -r line; do
+          if [[ "$line" =~ ^Error\ (.+)\ -\ Was\ not\ formatted\.$ ]]; then
+            current_file="${BASH_REMATCH[1]}"
+            current_line="1"
+          elif [[ "$line" =~ Expected:\ Around\ Line\ ([0-9]+) ]]; then
+            current_line="${BASH_REMATCH[1]}"
+            echo "::error file=$current_file,line=$current_line::File is not formatted correctly. Run 'dotnet csharpier .' to fix."
+            echo "| $current_file | $current_line |" >> "$summary_file"
+          fi
+        done <<< "$output"
+
+        if ! grep -q '^Error ' csharpier-output.txt; then
+          echo "issues_detected=false" >> $GITHUB_ENV
+          echo "## CSharpier Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### No issues detected" >> $GITHUB_STEP_SUMMARY
+          exit 0
+        fi
+        
+        echo "" >> "$summary_file"
+        echo "⚡ Please run \`dotnet csharpier .\` locally to fix the formatting issues." >> "$summary_file"
+        cat "$summary_file" >> "$GITHUB_STEP_SUMMARY"
+        echo "<details>" >> $GITHUB_STEP_SUMMARY
+        echo "<summary>📄 View Raw Report</summary>" >> $GITHUB_STEP_SUMMARY
+        cat csharpier-output.txt >> $GITHUB_STEP_SUMMARY
+        echo '</details>' >> $GITHUB_STEP_SUMMARY
+        echo "issues_detected=true" >> $GITHUB_ENV
+
+    - name: Find existing comment
+      if: env.issues_detected == 'true'
+      id: find-comment
+      uses: peter-evans/find-comment@v3
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: github-actions[bot]
+        body-includes: 🔥 Formatting issues detected
+
+    - name: Create or update PR comment
+      if: env.issues_detected == 'true'
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        body-path: csharpier-summary.md
+        edit-mode: replace
+        comment-id: ${{ steps.find-comment.outputs.comment-id }}
+
+    - name: Fail if formatting issues are found
+      if: env.issues_detected == 'true'
+      shell: bash
+      run: exit 1

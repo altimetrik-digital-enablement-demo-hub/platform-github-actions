@@ -17,7 +17,7 @@ inputs:
 
 runs:
   using: "composite"
-  steps:
+  steps: 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
@@ -30,11 +30,11 @@ runs:
           
     - name: Autobuild
       uses: github/codeql-action/autobuild@v3
+      with:
+        working-directory: ${{ inputs.working-directory }}
 
-    # This step runs the CodeQL analysis on the codebase
     - name: Perform CodeQL Analysis
-      if: inputs.continue-on-error == 'true'
+      continue-on-error: ${{ inputs.continue-on-error }}
       uses: github/codeql-action/analyze@v3
       with:
-        output: results.sarif
-      continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+        output: results.sarif    

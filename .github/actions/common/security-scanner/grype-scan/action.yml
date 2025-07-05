@@ -9,6 +9,10 @@ inputs:
   token:
     required: true
     description: 'GitHub token for authentication'
+  registry:
+    description: 'Docker registry to push the image to'
+    required: false
+    default: 'ghcr.io'
 
 runs:
   using: 'composite'
@@ -17,7 +21,7 @@ runs:
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
-        registry: ghcr.io
+        registry: ${{ inputs.registry }}
         username: ${{ github.actor }}
         password: ${{ inputs.token }}
     
@@ -39,6 +43,7 @@ runs:
     - name: Scan Docker image with Grype
       shell: bash
       run: |
-        IMAGE=ghcr.io/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
+        IMAGE=${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
         echo "Scanning image: $IMAGE"
         grype $IMAGE -o table > grype-report.txt
+    

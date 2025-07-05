@@ -99,3 +99,14 @@ runs:
             core.setFailed(error.message);
           }
 
+    - name: Version Summary
+      if: steps.versionize.outcome == 'success'
+      shell: bash
+      run: |
+        echo "## Version Summary" >> $GITHUB_STEP_SUMMARY
+        echo "### Version: ${{ steps.versionize.outputs.app-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "### Release created successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "### Check the [Releases]" >> $GITHUB_STEP_SUMMARY
+        echo "### [Releases](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases)" >> $GITHUB_STEP_SUMMARY
+        echo "### [Changelog](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${{ steps.versionize.outputs.app-version }})" >> $GITHUB_STEP_SUMMARY
+        
