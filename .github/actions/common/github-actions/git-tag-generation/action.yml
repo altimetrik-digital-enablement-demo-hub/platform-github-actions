@@ -5,6 +5,10 @@ inputs:
   token:
     description: 'GitHub token for authentication'
     required: true
+  conventional-commit:
+    description: 'Use conventional commit messages to determine the version bump'
+    required: false
+    default: 'false'
 
 outputs:
   tag:
