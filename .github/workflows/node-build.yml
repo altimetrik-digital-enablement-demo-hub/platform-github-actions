@@ -182,7 +182,7 @@ jobs:
       tag: ${{ steps.set-output.outputs.tag }}
     steps:
       # This job generates a semantic version tag based on the commit history
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v0
         id: set-output
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -197,7 +197,7 @@ jobs:
       packages: write  # Required to push to GHCR
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/docker-build-push@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ inputs.registry }}
@@ -212,7 +212,7 @@ jobs:
       packages: read 
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run_trivy == 'true' }}
         with:
           version: ${{ needs.version.outputs.tag }}
@@ -220,7 +220,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       # This job summarizes the Trivy report and writes it to GITHUB_STEP_SUMMARY
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
         if: ${{ inputs.run_trivy == 'true' }}
         with:
           tool: Trivy
@@ -230,14 +230,14 @@ jobs:
           max-lines: 100
 
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/security-scanner/grype-scan@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run_grype == 'true' }}
         with:
           version: ${{ needs.version.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
-      - uses: KaranbirSinghAhluwalia/platform-github-actions/.github/actions/common/github-actions/git-dashboard@testing
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
         if: ${{ inputs.run_grype == 'true' }}
         with:
           tool: Grype
