@@ -213,7 +213,7 @@ jobs:
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
-        if: ${{ inputs.run_trivy == 'true' }}
+        if: ${{ inputs.run-trivy == 'true' }}
         with:
           version: ${{ needs.version.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -221,7 +221,7 @@ jobs:
 
       # This job summarizes the Trivy report and writes it to GITHUB_STEP_SUMMARY
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
-        if: ${{ inputs.run_trivy == 'true' }}
+        if: ${{ inputs.run-trivy == 'true' }}
         with:
           tool: Trivy
           title: Trivy Vulnerability Report
@@ -231,14 +231,14 @@ jobs:
 
       # This job scans the Docker image for vulnerabilities using Grype
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
-        if: ${{ inputs.run_grype == 'true' }}
+        if: ${{ inputs.run-grype == 'true' }}
         with:
           version: ${{ needs.version.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
-        if: ${{ inputs.run_grype == 'true' }}
+        if: ${{ inputs.run-grype == 'true' }}
         with:
           tool: Grype
           title: Grype Vulnerability Report
