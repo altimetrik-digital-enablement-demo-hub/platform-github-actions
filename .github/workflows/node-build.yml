@@ -45,6 +45,12 @@ on:
         default: 'npm pack'
         type: string
 
+      conventional-commit:
+        description: 'Use conventional commit messages to determine the version bump'
+        required: false
+        default: 'false'
+        type: string
+
       artifact-name:
         description: "Name of the build artifact"
         required: false
@@ -186,12 +192,13 @@ jobs:
         id: set-output
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          conventional-commit: 'false'  # Set to 'true' if you want to use conventional commits for tagging
+          conventional-commit: ${{ inputs.conventional-commit }}
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
     runs-on: ubuntu-latest
     needs: [version, build, unit-test]
+    if: ${{ needs.version.outputs.tag != '' }}
     permissions:
       contents: read
       packages: write  # Required to push to GHCR
@@ -207,6 +214,7 @@ jobs:
   docker-scan:
     runs-on: ubuntu-latest
     needs: [version, docker-build-and-push]
+    if: ${{ needs.version.outputs.tag != '' }}
     permissions:
       contents: read
       packages: read 
