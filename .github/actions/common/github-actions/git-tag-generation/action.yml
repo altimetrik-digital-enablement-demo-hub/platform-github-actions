@@ -5,11 +5,15 @@ inputs:
   token:
     description: 'GitHub token for authentication'
     required: true
+  conventional-commit:
+    description: 'Use conventional commit messages to determine the version bump'
+    required: false
+    default: 'false'
 
 outputs:
   tag:
     description: "The new semantic version tag"
-    value: ${{ steps.set-tag.outputs.tag }}
+    value: ${{ steps.set-output.outputs.tag }}
 
 runs:
   using: 'composite'
@@ -25,6 +29,28 @@ runs:
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
+
+     # Determine the Docker tag based on the event type and branch
+    - name: Determine Docker Tag
+      id: docker-tag
+      if: ${{ inputs.conventional-commit != 'true' }}
+      shell: bash
+      run: |
+        DATE=$(date +%Y%m%d)
+        RUN_NUMBER=${{ github.run_number }}
+        
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          TAG="PR${PR_NUMBER}-${DATE}.run${RUN_NUMBER}"
+        elif [[ "${{ github.ref_name }}" == "main" ]]; then
+          TAG="main-${DATE}.run${RUN_NUMBER}"
+        else
+          BRANCH=$(echo "${{ github.ref_name }}" | sed 's|.*/||' | tr '/' '-')
+          TAG="${BRANCH}-${DATE}.run${RUN_NUMBER}"
+        fi
+
+        echo "Computed Docker tag: $TAG"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
     # This step determines the new tag based on commit messages
     - name: Determine tag from commits
@@ -135,3 +161,12 @@ runs:
         body_path: changelog.txt
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
+
+    # Set the final output tag, prioritizing the conventional commit tag if available
+    - name: Set final output tag
+      id: set-output
+      shell: bash
+      run: |
+        echo "Setting final tag output..."
+        FINAL_TAG="${{ steps.set-tag.outputs.tag || steps.docker-tag.outputs.tag }}"
+        echo "tag=$FINAL_TAG" >> "$GITHUB_OUTPUT"
