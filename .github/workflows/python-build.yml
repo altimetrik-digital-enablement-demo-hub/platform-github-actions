@@ -50,6 +50,12 @@ on:
         required: false
         default: 'python-package'
         type: string
+
+      conventional-commit:
+        description: 'Use conventional commit messages to determine the version bump'
+        required: false
+        default: 'false'
+        type: string
       
       run_trivy:
         description: 'Run Trivy Scan'
@@ -174,12 +180,13 @@ jobs:
         id: set-output
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          conventional-commit: 'false'
+          conventional-commit: ${{ inputs.conventional-commit }}
 
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
     runs-on: ubuntu-latest
     needs: [version, unit-test]
+    if: ${{ needs.version.outputs.tag != '' }}
     permissions:
       contents: read
       packages: write  # Required to push to GHCR
@@ -195,6 +202,7 @@ jobs:
   docker-scan:
     runs-on: ubuntu-latest
     needs: [version, docker-build-and-push]
+    if: ${{ needs.version.outputs.tag != '' }}
     permissions:
       contents: read
       packages: read 
