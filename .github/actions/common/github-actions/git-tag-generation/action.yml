@@ -55,6 +55,7 @@ runs:
     # This step determines the new tag based on commit messages
     - name: Determine tag from commits
       shell: bash
+      if: ${{ inputs.conventional-commit == 'true' }}
       id: set-tag
       run: |
         DEFAULT_VERSION="v0.1.0"
@@ -156,6 +157,7 @@ runs:
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
+      if: ${{ inputs.conventional-commit == 'true' }}
       with:
         tag_name: ${{ steps.set-tag.outputs.tag }}
         body_path: changelog.txt
