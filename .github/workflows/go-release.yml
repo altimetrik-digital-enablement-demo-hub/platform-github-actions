@@ -63,7 +63,7 @@ permissions:
 
 jobs:
   # Only run on main branch
-  validate-branch:
+  validate-branch:  # what is this for?
     runs-on: ubuntu-latest
     steps:
       - name: Check if running on main branch
