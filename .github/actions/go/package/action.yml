@@ -1,10 +1,17 @@
 name: Package Go Application into Docker Image
 description: |
-  This action packages a .Go application into a Docker image.
+  This action builds a Go application and packages it into a Docker image.
   
 inputs:
   app-name:
     description: Application name
+    required: true
+  go-version:
+    description: 'Go version to use for building'
+    default: '1.24'
+    required: false
+  main-package-path:
+    description: 'Path to the main package (where main.go is located)'
     required: true
   context:
     description: 'Context for docker build'
@@ -39,6 +46,15 @@ runs:
         fetch-depth: 0
         fetch-tags: true  
 
+    # First, build the Go application
+    - name: Build Go application
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@feature/DDH-106-go
+      with:
+        app-name: ${{ inputs.app-name }}
+        go-version: ${{ inputs.go-version }}
+        main-package-path: ${{ inputs.main-package-path }}
+
+    # Download the binary artifact created by the build step
     - name: Download binary
       uses: actions/download-artifact@v4
       with:

@@ -88,6 +88,8 @@ jobs:
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@feature/DDH-106-go
         with:
           app-name: ${{ inputs.app-name }}
+          go-version: ${{ inputs.go-version }}
+          main-package-path: ${{ inputs.main-package-path }}
           context: ${{ inputs.docker-context }}
           docker-file: ${{ inputs.docker-file }}
           image-tag: ${{ needs.version.outputs.image-tag }}
