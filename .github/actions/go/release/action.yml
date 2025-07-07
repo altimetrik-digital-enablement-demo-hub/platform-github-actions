@@ -1,34 +1,78 @@
-name: Go Semantic Release
-description: Builds a Go application and uploads the binary as an artifact
+name: Go Version Calculator
+description: Calculates semantic version based on manual inputs or automatic bumping
 
 inputs:
+  release_bump:
+    description: 'Release bump type (Major/Minor/Patch)'
+    required: false
+    default: 'Minor'
+  version_override:
+    description: 'Optional: manually specify version (e.g., v1.3.0)'
+    required: false
   go-version:
-    description: Go version to use
+    description: 'Go version to use'
     required: false
     default: '1.24'
   token:
-    description: 'A Github API token with permissions to create releases and push changes'
+    description: 'A Github API token with permissions to read repository'
     required: true
+
 outputs:
-    app-version:
-      description: The version of the application as determined by Versionize 
-      value: ${{ steps.semantic-release.outputs.version }}
+  tag:
+    description: The calculated semantic version tag
+    value: ${{ steps.version.outputs.new-version }}
 
 runs:
   using: 'composite'  
   steps:
     - name: Set up Go
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v0
+      uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
       with:
         go-version: ${{ inputs.go-version }}
         git-fetch-depth: 0
         git-fetch-tags: true
+        
+    - name: Get latest tag
+      id: get_latest_tag
+      shell: bash
+      run: |
+        git fetch --tags
+        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1` 2>/dev/null || echo "v0.0.0")
+        echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
+        echo "Latest tag: $latest_tag"
 
-    - name: Run GoReleaser
-      uses: go-semantic-release/action@v1
-      id: semantic-release
-      with:
-        # hooks: goreleaser
-        changelog-generator-opt: "emojis=true"
+    - name: Calculate new version
+      id: version
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.version_override }}" ]; then
+          new_version=${{ inputs.version_override }}
+        else
+          current_version=${LATEST_TAG#v}
+          IFS='.' read -r major minor patch <<< "$current_version"
+          case "${{ inputs.release_bump }}" in
+            "Major")
+              new_version="v$((major + 1)).0.0"
+              ;;
+            "Minor")
+              new_version="v${major}.$((minor + 1)).0"
+              ;;
+            "Patch")
+              new_version="v${major}.${minor}.$((patch + 1))"
+              ;;
+          esac
+        fi
+        echo "NEW_VERSION=$new_version" >> $GITHUB_ENV
+        echo "Calculated new version: $new_version"
+        echo "new-version=$new_version" >> $GITHUB_OUTPUT
+
+    - name: Create and push git tag
+      shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag ${{ env.NEW_VERSION }}
+        git push origin ${{ env.NEW_VERSION }}
+        echo "Created and pushed tag: ${{ env.NEW_VERSION }}"

@@ -1,0 +1,198 @@
+name: Go Release Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-bump:
+        description: 'Release bump (ignored if version_override is provided)'
+        required: true
+        default: 'Minor'
+        type: choice
+        options:
+          - Major
+          - Minor
+          - Patch
+      version_override:
+        description: 'Optional: manually specify version (e.g., v1.3.0)'
+        required: false
+        type: string
+
+  workflow_call:
+    inputs:
+      app-name:
+        required: true
+        description: 'Name of the application'
+        type: string
+      go-version:
+        required: false
+        type: string
+        description: 'Go version to use'
+        default: '1.24'
+      main-package-path:
+        description: 'Path to the main package (where main.go is located)'
+        required: true
+        type: string
+      registry:
+        required: false
+        type: string
+        description: 'Container registry URL'
+        default: 'ghcr.io'
+      docker-context:
+        description: 'Context for Docker build'
+        required: false
+        type: string
+        default: '.'
+      docker-file:
+        description: 'Dockerfile path'
+        required: false
+        type: string
+        default: './Dockerfile'
+      release_bump:
+        description: 'Release bump type (ignored if version_override is provided)'
+        required: false
+        default: 'Minor'
+        type: string
+      version_override:
+        description: 'Optional: manually specify version (e.g., v1.3.0)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # Only run on main branch
+  validate-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if running on main branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "❌ Release workflow can only be run on the main branch"
+          echo "Current branch: ${{ github.ref }}"
+          exit 1
+
+  # Calculate semantic version based on manual inputs
+  calculate-version:
+    runs-on: ubuntu-latest
+    needs: validate-branch
+    outputs:
+      new-version: ${{ steps.version-calc.outputs.tag }}
+      has-new-version: ${{ steps.version-calc.outputs.tag != '' }}
+    steps:
+      - name: Calculate semantic version
+        id: version-calc
+        uses: osru-leu/platform-github-actions/.github/actions/go/release@feature/go-release
+        with:
+          release_bump: ${{ inputs.release_bump }}
+          version_override: ${{ inputs.version_override }}
+          go-version: ${{ inputs.go-version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Create GitHub Release with changelog
+  create-release:
+    runs-on: ubuntu-latest
+    needs: calculate-version
+    if: needs.calculate-version.outputs.has-new-version == 'true'
+    outputs:
+      release-url: ${{ steps.create-release.outputs.html_url }}
+    steps:
+      - name: Set up Go
+        uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
+        with:
+          go-version: ${{ inputs.go-version }}
+          git-fetch-depth: 0
+          git-fetch-tags: true
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "## 📋 Changelog" > changelog.md
+          echo "" >> changelog.md
+          
+          # Get commits since last tag
+          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            last_tag=$(git describe --tags --abbrev=0)
+            echo "### Changes since $last_tag:" >> changelog.md
+            echo "" >> changelog.md
+            
+            # Parse conventional commits
+            git log $last_tag..HEAD --pretty=format:"%s" | while IFS= read -r commit; do
+              if [[ "$commit" =~ ^feat(\(.+\))?: ]]; then
+                echo "- ✨ $commit" >> changelog.md
+              elif [[ "$commit" =~ ^fix(\(.+\))?: ]]; then
+                echo "- 🐛 $commit" >> changelog.md
+              elif [[ "$commit" =~ ^chore(\(.+\))?: ]]; then
+                echo "- 🔧 $commit" >> changelog.md
+              elif [[ "$commit" =~ ^docs(\(.+\))?: ]]; then
+                echo "- 📚 $commit" >> changelog.md
+              elif [[ "$commit" =~ ^refactor(\(.+\))?: ]]; then
+                echo "- ♻️ $commit" >> changelog.md
+              elif [[ "$commit" =~ ^perf(\(.+\))?: ]]; then
+                echo "- ⚡ $commit" >> changelog.md
+              else
+                echo "- 📝 $commit" >> changelog.md
+              fi
+            done
+          else
+            echo "### 🎉 Initial release" >> changelog.md
+            echo "This is the first release of ${{ inputs.app-name }}!" >> changelog.md
+          fi
+          
+          # Set output for GitHub release
+          {
+            echo "changelog<<EOTCHANGELOG123"
+            cat changelog.md
+            echo "EOTCHANGELOG123"
+          } >> $GITHUB_OUTPUT
+
+      - name: Build application
+        uses: osru-leu/platform-github-actions/.github/actions/go/build@feature/go-release
+        with:
+          app-name: ${{ inputs.app-name }}
+          go-version: ${{ inputs.go-version }}
+          main-package-path: ${{ inputs.main-package-path }}
+
+      - name: Create GitHub Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.calculate-version.outputs.new-version }}
+          release_name: "Release ${{ needs.calculate-version.outputs.new-version }}"
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+
+      - name: Upload binary to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ./${{ inputs.app-name }}
+          asset_name: ${{ inputs.app-name }}
+          asset_content_type: application/octet-stream
+
+  # Push Docker image with semantic version
+  push-docker-image:
+    runs-on: ubuntu-latest
+    needs: [calculate-version, create-release]
+    if: needs.calculate-version.outputs.has-new-version == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and push Docker image
+        uses: osru-leu/platform-github-actions/.github/actions/go/package@feature/go-release
+        with:
+          app-name: ${{ inputs.app-name }}
+          context: ${{ inputs.docker-context }}
+          docker-file: ${{ inputs.docker-file }}
+          image-tag: ${{ needs.calculate-version.outputs.new-version }}
+          registry: ${{ inputs.registry }}
+          push: true
+          token: ${{ secrets.GITHUB_TOKEN }} 
+          

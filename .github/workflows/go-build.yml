@@ -12,6 +12,10 @@ on:
         required: false
         type: string
         default: '1.24'
+      main-package-path:
+        description: 'Path to the main package (where main.go is located)'
+        required: true
+        type: string
       registry:
         required: false
         type: string
@@ -48,29 +52,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Lint Go code
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@v0
+        uses: osru-leu/platform-github-actions/.github/actions/go/lint@feature/go-release
         with:
           go-version: ${{ inputs.go-version }}
   test:
     runs-on: ubuntu-latest
-    needs: lint
     steps:
       - name: Run unit tests
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@v0
+        uses: osru-leu/platform-github-actions/.github/actions/go/unit-test@feature/go-release
         with:
           go-version: ${{ inputs.go-version }}
-  build:
+  build-go:
     runs-on: ubuntu-latest
     needs: test
     steps:
       - name: Build Go application
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@v0
+        uses: osru-leu/platform-github-actions/.github/actions/go/build@feature/go-release
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
+          main-package-path: ${{ inputs.main-package-path }}
 
-  security-scan:
-    needs: build
+  static-code-analysis:
+    needs: build-go
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -78,49 +82,47 @@ jobs:
       contents: read
     steps:
       - name: Set up Go
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v0
+        uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
         with:
           go-version: ${{ inputs.go-version }}
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v0
+      - uses: osru-leu/platform-github-actions/.github/actions/common/static-code-analysis/codeql@feature/go-release
         with:
           languages: go
-  release:
-    name: Release ${{ inputs.app-name }}
-    needs: build
-    runs-on: 'ubuntu-latest'
+
+  set-image-tag:
+    runs-on: ubuntu-latest
     outputs:
-      app-version: ${{ steps.semantic-release.outputs.app-version }}
+      image-tag: ${{ steps.set-tag.outputs.image-tag }}
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/release@v0
-        id: semantic-release
-        with:
-          go-version: ${{ inputs.go-version }}
-          token: ${{ secrets.GITHUB_TOKEN }} 
+      - name: Generate image tag
+        id: set-tag
+        uses: osru-leu/platform-github-actions/.github/actions/go/image-tag@feature/go-release
+
   package:
     runs-on: ubuntu-latest
-    needs: [build, release]
+    needs: [build-go, set-image-tag]
     # outputs:
     #   full-image-name: ${{ steps.package.outputs.full-image-name }}
     steps:
       - name: Package application
         id: package
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@v0
+        uses: osru-leu/platform-github-actions/.github/actions/go/package@feature/go-release
         with:
           app-name: ${{ inputs.app-name }}
           context: ${{ inputs.docker-context }}
           docker-file: ${{ inputs.docker-file }}
-          image-tag: ${{ needs.release.outputs.app-version }}
+          image-tag: ${{ needs.set-image-tag.outputs.image-tag }}
           registry: ${{ inputs.registry }}
           push: ${{ inputs.docker-push }}
           token: ${{ secrets.GITHUB_TOKEN }}
           
-  security:
+  container-security:
     runs-on: ubuntu-latest
-    needs: [release, package]
+    needs: [package, set-image-tag]
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
+      - uses: osru-leu/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/go-release
         with:
-          version: ${{ needs.release.outputs.app-version }}
+          version: ${{ needs.set-image-tag.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'

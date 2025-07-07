@@ -9,12 +9,16 @@ inputs:
     description: Go version to use
     required: false
     default: '1.24'
+  main-package-path:
+    description: Path to the main package (where main.go is located)
+    required: false
+    default: './cmd'
 
 runs:
   using: 'composite'  
   steps:
     - name: Set up Go
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v0
+      uses: osru-leu/platform-github-actions/.github/actions/go/setup@feature/go-release
       with:
         go-version: ${{ inputs.go-version }}
 
@@ -32,4 +36,10 @@ runs:
       shell: bash
       run: |
         GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
-         go build -o ${{ inputs.app-name }} 
+         go build -o ${{ inputs.app-name }} ${{ inputs.main-package-path }}
+
+    - name: Upload binary as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.app-name }}
+        path: ${{ inputs.app-name }}
