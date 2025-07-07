@@ -45,6 +45,12 @@ on:
         default: 'npm pack'
         type: string
 
+      conventional-commit:
+        description: 'Use conventional commit messages to determine the version bump'
+        required: false
+        default: 'false'
+        type: string
+
       artifact-name:
         description: "Name of the build artifact"
         required: false
@@ -174,28 +180,41 @@ jobs:
           format: sarif
           max-lines: 100
 
+  # This job builds the Node.js package and prepares it for distribution
+  version:
+    runs-on: ubuntu-latest
+    needs: [build, unit-test]
+    outputs:
+      tag: ${{ steps.set-output.outputs.tag }}
+    steps:
+      # This job generates a semantic version tag based on the commit history
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v0
+        id: set-output
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          conventional-commit: ${{ inputs.conventional-commit }}
+
   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
     runs-on: ubuntu-latest
-    needs: [build, unit-test]
+    needs: [version, build, unit-test]
+    if: ${{ needs.version.outputs.tag != '' }}
     permissions:
       contents: read
       packages: write  # Required to push to GHCR
-    outputs:
-      tag: ${{ steps.docker-tag.outputs.tag }}
     steps:
     # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - id: docker-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ inputs.registry }}
+          version: ${{ needs.version.outputs.tag }}
 
   # This job scans the Docker image for vulnerabilities using Trivy and Grype
   docker-scan:
     runs-on: ubuntu-latest
-    needs: [docker-build-and-push]
-    if: ${{ needs.docker-build-and-push.outputs.tag != '' }}
+    needs: [version, docker-build-and-push]
+    if: ${{ needs.version.outputs.tag != '' }}
     permissions:
       contents: read
       packages: read 
@@ -204,7 +223,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run-trivy == 'true' }}
         with:
-          version: ${{ needs.docker-build-and-push.outputs.tag }}
+          version: ${{ needs.version.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
@@ -222,7 +241,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run-grype == 'true' }}
         with:
-          version: ${{ needs.docker-build-and-push.outputs.tag }}
+          version: ${{ needs.version.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY

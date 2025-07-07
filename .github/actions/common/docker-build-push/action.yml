@@ -25,11 +25,6 @@ inputs:
     required: false
     default: 'ghcr.io'
 
-outputs:
-  tag:
-    description: "The new semantic version tag"
-    value: ${{ steps.docker-tag.outputs.tag }}
-
 runs:
   using: 'composite'
   steps:
@@ -57,33 +52,7 @@ runs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ inputs.registry }}/${{ github.repository }}
-    
-    # Determine the Docker tag based on the event type and branch
-    - name: Determine Docker Tag
-      id: docker-tag
-      shell: bash
-      run: |
-        if [[ -n "${{ inputs.version }}" ]]; then
-          TAG="${{ inputs.version }}"
-        else
-          DATE=$(date +%Y%m%d)
-          RUN_NUMBER=${{ github.run_number }}
-          
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            PR_NUMBER=${{ github.event.pull_request.number }}
-            TAG="PR${PR_NUMBER}-${DATE}.run${RUN_NUMBER}"
-          elif [[ "${{ github.ref_name }}" == "main" ]]; then
-            TAG="main-${DATE}.run${RUN_NUMBER}"
-          else
-            BRANCH=$(echo "${{ github.ref_name }}" | sed 's|.*/||' | tr '/' '-')
-            TAG="${BRANCH}-${DATE}.run${RUN_NUMBER}"
-          fi
-        fi
-
-        echo "Computed Docker tag: $TAG"
-        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-        
+        images: ${{ inputs.registry }}/${{ github.repository }}        
 
     # Build and push the Docker image to GitHub Container Registry
     - name: Build and push Docker image
@@ -94,6 +63,6 @@ runs:
         push: ${{ inputs.push || false }}
         labels: ${{ steps.meta.outputs.labels }}
         tags: |
-          ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ steps.docker-tag.outputs.tag }}
+          ${{ inputs.registry }}/${{ steps.repo.outputs.repo }}:${{ inputs.version }}
           
     
