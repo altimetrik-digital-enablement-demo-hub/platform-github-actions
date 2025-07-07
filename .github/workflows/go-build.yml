@@ -58,6 +58,7 @@ jobs:
 
   unit-test:
     runs-on: ubuntu-latest
+    needs: [lint]
     steps:
       - name: Run unit tests
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@feature/DDH-106-go
@@ -67,7 +68,7 @@ jobs:
 
   version:
     runs-on: ubuntu-latest
-    needs: [lint, unit-test]
+    needs: [unit-test]
     outputs:
       image-tag: ${{ steps.version.outputs.image-tag }}
       version-tag: ${{ steps.version.outputs.tag }}
@@ -78,7 +79,7 @@ jobs:
 
   docker-build-and-push:
     runs-on: ubuntu-latest
-    needs: [lint, unit-test, version]
+    needs: [version]
     outputs:
       full-image-name: ${{ steps.package.outputs.full-image-name }}
     steps:
@@ -96,7 +97,7 @@ jobs:
 
   docker-scan:
     runs-on: ubuntu-latest
-    needs: [docker-build-and-push, version]
+    needs: [docker-build-and-push]
     steps:
       - name: Scan Docker image for vulnerabilities
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/DDH-106-go
@@ -107,7 +108,7 @@ jobs:
 
   security-scan:
     runs-on: ubuntu-latest
-    needs: [lint, unit-test]
+    needs: [lint]
     permissions:
       security-events: write
       actions: read
