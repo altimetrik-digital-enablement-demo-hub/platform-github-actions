@@ -52,14 +52,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Lint Go code
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lintfeature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint/@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Run unit tests
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-testfeature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test/@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
   build-go:
@@ -67,7 +67,7 @@ jobs:
     needs: test
     steps:
       - name: Build Go application
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/buildfeature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build/@feature/DDH-106-go
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
@@ -82,11 +82,11 @@ jobs:
       contents: read
     steps:
       - name: Set up Go
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setupfeature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup/@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeqlfeature/DDH-106-go
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql/@feature/DDH-106-go
         with:
           languages: go
 
@@ -97,7 +97,7 @@ jobs:
     steps:
       - name: Generate image tag
         id: set-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/image-tagfeature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/image-tag/@feature/DDH-106-go
 
   package:
     runs-on: ubuntu-latest
@@ -107,7 +107,7 @@ jobs:
     steps:
       - name: Package application
         id: package
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/packagefeature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package/@feature/DDH-106-go
         with:
           app-name: ${{ inputs.app-name }}
           context: ${{ inputs.docker-context }}
@@ -121,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [package, set-image-tag]
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scanfeature/DDH-106-go
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan/@feature/DDH-106-go
         with:
           version: ${{ needs.set-image-tag.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}

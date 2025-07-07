@@ -23,7 +23,7 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Go
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setupfeature/DDH-106-go
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@feature/DDH-106-go
       with:
         go-version: ${{ inputs.go-version }}
 
