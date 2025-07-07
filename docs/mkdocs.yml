@@ -1,0 +1,18 @@
+site_name: 'Platform GitHub Actions'
+site_description: 'A platform for centralized management of Reusable Workflows and Actions'
+nav:
+  - Home: index.md
+  - Storage: storage.md
+  - About: about.md
+  - Actions:
+    - Common: 
+      - 'Docker-build-push': actions/common/docker-build-push/README.md
+    - CSharp:
+      - 'Build': /.github/actions/dotnet/build/README.md
+      
+    - 'Reusable Workflows':
+      - 'Build and Push Docker Image': actions/docker-build-push.md
+      - 'Deploy Go Application': actions/go-deploy.md
+      - 'Deploy Node.js Application': actions/nodejs-deploy.md
+      - 'Deploy Python Application': actions/python-deploy.md
+      - 'Deploy Java Application': actions/java-deploy.md

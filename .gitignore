@@ -1,1 +1,4 @@
 work/
+
+# Python virtual environment
+.venv/

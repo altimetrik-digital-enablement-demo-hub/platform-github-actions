@@ -142,6 +142,7 @@ A new Reusable Workflow or Composite Action must include at least:
 - Example usage (for both actions and workflows)
 
 For more details see [CONTRIBUTING.md](./CONTRIBUTING.md)
+
 ---
 
 ### Testing & Validation
@@ -152,3 +153,7 @@ Before merging:
 - Create a test Workflow to test new Reusable Workflow and Composite Actions.
 - Provide a link to test Workflow in the PR.
 - Test deployments in local Kubernetes clusters using local GitHub Runners.
+
+## Using MkDocs to manage documentation
+
+The mkdocs files are located under `./docs` directory. 
