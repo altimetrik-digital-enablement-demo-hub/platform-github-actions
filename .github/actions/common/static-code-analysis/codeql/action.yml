@@ -18,23 +18,35 @@ inputs:
 runs:
   using: "composite"
   steps: 
+    # Checkout the repository code
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ inputs.languages }}
     
+    # Set the working directory for CodeQL analysis
     - name: Change to working directory
       if: ${{ inputs.working-directory != '.' }}
       run: cd "${{ inputs.working-directory }}"
       shell: bash
           
+    # Autobuild step to prepare the codebase for analysis      
     - name: Autobuild
       uses: github/codeql-action/autobuild@v3
       with:
         working-directory: ${{ inputs.working-directory }}
 
+    # Perform CodeQL Analysis with continue-on-error set to true
     - name: Perform CodeQL Analysis
-      continue-on-error: ${{ inputs.continue-on-error }}
+      if: inputs.continue-on-error == 'true'
       uses: github/codeql-action/analyze@v3
       with:
-        output: results.sarif    
+        output: results.sarif
+      continue-on-error: true
+
+    # Perform CodeQL Analysis with continue-on-error set to false
+    - name: Perform CodeQL Analysis
+      if: inputs.continue-on-error != 'true'
+      uses: github/codeql-action/analyze@v3
+      with:
+        output: results.sarif
