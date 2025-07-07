@@ -1,4 +1,4 @@
-name: Go Dev Build Pipeline
+name: Go Build Pipeline v2
 
 on:
   workflow_call:
@@ -22,17 +22,17 @@ on:
         description: 'Container registry URL (e.g., ghcr.io, AWS ECR)'
         default: 'ghcr.io'
       docker-context:
-        description: 'Context for Docker build. Default src/NetWebApi.API.'
+        description: 'Context for Docker build'
         required: false
         type: string
         default: '.'
       docker-file:
-        description: 'Dockerfile path. Default ./Dockerfile; can be set to a custom Dockerfile path'
+        description: 'Dockerfile path'
         required: false
         type: string
         default: './Dockerfile'
       docker-push:
-        description: 'Push the Docker image to the registry. Default true'
+        description: 'Push the Docker image to the registry'
         required: false
         type: boolean
         default: true
@@ -52,77 +52,73 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Lint Go code
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint/@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
-  test:
+
+  unit-test:
     runs-on: ubuntu-latest
     steps:
       - name: Run unit tests
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test/@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@feature/DDH-106-go
         with:
-          go-version: ${{ inputs.go-version }}
-  build-go:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Build Go application
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build/@feature/DDH-106-go
-        with:
-          app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
           main-package-path: ${{ inputs.main-package-path }}
 
-  static-code-analysis:
-    needs: build-go
+  version:
     runs-on: ubuntu-latest
+    needs: [lint, unit-test]
+    outputs:
+      image-tag: ${{ steps.version.outputs.image-tag }}
+      version-tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Generate version and image tag
+        id: version
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/image-tag@feature/DDH-106-go
+
+  docker-build-and-push:
+    runs-on: ubuntu-latest
+    needs: [lint, unit-test, version]
+    outputs:
+      full-image-name: ${{ steps.package.outputs.full-image-name }}
+    steps:
+      - name: Build and push Docker image
+        id: package
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@feature/DDH-106-go
+        with:
+          app-name: ${{ inputs.app-name }}
+          context: ${{ inputs.docker-context }}
+          docker-file: ${{ inputs.docker-file }}
+          image-tag: ${{ needs.version.outputs.image-tag }}
+          registry: ${{ inputs.registry }}
+          push: ${{ inputs.docker-push }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-scan:
+    runs-on: ubuntu-latest
+    needs: [docker-build-and-push, version]
+    steps:
+      - name: Scan Docker image for vulnerabilities
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/DDH-106-go
+        with:
+          version: ${{ needs.version.outputs.image-tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          severity: 'CRITICAL,HIGH'
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: [lint, unit-test]
     permissions:
       security-events: write
       actions: read
       contents: read
     steps:
       - name: Set up Go
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup/@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
-      # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql/@feature/DDH-106-go
+      
+      - name: Run CodeQL security analysis
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@feature/DDH-106-go
         with:
-          languages: go
-
-  set-image-tag:
-    runs-on: ubuntu-latest
-    outputs:
-      image-tag: ${{ steps.set-tag.outputs.image-tag }}
-    steps:
-      - name: Generate image tag
-        id: set-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/image-tag/@feature/DDH-106-go
-
-  package:
-    runs-on: ubuntu-latest
-    needs: [build-go, set-image-tag]
-    # outputs:
-    #   full-image-name: ${{ steps.package.outputs.full-image-name }}
-    steps:
-      - name: Package application
-        id: package
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package/@feature/DDH-106-go
-        with:
-          app-name: ${{ inputs.app-name }}
-          context: ${{ inputs.docker-context }}
-          docker-file: ${{ inputs.docker-file }}
-          image-tag: ${{ needs.set-image-tag.outputs.image-tag }}
-          registry: ${{ inputs.registry }}
-          push: ${{ inputs.docker-push }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          
-  container-security:
-    runs-on: ubuntu-latest
-    needs: [package, set-image-tag]
-    steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan/@feature/DDH-106-go
-        with:
-          version: ${{ needs.set-image-tag.outputs.image-tag }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          severity: 'CRITICAL,HIGH'
+          languages: go 
