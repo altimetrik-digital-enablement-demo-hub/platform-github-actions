@@ -64,7 +64,6 @@ jobs:
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@feature/DDH-106-go
         with:
           go-version: ${{ inputs.go-version }}
-          main-package-path: ${{ inputs.main-package-path }}
 
   version:
     runs-on: ubuntu-latest
