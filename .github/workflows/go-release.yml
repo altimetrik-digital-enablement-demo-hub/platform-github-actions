@@ -62,21 +62,9 @@ permissions:
   packages: write
 
 jobs:
-  # Only run on main branch
-  validate-branch:  # what is this for?
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check if running on main branch
-        if: github.ref != 'refs/heads/main'
-        run: |
-          echo "❌ Release workflow can only be run on the main branch"
-          echo "Current branch: ${{ github.ref }}"
-          exit 1
-
   # Calculate semantic version based on manual inputs
   calculate-version:
     runs-on: ubuntu-latest
-    needs: validate-branch
     outputs:
       new-version: ${{ steps.version-calc.outputs.tag }}
       has-new-version: ${{ steps.version-calc.outputs.tag != '' }}
