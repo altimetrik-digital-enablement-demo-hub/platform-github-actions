@@ -23,7 +23,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Or a PAT with repo scope
         shell: bash
         run: |
+          set -x
           REPO_NAME=$(basename ${{ github.repository }})
-          echo "Cleaning up artifacts older than ${{ inputs.retention_days }} days in repository: ${{ github.repository }}"" 
+          echo "Cleaning up artifacts older than ${{ inputs.retention_days }} days in repository: ${{ github.repository }}"
           scripts/cleanup_artifacts.sh ${REPO_NAME} ${{ inputs.retention_days }} ${{ github.repository_owner }} 
         
