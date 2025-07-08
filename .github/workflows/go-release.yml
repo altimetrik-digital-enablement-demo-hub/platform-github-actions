@@ -133,6 +133,7 @@ jobs:
       security-events: write
       actions: read
       contents: read
+      packages: read
     steps:
       - name: Scan Docker image with Trivy
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/DDH-106-go
