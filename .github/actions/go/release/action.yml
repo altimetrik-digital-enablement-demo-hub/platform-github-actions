@@ -1,5 +1,5 @@
-name: Go Version Calculator
-description: Calculates semantic version based on manual inputs or automatic bumping
+name: Go Release Action
+description: Complete Go release pipeline - calculates version, generates changelog, builds app, creates release, and uploads binary
 
 inputs:
   release_bump:
@@ -16,11 +16,20 @@ inputs:
   token:
     description: 'A Github API token with permissions to read repository'
     required: true
+  app-name:
+    description: 'Name of the application (used in changelog)'
+    required: true
+  main-package-path:
+    description: 'Path to the main package (where main.go is located)'
+    required: true
 
 outputs:
   tag:
     description: The calculated semantic version tag
     value: ${{ steps.version.outputs.new-version }}
+  changelog:
+    description: Generated changelog for the release
+    value: ${{ steps.changelog.outputs.changelog }}
 
 runs:
   using: 'composite'  
@@ -66,6 +75,56 @@ runs:
         echo "Calculated new version: $new_version"
         echo "new-version=$new_version" >> $GITHUB_OUTPUT
 
+    - name: Generate changelog
+      id: changelog
+      shell: bash
+      run: |
+        echo "## 📋 Changelog" > changelog.md
+        echo "" >> changelog.md
+        
+        # Get commits since last tag
+        if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+          last_tag=$(git describe --tags --abbrev=0)
+          echo "### Changes since $last_tag:" >> changelog.md
+          echo "" >> changelog.md
+          
+          # Parse conventional commits
+          git log $last_tag..HEAD --pretty=format:"%s" | while IFS= read -r commit; do
+            if [[ "$commit" =~ ^feat(\(.+\))?: ]]; then
+              echo "- ✨ $commit" >> changelog.md
+            elif [[ "$commit" =~ ^fix(\(.+\))?: ]]; then
+              echo "- 🐛 $commit" >> changelog.md
+            elif [[ "$commit" =~ ^chore(\(.+\))?: ]]; then
+              echo "- 🔧 $commit" >> changelog.md
+            elif [[ "$commit" =~ ^docs(\(.+\))?: ]]; then
+              echo "- 📚 $commit" >> changelog.md
+            elif [[ "$commit" =~ ^refactor(\(.+\))?: ]]; then
+              echo "- ♻️ $commit" >> changelog.md
+            elif [[ "$commit" =~ ^perf(\(.+\))?: ]]; then
+              echo "- ⚡ $commit" >> changelog.md
+            else
+              echo "- 📝 $commit" >> changelog.md
+            fi
+          done
+        else
+          echo "### 🎉 Initial release" >> changelog.md
+          echo "This is the first release of ${{ inputs.app-name }}!" >> changelog.md
+        fi
+        
+        # Set output for use in workflows
+        {
+          echo "changelog<<EOTCHANGELOG123"
+          cat changelog.md
+          echo "EOTCHANGELOG123"
+        } >> $GITHUB_OUTPUT
+
+    - name: Build application
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@feature/DDH-106-go
+      with:
+        app-name: ${{ inputs.app-name }}
+        go-version: ${{ inputs.go-version }}
+        main-package-path: ${{ inputs.main-package-path }}
+
     - name: Create and push git tag
       shell: bash
       env:
@@ -76,3 +135,25 @@ runs:
         git tag ${{ env.NEW_VERSION }}
         git push origin ${{ env.NEW_VERSION }}
         echo "Created and pushed tag: ${{ env.NEW_VERSION }}"
+
+    - name: Create GitHub Release
+      id: create-release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      with:
+        tag_name: ${{ env.NEW_VERSION }}
+        release_name: "Release ${{ env.NEW_VERSION }}"
+        body: ${{ steps.changelog.outputs.changelog }}
+        draft: false
+        prerelease: false
+
+    - name: Upload binary to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      with:
+        upload_url: ${{ steps.create-release.outputs.upload_url }}
+        asset_path: ./${{ inputs.app-name }}
+        asset_name: ${{ inputs.app-name }}
+        asset_content_type: application/octet-stream

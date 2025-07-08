@@ -62,113 +62,27 @@ permissions:
   packages: write
 
 jobs:
-  # Calculate semantic version based on manual inputs
-  calculate-version:
+  version:
     runs-on: ubuntu-latest
     outputs:
-      new-version: ${{ steps.version-calc.outputs.tag }}
-      has-new-version: ${{ steps.version-calc.outputs.tag != '' }}
+      new-version: ${{ steps.release.outputs.tag }}
+      changelog: ${{ steps.release.outputs.changelog }}
     steps:
-      - name: Calculate semantic version
-        id: version-calc
+      - name: Create release
+        id: release
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/release/@feature/DDH-106-go
         with:
           release_bump: ${{ inputs.release_bump }}
           version_override: ${{ inputs.version_override }}
           go-version: ${{ inputs.go-version }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  # Create GitHub Release with changelog
-  create-release:
-    runs-on: ubuntu-latest
-    needs: calculate-version
-    if: needs.calculate-version.outputs.has-new-version == 'true'
-    outputs:
-      release-url: ${{ steps.create-release.outputs.html_url }}
-    steps:
-      - name: Set up Go
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup/@feature/DDH-106-go
-        with:
-          go-version: ${{ inputs.go-version }}
-          git-fetch-depth: 0
-          git-fetch-tags: true
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          echo "## 📋 Changelog" > changelog.md
-          echo "" >> changelog.md
-          
-          # Get commits since last tag
-          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
-            last_tag=$(git describe --tags --abbrev=0)
-            echo "### Changes since $last_tag:" >> changelog.md
-            echo "" >> changelog.md
-            
-            # Parse conventional commits
-            git log $last_tag..HEAD --pretty=format:"%s" | while IFS= read -r commit; do
-              if [[ "$commit" =~ ^feat(\(.+\))?: ]]; then
-                echo "- ✨ $commit" >> changelog.md
-              elif [[ "$commit" =~ ^fix(\(.+\))?: ]]; then
-                echo "- 🐛 $commit" >> changelog.md
-              elif [[ "$commit" =~ ^chore(\(.+\))?: ]]; then
-                echo "- 🔧 $commit" >> changelog.md
-              elif [[ "$commit" =~ ^docs(\(.+\))?: ]]; then
-                echo "- 📚 $commit" >> changelog.md
-              elif [[ "$commit" =~ ^refactor(\(.+\))?: ]]; then
-                echo "- ♻️ $commit" >> changelog.md
-              elif [[ "$commit" =~ ^perf(\(.+\))?: ]]; then
-                echo "- ⚡ $commit" >> changelog.md
-              else
-                echo "- 📝 $commit" >> changelog.md
-              fi
-            done
-          else
-            echo "### 🎉 Initial release" >> changelog.md
-            echo "This is the first release of ${{ inputs.app-name }}!" >> changelog.md
-          fi
-          
-          # Set output for GitHub release
-          {
-            echo "changelog<<EOTCHANGELOG123"
-            cat changelog.md
-            echo "EOTCHANGELOG123"
-          } >> $GITHUB_OUTPUT
-
-      - name: Build application
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build/@feature/DDH-106-go
-        with:
           app-name: ${{ inputs.app-name }}
-          go-version: ${{ inputs.go-version }}
           main-package-path: ${{ inputs.main-package-path }}
-
-      - name: Create GitHub Release
-        id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ needs.calculate-version.outputs.new-version }}
-          release_name: "Release ${{ needs.calculate-version.outputs.new-version }}"
-          body: ${{ steps.changelog.outputs.changelog }}
-          draft: false
-          prerelease: false
-
-      - name: Upload binary to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ./${{ inputs.app-name }}
-          asset_name: ${{ inputs.app-name }}
-          asset_content_type: application/octet-stream
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   # Push Docker image with semantic version
   push-docker-image:
     runs-on: ubuntu-latest
-    needs: [calculate-version, create-release]
-    if: needs.calculate-version.outputs.has-new-version == 'true'
+    needs: [version]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -179,8 +93,46 @@ jobs:
           app-name: ${{ inputs.app-name }}
           context: ${{ inputs.docker-context }}
           docker-file: ${{ inputs.docker-file }}
-          image-tag: ${{ needs.calculate-version.outputs.new-version }}
+          image-tag: ${{ needs.version.outputs.new-version }}
           registry: ${{ inputs.registry }}
-          push: true
-          token: ${{ secrets.GITHUB_TOKEN }} 
+          push: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Security scan the Docker image
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: [version, push-docker-image]
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Scan Docker image with Trivy
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/DDH-106-go
+        with:
+          version: ${{ needs.version.outputs.new-version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Generate Trivy dashboard report
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        with:
+          tool: 'Trivy'
+          report: 'trivy-report.txt'
+          critical_keyword: 'CRITICAL'
+          high_keyword: 'HIGH'
+      
+      - name: Scan Docker image with Grype
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@feature/DDH-106-go
+        with:
+          version: ${{ needs.version.outputs.new-version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Generate Grype dashboard report
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        with:
+          tool: 'Grype'
+          report: 'grype-report.txt'
+          critical-keyword: 'CRITICAL'
+          high-keyword: 'HIGH'
           
