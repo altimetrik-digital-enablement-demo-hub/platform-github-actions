@@ -35,9 +35,8 @@ runs:
     - name: Build binary
       shell: bash
       run: |
-        cd ${{ inputs.main-package-path }}
         GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
-         go build -o ../${{ inputs.app-name }} .
+         go build -o ${{ inputs.app-name }} ${{ inputs.main-package-path }}
 
     - name: Upload binary as artifact
       uses: actions/upload-artifact@v4
