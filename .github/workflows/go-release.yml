@@ -80,7 +80,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   # Push Docker image with semantic version
-  push-docker-image:
+  docker-build-and-push:
     runs-on: ubuntu-latest
     needs: [version]
     steps:
@@ -99,9 +99,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   # Security scan the Docker image
-  security-scan:
+  docker-scan:
     runs-on: ubuntu-latest
-    needs: [version, push-docker-image]
+    needs: [version, docker-build-and-push]
     permissions:
       security-events: write
       actions: read
