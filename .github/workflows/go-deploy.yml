@@ -51,9 +51,12 @@ jobs:
     name: Deploy release ${{ inputs.release-name }} to ${{ inputs.target }}/${{ inputs.namespace }}
     runs-on: ['self-hosted', 'macOS']
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Deploy to local Kubernetes cluster using Helm
         if: inputs.target == 'local-k8s'
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment//@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@feature/DDH-106-go
         with:
           app-name: ${{ inputs.release-name }}
           chart-path: ${{ inputs.chart }}
