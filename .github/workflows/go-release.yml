@@ -62,11 +62,13 @@ permissions:
   packages: write
 
 jobs:
+  # Calculate version and create release
   version:
     runs-on: ubuntu-latest
     outputs:
       new-version: ${{ steps.release.outputs.tag }}
       changelog: ${{ steps.release.outputs.changelog }}
+      upload-url: ${{ steps.release.outputs.upload-url }}
     steps:
       - name: Create release
         id: release
@@ -98,6 +100,16 @@ jobs:
           registry: ${{ inputs.registry }}
           push: false
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload binary to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.version.outputs.upload-url }}
+          asset_path: ./${{ inputs.app-name }}
+          asset_name: ${{ inputs.app-name }}
+          asset_content_type: application/octet-stream
 
   # Security scan the Docker image
   docker-scan:

@@ -1,5 +1,5 @@
 name: Go Release Action
-description: Complete Go release pipeline - calculates version, generates changelog, downloads existing binary, creates release, and uploads binary
+description: Calculates version, generates changelog, creates git tag and GitHub release (binary uploaded separately)
 
 inputs:
   release_bump:
@@ -27,6 +27,9 @@ outputs:
   changelog:
     description: Generated changelog for the release
     value: ${{ steps.changelog.outputs.changelog }}
+  upload-url:
+    description: Upload URL for the created GitHub release
+    value: ${{ steps.create-release.outputs.upload_url }}
 
 runs:
   using: 'composite'  
@@ -118,12 +121,6 @@ runs:
           echo "EOTCHANGELOG123"
         } >> $GITHUB_OUTPUT
 
-    - name: Download binary artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ inputs.app-name }}
-        path: .
-
     - name: Create and push git tag
       shell: bash
       env:
@@ -146,13 +143,3 @@ runs:
         body: ${{ steps.changelog.outputs.changelog }}
         draft: false
         prerelease: false
-
-    - name: Upload binary to release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ inputs.token }}
-      with:
-        upload_url: ${{ steps.create-release.outputs.upload_url }}
-        asset_path: ./${{ inputs.app-name }}
-        asset_name: ${{ inputs.app-name }}
-        asset_content_type: application/octet-stream
