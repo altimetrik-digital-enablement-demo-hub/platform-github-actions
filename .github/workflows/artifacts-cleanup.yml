@@ -24,6 +24,8 @@ jobs:
         shell: bash
         run: |
           set -x
+          cd ${{ github.workspace }}
+          ls -al
           REPO_NAME=$(basename ${{ github.repository }})
           echo "Cleaning up artifacts older than ${{ inputs.retention_days }} days in repository: ${{ github.repository }}"
           scripts/cleanup_artifacts.sh ${REPO_NAME} ${{ inputs.retention_days }} ${{ github.repository_owner }} 
