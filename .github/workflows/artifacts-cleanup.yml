@@ -1,0 +1,29 @@
+name: On-Demand Artifact Cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: 'Delete artifacts older than this many days. Default is 14 days.'
+        required: true
+        default: '14' # Default to 14 days if not specified
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (optional, if script is in repo)
+        uses: actions/checkout@v4
+
+      - name: Install jq (if not on runner by default)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run artifact cleanup script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Or a PAT with repo scope
+        shell: bash
+        run: |
+          REPO_NAME=$(basename ${{ github.repository }})
+          echo "Cleaning up artifacts older than ${{ inputs.retention_days }} days in repository: ${{ github.repository }}"" 
+          scripts/cleanup_artifacts.sh ${REPO_NAME} ${{ inputs.retention_days }} ${{ github.repository_owner }} 
+        
