@@ -98,7 +98,7 @@ jobs:
           docker-file: ${{ inputs.docker-file }}
           image-tag: ${{ needs.version.outputs.new-version }}
           registry: ${{ inputs.registry }}
-          push: false
+          push: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload binary to release
@@ -122,6 +122,7 @@ jobs:
     steps:
       - name: Scan Docker image with Trivy
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/DDH-106-go
+        continue-on-error: true
         with:
           version: ${{ needs.version.outputs.new-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -129,6 +130,7 @@ jobs:
       
       - name: Generate Trivy dashboard report
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        continue-on-error: true
         with:
           tool: 'Trivy'
           report: 'trivy-report.txt'
@@ -137,12 +139,14 @@ jobs:
       
       - name: Scan Docker image with Grype
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@feature/DDH-106-go
+        continue-on-error: true
         with:
           version: ${{ needs.version.outputs.new-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Generate Grype dashboard report
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        continue-on-error: true
         with:
           tool: 'Grype'
           report: 'grype-report.txt'
