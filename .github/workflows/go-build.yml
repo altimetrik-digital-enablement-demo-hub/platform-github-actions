@@ -100,12 +100,34 @@ jobs:
     runs-on: ubuntu-latest
     needs: [docker-build-and-push]
     steps:
-      - name: Scan Docker image for vulnerabilities
+      - name: Trivy scan
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/DDH-106-go
         with:
           version: ${{ needs.version.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
+
+      - name: Generate Trivy dashboard report
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        with:
+          version: ${{ needs.version.outputs.image-tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          severity: 'CRITICAL,HIGH'
+
+      - name: Grype scan
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@feature/DDH-106-go
+        with:
+          version: ${{ needs.version.outputs.image-tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          severity: 'CRITICAL,HIGH'
+
+      - name: Generate Grype dashboard report
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        with:
+          version: ${{ needs.version.outputs.image-tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          severity: 'CRITICAL,HIGH'
+          
 
   security-scan:
     runs-on: ubuntu-latest
