@@ -37,6 +37,20 @@ inputs:
     description: 'A Github PAT'
     required: true    
 
+outputs:
+  image-digest:
+    description: 'The digest of the built image'
+    value: ${{ steps.push.outputs.digest }}
+  image-tags:
+    description: 'The tags of the built image'
+    value: ${{ steps.meta.outputs.tags }}
+  pushed:
+    description: 'Whether the image was pushed to registry'
+    value: ${{ inputs.push }}
+  image-tag:
+    description: 'The processed image tag (stripped of v prefix)'
+    value: ${{ steps.docker-tag.outputs.docker-tag }}
+
 runs:
   using: composite
   steps:
@@ -60,6 +74,17 @@ runs:
       with:
         name: ${{ inputs.app-name }}
         path: .
+
+    - name: Prepare Docker tag
+      id: docker-tag
+      shell: bash
+      run: |
+        # Strip 'v' prefix from version for Docker tag (v0.8.0 -> 0.8.0)
+        version="${{ inputs.image-tag }}"
+        docker_tag="${version#v}"
+        echo "docker-tag=$docker_tag" >> $GITHUB_OUTPUT
+        echo "Input tag: $version"
+        echo "Docker tag: $docker_tag"
         
     - name: Extract metadata (tags, labels) for Docker
       id: meta
@@ -67,12 +92,8 @@ runs:
       with:
         images: ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.app-name }}
         tags: |
-          ${{ inputs.image-tag }}
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}},value=${{ inputs.image-tag }}
-          type=semver,pattern={{major}}.{{minor}}
-          
+          ${{ steps.docker-tag.outputs.docker-tag }}
+
     - name: Log in to the Container registry
       uses: docker/login-action@v3
       with:
