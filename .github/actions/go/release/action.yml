@@ -1,5 +1,5 @@
 name: Go Release Action
-description: Complete Go release pipeline - calculates version, generates changelog, builds app, creates release, and uploads binary
+description: Complete Go release pipeline - calculates version, generates changelog, downloads existing binary, creates release, and uploads binary
 
 inputs:
   release_bump:
@@ -18,9 +18,6 @@ inputs:
     required: true
   app-name:
     description: 'Name of the application (used in changelog)'
-    required: true
-  main-package-path:
-    description: 'Path to the main package (where main.go is located)'
     required: true
 
 outputs:
@@ -121,12 +118,11 @@ runs:
           echo "EOTCHANGELOG123"
         } >> $GITHUB_OUTPUT
 
-    - name: Build application
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@feature/DDH-106-go
+    - name: Download binary artifact
+      uses: actions/download-artifact@v4
       with:
-        app-name: ${{ inputs.app-name }}
-        go-version: ${{ inputs.go-version }}
-        main-package-path: ${{ inputs.main-package-path }}
+        name: ${{ inputs.app-name }}
+        path: .
 
     - name: Create and push git tag
       shell: bash
