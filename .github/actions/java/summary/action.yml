@@ -1,0 +1,12 @@
+name: "Java Summary"
+description: "Generate a concise inline summary for Java CI/CD pipeline results"
+
+inputs:
+  working-directory:
+    description: "Working directory for the project"
+    required: false
+    default: "."
+
+runs:
+  using: "node20"
+  main: "index.js" 
