@@ -3,42 +3,59 @@ name: Complete node Pipeline
 on:
   workflow_call:
     inputs:
-      app-name:
-        description: 'Name of the application to deploy'
+      image-name:
+        description: 'Name of the Docker image to deploy'
         required: true
         type: string
-      tag:
-        description: 'Docker image tag to deploy'
+      image-tag:
+        description: 'Tag for the Docker image. Default latest'
+        required: false
+        type: string
+        default: 'latest'
+      namespace:
+        description: 'Kubernetes namespace to deploy the application to'
         required: true
         type: string
-      chart-path:
-        description: 'Path to the Helm chart for deployment'
-        required: true
+        default: 'default'
+      registry:
+        description: 'Container registry to push the image to. Default ghcr.io'
+        required: false
         type: string
-      repository:
-        description: 'Docker image repository (e.g., ghcr.io/org/app)'
-        required: true
+        default: 'ghcr.io'
+      chart:
+        required: false
         type: string
-    secrets:
-      GHCR_PAT:
-        required: true
-      GHCR_USERNAME:
-        required: true
-
+        default: 'app'
+      release-name:
+        description: 'Release name for the Helm chart'
+        required: false
+        type: string
+        default: 'app'
+      helm-version:
+        description: 'Version of Helm to use for deployment. Default helm3; can be helm2 or helm3'
+        required: false
+        type: string
+        default: 'helm3'
+      target:
+        required: false
+        description: 'Deployment target platform. Default local-k8s; can be local-k8s, azure-webapp-svc, or azure-webapp-containter'
+        type: string
+        default: 'local-k8s'
+      
 jobs:
   deploy:
-    runs-on: [self-hosted, macOS, ARM64]
+    name: Deploy release ${{ inputs.release-name }} to ${{ inputs.target }}/${{ inputs.namespace }}
+    runs-on: ['self-hosted', 'macOS']
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Docker login to GHCR
-        run: |
-          echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
-
-      - uses: altimetrik-digital-enablement-demo-hub/.github/actions/common/helm-deployment@v0
+      - name: Deploy to local Kubernetes cluster using Helm
+        if: inputs.target == 'local-k8s'
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/deploy/local-k8s-helm@fix/python-deploy
         with:
-          app-name: ${{ inputs.app-name }}
-          tag: ${{ inputs.tag }}
-          chart-path: ${{ inputs.chart-path }}
-          repository: ${{ inputs.repository }}
+          release-name: ${{ inputs.release-name }}
+          namespace: ${{ inputs.namespace }}
+          registry: ${{ inputs.registry }}
+          image-name: ${{ inputs.image-name }}
+          image-tag: ${{ inputs.image-tag }}
+          chart: ${{ inputs.chart }}
+          helm-version: ${{ inputs.helm-version }}
+

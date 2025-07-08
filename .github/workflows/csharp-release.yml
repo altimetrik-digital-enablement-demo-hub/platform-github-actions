@@ -94,7 +94,7 @@ jobs:
       packages: read  
     steps:
         # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@test-cs
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run-trivy == true }}
         with:
           version: ${{ needs.release.outputs.app-version }}
@@ -102,7 +102,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
   
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@test-cs
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run-grype == true }}
         with:
           version: ${{ needs.release.outputs.app-version }}
