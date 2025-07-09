@@ -1,5 +1,5 @@
 name: Lint Java Project
-description: 'Lint a Java project using Spring Java Format (default) or Checkstyle and upload the results as an artifact'
+description: 'Lint a Java project using Spring Java Format (default) or Checkstyle and optionally upload the results as an artifact'
 
 inputs:
   lint-command:
@@ -26,6 +26,10 @@ inputs:
     description: 'Continue on error for linting'
     required: false
     default: 'true'
+  create-artifact:
+    description: 'Whether to create and upload lint artifacts'
+    required: false
+    default: 'false'
 
 runs: 
   using: composite
@@ -73,30 +77,49 @@ runs:
     - name: Generate Lint Summary
       run: |
         if [[ "${{ inputs.lint-command }}" != "" ]]; then
-          echo "## 🔧 Custom Lint Report" > summary.md
-          echo "- ✅ Custom lint command executed: ${{ inputs.lint-command }}" >> summary.md
+          echo "## 🔧 Custom Lint Report" > lint-summary.md
+          echo "- ✅ Custom lint command executed: ${{ inputs.lint-command }}" >> lint-summary.md
+          echo "- 📝 Linting completed" >> lint-summary.md
         elif [[ "${{ inputs.linter-type }}" == "spring" ]]; then
-          echo "## 🌸 Spring Java Format Report" > summary.md
-          echo "- ✅ Spring Java Format validation completed" >> summary.md
-          echo "- 📝 Code formatting applied (if enabled)" >> summary.md
+          echo "## 🌸 Spring Java Format Report" > lint-summary.md
+          echo "- ✅ Spring Java Format validation completed" >> lint-summary.md
+          echo "- 📝 Code formatting applied (if enabled)" >> lint-summary.md
+          echo "- 🎯 Code style compliance verified" >> lint-summary.md
         else
           if [[ ! -f target/checkstyle-result.xml ]]; then
-            echo "## 🧹 Checkstyle Report" > summary.md
-            echo "- ⚠️ No report file found. Was Checkstyle run correctly?" >> summary.md
+            echo "## 🧹 Checkstyle Report" > lint-summary.md
+            echo "- ⚠️ No report file found. Was Checkstyle run correctly?" >> lint-summary.md
           else
             ERRORS=$(grep -c '<error' target/checkstyle-result.xml || echo "0")
             WARNINGS=$(grep -c '<warning' target/checkstyle-result.xml || echo "0")
 
-            echo "## 🧹 Checkstyle Report" > summary.md
-            echo "- ❌ Errors: $ERRORS" >> summary.md
-            echo "- ⚠️ Warnings: $WARNINGS" >> summary.md
+            echo "## 🧹 Checkstyle Report" > lint-summary.md
+            echo "- ❌ Errors: $ERRORS" >> lint-summary.md
+            echo "- ⚠️ Warnings: $WARNINGS" >> lint-summary.md
+            
+            if [[ $ERRORS -eq 0 ]]; then
+              echo "- ✅ Code style compliance verified" >> lint-summary.md
+            else
+              echo "- ❌ Code style violations found" >> lint-summary.md
+            fi
           fi
         fi
+        
+        if [[ "${{ inputs.create-artifact }}" == "true" ]]; then
+          echo "- 📦 Lint artifacts uploaded" >> lint-summary.md
+        else
+          echo "- 💾 Lint artifacts not uploaded (storage optimization)" >> lint-summary.md
+        fi
+        
+        # Write to GITHUB_STEP_SUMMARY
+        cat lint-summary.md >> $GITHUB_STEP_SUMMARY
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
 
-    # Upload the summary file as an artifact
+    # Upload the summary file as an artifact (only if create-artifact is true)
     - name: Upload Lint Summary
+      if: inputs.create-artifact == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.lint-command != '' && 'custom-lint-summary' || format('%s-lint-summary', inputs.linter-type) }}
-        path: summary.md 
+        path: lint-summary.md 
