@@ -30,32 +30,13 @@ with:
 ## Example Workflow
 
 ```yaml
-name: Build and Push Docker Image
-
-on:
-  push:
-    branches: [main]
-
 jobs:
-  docker:
+  cleanup:
     runs-on: ubuntu-latest
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
+      - name: Clear Artifacts
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/clear-artifacts@v0
         with:
-          version: '1.0.0'
-          token: ${{ secrets.GITHUB_TOKEN }}
+          retention-days: ${{ inputs.retention-days }}
+          token: ${{ secrets.GITHUB_TOKEN }} 
 ```
-
-## Notes
-
-- The image will be published to:  
-  `ghcr.io/<owner>/<repo>:<version>`  
-  `ghcr.io/<owner>/<repo>:latest`
-- The repository name is automatically converted to lowercase to comply with GHCR naming standards.
-
-## Permissions
-
-Ensure that your GitHub token has the following scopes:
-- `write:packages`
-- `read:packages`
-

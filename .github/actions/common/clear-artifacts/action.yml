@@ -16,8 +16,8 @@ runs:
     - name: Install jq
       shell: bash
       run: |
-        apt-get update && \
-        apt-get install -y jq
+        sudo apt-get update && \
+        sudo apt-get install -y jq
     
     - name: Run artifact cleanup script
       env:
