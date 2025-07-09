@@ -153,7 +153,7 @@ jobs:
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
   # Note: CodeQL is only available for public repos or private repos with GitHub Advanced Security
   security-scan:
-    needs: build
+    needs: lint
     runs-on: ubuntu-latest
     if: ${{ github.repository_visibility == 'public' }}
     permissions:
