@@ -115,10 +115,12 @@ jobs:
           continue-on-error: ${{ inputs.contine-on-error }}
           create-artifact: ${{ inputs.create-artifact }}
 
-  # This job builds and packages the Java project
+  # This job builds the Java project and optionally creates Docker image
   build:
     needs: unit-test
     runs-on: ubuntu-latest
+    outputs:
+      docker-tag: ${{ steps.docker-tag.outputs.tag }}
     steps:
       # This step sets up the Java environment
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@fix/java
@@ -135,51 +137,17 @@ jobs:
           artifact-name: ${{ inputs.artifact-name }}
           create-artifact: ${{ inputs.create-artifact }}
 
-  # This job handles versioning by generating a new tag based on the commit history
-  versioning:
-    runs-on: ubuntu-latest
-    needs: build
-    if: ${{ inputs.build-docker }}
-    permissions:
-      contents: write
-    outputs:
-      new-tag: ${{ steps.generate-tag.outputs.tag }}
-    steps:
-      # This step checks out the code from the repository
+      # Generate version tag if Docker build is requested
       - id: generate-tag
+        if: ${{ inputs.build-docker }}
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@fix/java
 
-  # This job builds and pushes Docker image (optimized mode - no artifacts needed)
-  docker-build:
-    runs-on: ubuntu-latest
-    needs: [versioning, build]
-    if: ${{ inputs.build-docker }}
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      tag: ${{ steps.docker-tag.outputs.tag }}
-    steps:
-      # This step sets up the Java environment
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@fix/java
-        with:
-          java-version: ${{ inputs.java-version }}
-          working-directory: ${{ inputs.working-directory }}
-
-      # This step builds and packages the Java project (no artifacts uploaded)
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/build@fix/java
-        with:
-          build-command: ${{ inputs.build-command }}
-          java-version: ${{ inputs.java-version }}
-          working-directory: ${{ inputs.working-directory }}
-          artifact-name: ${{ inputs.artifact-name }}
-          create-artifact: false
-
-      # Build and push Docker image (artifacts are already built in this runner)
+      # Build and push Docker image if requested
       - id: docker-tag
+        if: ${{ inputs.build-docker }}
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@fix/java
         with:
-          version: ${{ needs.versioning.outputs.new-tag }}
+          version: ${{ steps.generate-tag.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
@@ -203,8 +171,8 @@ jobs:
   # This job scans the Docker image for vulnerabilities using Trivy and Grype
   docker-scan:
     runs-on: ubuntu-latest
-    needs: [docker-build]
-    if: ${{ needs.docker-build.outputs.tag != '' }}
+    needs: [build]
+    if: ${{ needs.build.outputs.docker-tag != '' }}
     permissions:
       contents: read
       packages: read 
@@ -213,7 +181,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@fix/java
         if: ${{ inputs.run_trivy == 'true' }}
         with:
-          version: ${{ needs.docker-build.outputs.tag }}
+          version: ${{ needs.build.outputs.docker-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
@@ -231,7 +199,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@fix/java
         if: ${{ inputs.run_grype == 'true' }}
         with:
-          version: ${{ needs.docker-build.outputs.tag }}
+          version: ${{ needs.build.outputs.docker-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
