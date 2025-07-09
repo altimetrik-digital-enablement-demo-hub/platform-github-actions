@@ -170,5 +170,17 @@ runs:
       shell: bash
       run: |
         echo "Setting final tag output..."
-        FINAL_TAG="${{ steps.set-tag.outputs.tag || steps.docker-tag.outputs.tag }}"
+        echo "set-tag output: '${{ steps.set-tag.outputs.tag }}'"
+        echo "docker-tag output: '${{ steps.docker-tag.outputs.tag }}'"
+        
+        if [ -n "${{ steps.set-tag.outputs.tag }}" ]; then
+          FINAL_TAG="${{ steps.set-tag.outputs.tag }}"
+        elif [ -n "${{ steps.docker-tag.outputs.tag }}" ]; then
+          FINAL_TAG="${{ steps.docker-tag.outputs.tag }}"
+        else
+          echo "No tag generated from either step"
+          FINAL_TAG=""
+        fi
+        
+        echo "Final tag: '$FINAL_TAG'"
         echo "tag=$FINAL_TAG" >> "$GITHUB_OUTPUT"
