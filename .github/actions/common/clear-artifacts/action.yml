@@ -42,7 +42,7 @@ runs:
         fi
 
         echo "# Artifact Cleanup Summary" >> $GITHUB_STEP_SUMMARY
-        echo "Deleted artifacts in $OWNER/$REPO older than $retention-days days"  >> $GITHUB_STEP_SUMMARY
+        echo "Deleted artifacts in $OWNER/$REPO older than $RETENTION_DAYS days"  >> $GITHUB_STEP_SUMMARY
   
         CUTOFF_DATE=$(date -d "$RETENTION_DAYS days ago" +%s)
         
