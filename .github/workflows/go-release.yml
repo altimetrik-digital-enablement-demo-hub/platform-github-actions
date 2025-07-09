@@ -83,7 +83,7 @@ jobs:
     steps:
       - name: Create release
         id: release
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/release@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/release@v0
         with:
           release_bump: ${{ inputs.release_bump }}
           version_override: ${{ inputs.version_override }}
@@ -103,7 +103,7 @@ jobs:
 
       - name: Build and push Docker image
         id: build-push
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@v0
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
@@ -136,7 +136,7 @@ jobs:
       packages: read
     steps:
       - name: Scan Docker image with Trivy
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run-trivy == 'true' }}
         continue-on-error: true
         with:
@@ -145,7 +145,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
       
       - name: Generate Trivy dashboard report
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
         if: ${{ inputs.run-trivy == 'true' }}
         continue-on-error: true
         with:
@@ -155,7 +155,7 @@ jobs:
           high_keyword: 'HIGH'
       
       - name: Scan Docker image with Grype
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run-grype == 'true' }}
         continue-on-error: true
         with:
@@ -163,7 +163,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Generate Grype dashboard report
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
         if: ${{ inputs.run-grype == 'true' }}
         continue-on-error: true
         with:

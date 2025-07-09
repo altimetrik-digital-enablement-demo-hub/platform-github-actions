@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Lint Go code
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@v0
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -76,7 +76,7 @@ jobs:
     needs: [lint]
     steps:
       - name: Run unit tests
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@v0
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -89,7 +89,7 @@ jobs:
     steps:
       - name: Generate version and image tag
         id: version
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/image-tag@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/image-tag@v0
 
   docker-build-and-push:
     runs-on: ubuntu-latest
@@ -99,7 +99,7 @@ jobs:
     steps:
       - name: Build and push Docker image
         id: package
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@v0
         with:
           app-name: ${{ inputs.app-name }}
           go-version: ${{ inputs.go-version }}
@@ -121,7 +121,7 @@ jobs:
       packages: read
     steps:
       - name: Trivy scan
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run-trivy == 'true' }}
         continue-on-error: ${{ inputs.continue-on-error == 'true' }}
         with:
@@ -130,7 +130,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Generate Trivy dashboard report
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
         if: ${{ inputs.run-trivy == 'true' }}
         continue-on-error: ${{ inputs.continue-on-error == 'true' }}
         with:
@@ -140,7 +140,7 @@ jobs:
           high_keyword: 'HIGH'
 
       - name: Grype scan
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run-grype == 'true' }}
         continue-on-error: ${{ inputs.continue-on-error == 'true' }}
         with:
@@ -148,7 +148,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate Grype dashboard report
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
         if: ${{ inputs.run-grype == 'true' }}
         continue-on-error: ${{ inputs.continue-on-error == 'true' }}
         with:
@@ -167,11 +167,11 @@ jobs:
       contents: read
     steps:
       - name: Set up Go
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v0
         with:
           go-version: ${{ inputs.go-version }}
       
       - name: Run CodeQL security analysis
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v0
         with:
           languages: go 

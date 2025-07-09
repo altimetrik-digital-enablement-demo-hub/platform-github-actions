@@ -56,7 +56,7 @@ jobs:
 
       - name: Deploy to local Kubernetes cluster using Helm
         if: inputs.target == 'local-k8s'
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@feature/DDH-106-go
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@v0
         with:
           app-name: ${{ inputs.release-name }}
           chart-path: ${{ inputs.chart }}
