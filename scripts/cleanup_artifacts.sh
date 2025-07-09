@@ -55,16 +55,12 @@ fi
 # Fetch all artifacts for the repository, paginating
 ARTIFACTS=$(gh api "repos/$OWNER/$REPO/actions/artifacts?per_page=100" --paginate)
 
-# echo "ARTIFACTS: $ARTIFACTS"
-
 # Parse artifact IDs and created_at timestamps
 echo "$ARTIFACTS" | jq -r '.artifacts[] | select(.expired == false) | "\(.id) \(.created_at)"' | while read -r ID CREATED_AT; do
   echo "ID: $ID, Created At: $CREATED_AT"
   if [[ "$OS" == "Darwin" ]]; then
     echo "Using macOS syntax."
     ARTIFACT_TIMESTAMP=$($DATE_COMMAND -u -d "$CREATED_AT - $RETENTION_DAYS days" +"%s")
-    echo "ARTIFACT_TIMESTAMP: $ARTIFACT_TIMESTAMP"
-    # ARTIFACT_TIMESTAMP=$(date -v -${CREATED_AT}d +%s)
   elif [[ "$OS" == "Linux" ]]; then
     ARTIFACT_TIMESTAMP=$(date -d "${CREATED_AT}" +%s)  
   else

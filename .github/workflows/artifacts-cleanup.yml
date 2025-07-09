@@ -40,8 +40,8 @@ jobs:
             exit 1
           fi
 
-          echo "Initiating artifact cleanup for $OWNER/$REPO. Deleting artifacts older than $RETENTION_DAYS days."
-          echo "----------------------------------------------------------------------------------"
+          echo "Initiating artifact cleanup for $OWNER/$REPO. Deleting artifacts older than $RETENTION_DAYS days"  >> $GITHUB_STEP_SUMMARY
+          echo "----------------------------------------------------------------------------------"  >> $GITHUB_STEP_SUMMARY
         
           CUTOFF_DATE=$(date -d "$RETENTION_DAYS days ago" +%s)
           
@@ -50,21 +50,21 @@ jobs:
 
           # Parse artifact IDs and created_at timestamps
           echo "$ARTIFACTS" | jq -r '.artifacts[] | select(.expired == false) | "\(.id) \(.created_at)"' | while read -r ID CREATED_AT; do
-            echo "ID: $ID, Created At: $CREATED_AT"
+            # echo "ID: $ID, Created At: $CREATED_AT"
             ARTIFACT_TIMESTAMP=$(date -u -d "${CREATED_AT}" +%s)  
   
             if (( ARTIFACT_TIMESTAMP < CUTOFF_DATE )); then
-              echo "Deleting artifact ID: $ID (Created: $CREATED_AT)"
+              echo "Deleting artifact ID: $ID (Created: $CREATED_AT)"  >> $GITHUB_STEP_SUMMARY
               gh api --method DELETE "repos/$OWNER/$REPO/actions/artifacts/$ID" --silent
               if [ $? -eq 0 ]; then
-                echo "  Successfully deleted artifact ID: $ID"
+                echo "  Successfully deleted artifact ID: $ID"  >> $GITHUB_STEP_SUMMARY
               else
-                echo "  Failed to delete artifact ID: $ID"
+                echo "  Failed to delete artifact ID: $ID" >> $GITHUB_STEP_SUMMARY
               fi
             else
-              echo "Skipping artifact ID: $ID (Created: $CREATED_AT) - within retention period."
+              echo "Skipping artifact ID: $ID (Created: $CREATED_AT) - within retention period." >> $GITHUB_STEP_SUMMARY
             fi
           done
 
-          echo "----------------------------------------------------------------------------------"
-          echo "Artifact cleanup process completed."
+          echo "----------------------------------------------------------------------------------"  >> $GITHUB_STEP_SUMMARY
+          echo "Artifact cleanup process completed." >> $GITHUB_STEP_SUMMARY
