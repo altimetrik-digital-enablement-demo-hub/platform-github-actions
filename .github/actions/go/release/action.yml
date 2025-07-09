@@ -1,5 +1,5 @@
 name: Go Release Action
-description: Calculates version, generates changelog, creates git tag and GitHub release (binary uploaded separately)
+description: Calculates version, generates changelog, creates git tag and GitHub release
 
 inputs:
   release_bump:

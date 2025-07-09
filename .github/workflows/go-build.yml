@@ -1,4 +1,4 @@
-name: Go Build Pipeline v2
+name: Go Build Pipeline
 
 on:
   workflow_call:
