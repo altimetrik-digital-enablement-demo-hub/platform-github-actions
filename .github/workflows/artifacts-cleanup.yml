@@ -40,9 +40,9 @@ jobs:
             exit 1
           fi
 
-          echo "Initiating artifact cleanup for $OWNER/$REPO. Deleting artifacts older than $RETENTION_DAYS days"  >> $GITHUB_STEP_SUMMARY
-          echo "----------------------------------------------------------------------------------"  >> $GITHUB_STEP_SUMMARY
-        
+          echo "# Artifact Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Deleted artifacts in $OWNER/$REPO older than $RETENTION_DAYS days"  >> $GITHUB_STEP_SUMMARY
+    
           CUTOFF_DATE=$(date -d "$RETENTION_DAYS days ago" +%s)
           
           # Fetch all artifacts for the repository, paginating
@@ -57,12 +57,12 @@ jobs:
               echo "Deleting artifact ID: $ID (Created: $CREATED_AT)"  >> $GITHUB_STEP_SUMMARY
               gh api --method DELETE "repos/$OWNER/$REPO/actions/artifacts/$ID" --silent
               if [ $? -eq 0 ]; then
-                echo "  Successfully deleted artifact ID: $ID"  >> $GITHUB_STEP_SUMMARY
+                echo "✅ Successfully deleted artifact ID: $ID"  >> $GITHUB_STEP_SUMMARY
               else
-                echo "  Failed to delete artifact ID: $ID" >> $GITHUB_STEP_SUMMARY
+                echo "❌ Failed to delete artifact ID: $ID" >> $GITHUB_STEP_SUMMARY
               fi
             else
-              echo "Skipping artifact ID: $ID (Created: $CREATED_AT) - within retention period." >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ Skipping artifact ID: $ID (Created: $CREATED_AT) - within retention period." >> $GITHUB_STEP_SUMMARY
             fi
           done
 
