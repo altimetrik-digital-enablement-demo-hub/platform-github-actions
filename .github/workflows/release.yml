@@ -1,47 +1,31 @@
-name: Language-Agnostic Release Workflow
+name: Node.js Release Workflow
   
 on:
   workflow_call:
     inputs:
-      # Version control inputs
       version_bump:
         description: 'Version bump type (auto, major, minor, patch)'
         required: false
         type: string
         default: auto
+        
       manual_version:
         description: 'Manual version (e.g., 1.2.3) - overrides version_bump'
         required: false
         type: string
-      
-      # Docker configuration
+    
       registry:
         description: 'Docker registry to push the image (e.g., ghcr.io/org/app)'
         required: false
         default: 'ghcr.io'
         type: string
-      docker-context:
-        description: 'Context for Docker build'
-        required: false
-        type: string
-        default: '.'
-      docker-file:
-        description: 'Dockerfile path'
-        required: false
-        type: string
-        default: './Dockerfile'
-      docker-push:
-        description: 'Push the Docker image to the registry'
-        required: false
-        type: boolean
-        default: true
-      
-      # Security scanning
+
       run-trivy:
         description: 'Run Trivy Scan'
         required: false
         default: 'true'
         type: string
+
       run-grype:
         description: 'Run Grype Scan'
         required: false
@@ -49,86 +33,22 @@ on:
         type: string
 
 jobs:
-  # This job handles versioning with manual control options
+  # This job handles versioning by generating a new tag based on the commit history
   version:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
       tag: ${{ steps.generate-tag.outputs.tag }}
-      version: ${{ steps.generate-tag.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Get latest version
-        id: latest_version
-        run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "latest_tag=${LATEST_TAG#v}" >> $GITHUB_OUTPUT
-      
-      - name: Calculate new version
-        id: calculate_version
-        run: |
-          if [ -n "${{ inputs.manual_version }}" ]; then
-            echo "version=${{ inputs.manual_version }}" >> $GITHUB_OUTPUT
-          elif [ "${{ inputs.version_bump }}" = "auto" ]; then
-            # Use conventional commits for automatic versioning
-            echo "version=auto" >> $GITHUB_OUTPUT
-          else
-            LATEST_VERSION=${{ steps.latest_version.outputs.latest_tag }}
-            echo "Latest version: $LATEST_VERSION"
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
-            case "${{ inputs.version_bump }}" in
-              "major")
-                echo "version=$((MAJOR + 1)).0.0" >> $GITHUB_OUTPUT
-                ;;
-              "minor")
-                echo "version=$MAJOR.$((MINOR + 1)).0" >> $GITHUB_OUTPUT
-                ;;
-              "patch")
-                echo "version=$MAJOR.$MINOR.$((PATCH + 1))" >> $GITHUB_OUTPUT
-                ;;
-            esac
-          fi
-      
-      - name: Generate tag (Auto mode)
-        id: generate-tag-auto
-        if: ${{ steps.calculate_version.outputs.version == 'auto' }}
+      # This step checks out the code from the repository
+      - id: generate-tag
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          conventional-commit: 'true'
-      
-      - name: Generate tag (Manual mode)
-        id: generate-tag-manual
-        if: ${{ steps.calculate_version.outputs.version != 'auto' }}
-        run: |
-          VERSION="${{ steps.calculate_version.outputs.version }}"
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Create and push tag
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git tag -a "v$VERSION" -m "Release v$VERSION"
-          git push origin "v$VERSION"
-      
-      - name: Set outputs
-        run: |
-          if [ "${{ steps.calculate_version.outputs.version }}" = "auto" ]; then
-            echo "tag=${{ steps.generate-tag-auto.outputs.tag }}" >> $GITHUB_OUTPUT
-            # Extract version from tag by removing 'v' prefix
-            TAG="${{ steps.generate-tag-auto.outputs.tag }}"
-            VERSION="${TAG#v}"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${{ steps.generate-tag-manual.outputs.tag }}" >> $GITHUB_OUTPUT
-            echo "version=${{ steps.generate-tag-manual.outputs.version }}" >> $GITHUB_OUTPUT
-          fi
-
-  # Docker build and push job
+          conventional-commit: 'true' 
+  
+   # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
   docker-build-and-push:
     runs-on: ubuntu-latest
     needs: [version]
@@ -137,16 +57,13 @@ jobs:
       contents: read
       packages: write  # Required to push to GHCR
     steps:
+    # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ inputs.registry }}
           version: ${{ needs.version.outputs.tag }}
-          context: ${{ inputs.docker-context }}
-          docker-file: ${{ inputs.docker-file }}
-          push: ${{ inputs.docker-push }}
 
-  # Security scanning job
   docker-scan:
     runs-on: ubuntu-latest
     needs: [version, docker-build-and-push]
@@ -155,7 +72,7 @@ jobs:
       contents: read
       packages: read 
     steps:
-      # Trivy scan
+      # This job scans the Docker image for vulnerabilities using Trivy
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run-trivy == 'true' }}
         with:
@@ -171,7 +88,7 @@ jobs:
           critical_keyword: 'CRITICAL'
           high_keyword: 'HIGH'
 
-      # Grype scan
+      # This job scans the Docker image for vulnerabilities using Grype
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run-grype == 'true' }}
         with:
