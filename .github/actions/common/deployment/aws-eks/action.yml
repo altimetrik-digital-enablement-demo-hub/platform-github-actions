@@ -1,0 +1,208 @@
+name: Deploy to AWS EKS
+description: 'Deploy application to AWS EKS cluster using Helm'
+
+inputs:
+  release-name:
+    description: 'Helm release name'
+    required: true
+  namespace:
+    description: 'Kubernetes namespace for deployment'
+    required: true
+  registry:
+    description: 'Container registry URL'
+    required: true
+  image-name:
+    description: 'Container image name'
+    required: true
+  image-tag:
+    description: 'Container image tag'
+    required: true
+  chart:
+    description: 'Helm chart name or path'
+    required: false
+    default: 'app'
+  helm-version:
+    description: 'Helm version to use'
+    required: false
+    default: 'helm3'
+  region:
+    description: 'AWS region'
+    required: true
+  container-port:
+    description: 'Container port to expose'
+    required: true
+  aws-access-key-id:
+    description: 'AWS Access Key ID'
+    required: false
+  aws-secret-access-key:
+    description: 'AWS Secret Access Key'
+    required: false
+  aws-session-token:
+    description: 'AWS Session Token'
+    required: false
+  cluster-name:
+    description: 'EKS cluster name'
+    required: false
+  kubeconfig:
+    description: 'Kubeconfig file path'
+    required: false
+  values-file:
+    description: 'Path to values file for Helm chart'
+    required: false
+  set-values:
+    description: 'Additional values to set for Helm chart (comma-separated key=value pairs)'
+    required: false
+  timeout:
+    description: 'Helm deployment timeout'
+    required: false
+    default: '300s'
+  wait:
+    description: 'Wait for deployment to complete'
+    required: false
+    default: 'true'
+  atomic:
+    description: 'Delete resources on installation failure'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    # Configure AWS credentials
+    - name: Configure AWS credentials
+      if: inputs.aws-access-key-id != ''
+      run: |
+        aws configure set aws_access_key_id ${{ inputs.aws-access-key-id }}
+        aws configure set aws_secret_access_key ${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          aws configure set aws_session_token ${{ inputs.aws-session-token }}
+        fi
+      shell: bash
+
+    # Update kubeconfig for EKS cluster
+    - name: Update kubeconfig
+      run: |
+        if [[ -n "${{ inputs.cluster-name }}" ]]; then
+          aws eks update-kubeconfig --region ${{ inputs.region }} --name ${{ inputs.cluster-name }}
+        elif [[ -n "${{ inputs.kubeconfig }}" ]]; then
+          export KUBECONFIG=${{ inputs.kubeconfig }}
+        fi
+      shell: bash
+
+    # Verify cluster connectivity
+    - name: Verify cluster connectivity
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+      shell: bash
+
+    # Create namespace if it doesn't exist
+    - name: Create namespace
+      run: |
+        kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+      shell: bash
+
+    # Prepare Helm values
+    - name: Prepare Helm values
+      run: |
+        cat > values.yaml << EOF
+        image:
+          repository: ${{ inputs.registry }}/${{ inputs.image-name }}
+          tag: ${{ inputs.image-tag }}
+        
+        service:
+          type: ClusterIP
+          port: ${{ inputs.container-port }}
+        
+        ingress:
+          enabled: false
+        
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        
+        autoscaling:
+          enabled: false
+          minReplicas: 1
+          maxReplicas: 3
+        EOF
+        
+        # Override with custom values file if provided
+        if [[ -n "${{ inputs.values-file }}" && -f "${{ inputs.values-file }}" ]]; then
+          cp "${{ inputs.values-file }}" values.yaml
+        fi
+      shell: bash
+
+    # Deploy using Helm
+    - name: Deploy to EKS
+      run: |
+        # Build helm command
+        HELM_CMD="helm upgrade --install ${{ inputs.release-name }} ${{ inputs.chart }}"
+        HELM_CMD="$HELM_CMD --namespace ${{ inputs.namespace }}"
+        HELM_CMD="$HELM_CMD --values values.yaml"
+        HELM_CMD="$HELM_CMD --timeout ${{ inputs.timeout }}"
+        
+        # Add wait flag if specified
+        if [[ "${{ inputs.wait }}" == "true" ]]; then
+          HELM_CMD="$HELM_CMD --wait"
+        fi
+        
+        # Add atomic flag if specified
+        if [[ "${{ inputs.atomic }}" == "true" ]]; then
+          HELM_CMD="$HELM_CMD --atomic"
+        fi
+        
+        # Add set values if provided
+        if [[ -n "${{ inputs.set-values }}" ]]; then
+          IFS=',' read -ra VALUES <<< "${{ inputs.set-values }}"
+          for value in "${VALUES[@]}"; do
+            HELM_CMD="$HELM_CMD --set $value"
+          done
+        fi
+        
+        echo "Executing: $HELM_CMD"
+        eval $HELM_CMD
+      shell: bash
+
+    # Verify deployment
+    - name: Verify deployment
+      run: |
+        echo "Checking deployment status..."
+        kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.release-name }}
+        kubectl get services -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.release-name }}
+        
+        # Wait for pods to be ready
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=${{ inputs.release-name }} -n ${{ inputs.namespace }} --timeout=300s
+      shell: bash
+
+    # Generate deployment summary
+    - name: Generate deployment summary
+      run: |
+        echo "## 🚀 AWS EKS Deployment Report" > deployment-summary.md
+        
+        # Get deployment status
+        PODS=$(kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.release-name }} --no-headers | wc -l)
+        READY_PODS=$(kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.release-name }} --no-headers | grep -c "Running")
+        
+        echo "- ✅ Deployment completed successfully" >> deployment-summary.md
+        echo "- 📦 Release: ${{ inputs.release-name }}" >> deployment-summary.md
+        echo "- 🏷️ Namespace: ${{ inputs.namespace }}" >> deployment-summary.md
+        echo "- 🐳 Image: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.image-tag }}" >> deployment-summary.md
+        echo "- 🌍 Region: ${{ inputs.region }}" >> deployment-summary.md
+        echo "- 📊 Pods: $READY_PODS/$PODS ready" >> deployment-summary.md
+        
+        # Get service details
+        SERVICE_IP=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.release-name }} -o jsonpath='{.items[0].spec.clusterIP}' 2>/dev/null || echo "N/A")
+        SERVICE_PORT=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.release-name }} -o jsonpath='{.items[0].spec.ports[0].port}' 2>/dev/null || echo "N/A")
+        
+        if [[ "$SERVICE_IP" != "N/A" ]]; then
+          echo "- 🔗 Service: $SERVICE_IP:$SERVICE_PORT" >> deployment-summary.md
+        fi
+        
+        # Write to GITHUB_STEP_SUMMARY
+        cat deployment-summary.md >> $GITHUB_STEP_SUMMARY
+      shell: bash 
