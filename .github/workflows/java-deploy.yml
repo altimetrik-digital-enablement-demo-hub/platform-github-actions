@@ -53,8 +53,4 @@ jobs:
           chart-path: ${{ inputs.chart-path }}
           repository: ${{ inputs.repository }}
           namespace: ${{ inputs.namespace }}
-          kubeconfig: ${{ secrets.KUBECONFIG }}
-          image-name: ${{ inputs.app-name }}
-          image-tag: ${{ inputs.tag }}
-          registry: ${{ inputs.repository }}
-          helm-version: ${{ inputs.helm-version }} 
+          kubeconfig: ${{ secrets.KUBECONFIG }} 
