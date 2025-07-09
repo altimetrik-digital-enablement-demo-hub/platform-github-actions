@@ -12,59 +12,8 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Install jq (if not on runner by default)
-        run: sudo apt-get update && sudo apt-get install -y jq
-      - name: Checkout repository (optional, if script is in repo)
-        uses: actions/checkout@v4
-      - name: Run artifact cleanup script
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -x
-          
-          REPO=$(basename ${{ github.repository }})
-          RETENTION_DAYS=${{ inputs.retention_days }}
-          OWNER=${{ github.repository_owner }}
-
-          if [ -z "$OWNER" ] || [ -z "$REPO" ] || [ -z "$RETENTION_DAYS" ]; then
-          cat <<EOF
-            Usage: `basename $0` <repository> <retention_days> <owner>
-              where:
-                <repository>       - Name of the repository (e.g., sample-csharp)
-                <retention_days>   - Number of days to retain artifacts (default: 5)
-                <owner>            - GitHub organization or user name (default: altimetrik-digital-enablement-demo-hub)
-              
-              Examples: `basename $0` sample-csharp 7  (Deletes artifacts older than 7 days in altimetrik-digital-enablement-demo-hub/sample-csharp)
-          EOF
-            exit 1
-          fi
-
-          echo "# Artifact Cleanup Summary" >> $GITHUB_STEP_SUMMARY
-          echo "Deleted artifacts in $OWNER/$REPO older than $RETENTION_DAYS days"  >> $GITHUB_STEP_SUMMARY
-    
-          CUTOFF_DATE=$(date -d "$RETENTION_DAYS days ago" +%s)
-          
-          # Fetch all artifacts for the repository, paginating
-          ARTIFACTS=$(gh api "repos/$OWNER/$REPO/actions/artifacts?per_page=100" --paginate)
-
-          # Parse artifact IDs and created_at timestamps
-          echo "$ARTIFACTS" | jq -r '.artifacts[] | select(.expired == false) | "\(.id) \(.created_at)"' | while read -r ID CREATED_AT; do
-            # echo "ID: $ID, Created At: $CREATED_AT"
-            ARTIFACT_TIMESTAMP=$(date -u -d "${CREATED_AT}" +%s)  
-  
-            if (( ARTIFACT_TIMESTAMP < CUTOFF_DATE )); then
-              echo "Deleting artifact ID: $ID (Created: $CREATED_AT)"  >> $GITHUB_STEP_SUMMARY
-              gh api --method DELETE "repos/$OWNER/$REPO/actions/artifacts/$ID" --silent
-              if [ $? -eq 0 ]; then
-                echo "✅ Successfully deleted artifact ID: $ID"  >> $GITHUB_STEP_SUMMARY
-              else
-                echo "❌ Failed to delete artifact ID: $ID" >> $GITHUB_STEP_SUMMARY
-              fi
-            else
-              echo "⚠️ Skipping artifact ID: $ID (Created: $CREATED_AT) - within retention period." >> $GITHUB_STEP_SUMMARY
-            fi
-          done
-
-          echo "----------------------------------------------------------------------------------"  >> $GITHUB_STEP_SUMMARY
-          echo "Artifact cleanup process completed." >> $GITHUB_STEP_SUMMARY
+      - name: Clear Artifacts
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/clear-artifacts@feature/ddh-95-storage-limits
+        with:
+          retention-days: ${{ inputs.retention_days }}
+          token: ${{ secrets.GITHUB_TOKEN }} 
