@@ -1,0 +1,19 @@
+name: On-Demand Artifact Cleanup
+on:
+  workflow_call:
+    inputs:
+      retention-days:
+        description: 'Delete artifacts older than this many days. Default is 14 days.'
+        required: true
+        type: string
+        default: '14' # Default to 14 days if not specified
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clear Artifacts
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/clear-artifacts@v0
+        with:
+          retention-days: ${{ inputs.retention-days }}
+          token: ${{ secrets.GITHUB_TOKEN }} 
