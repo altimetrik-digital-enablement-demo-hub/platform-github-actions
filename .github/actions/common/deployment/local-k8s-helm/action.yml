@@ -44,6 +44,7 @@ runs:
         echo "Helm version: ${{ inputs.helm-version }}"
 
         helm upgrade --install ${{ inputs.release-name }} ${{ inputs.chart }} \
+          --create-namespace \
           --namespace ${{ inputs.namespace }} \
           --set image.repository=${{ inputs.registry }}/${{ inputs.image-name }} \
           --set image.tag=${{ inputs.image-tag }} \
