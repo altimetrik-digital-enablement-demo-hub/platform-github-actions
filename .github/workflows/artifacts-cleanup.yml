@@ -15,5 +15,5 @@ jobs:
       - name: Clear Artifacts
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/clear-artifacts@feature/ddh-95-storage-limits
         with:
-          retention-days: ${{ inputs.retention_days }}
+          retention-days: ${{ inputs.retention-days }}
           token: ${{ secrets.GITHUB_TOKEN }} 

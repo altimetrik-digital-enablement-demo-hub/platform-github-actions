@@ -2,7 +2,7 @@ name: GitHub Artifacts Cleanup
 description: 'Cleanup GitHub Actions artifacts older than a specified number of days.'
 
 inputs:
-  retention_days:
+  retention-days:
     description: 'Delete artifacts older than this many days. Default is 14 days.'
     required: true
     default: '14' # Default to 14 days if not specified
@@ -25,15 +25,15 @@ runs:
       shell: bash
       run: |
         REPO=$(basename ${{ github.repository }})
-        RETENTION_DAYS=${{ inputs.retention_days }}
+        RETENTION_DAYS=${{ inputs.retention-days }}
         OWNER=${{ github.repository_owner }}
 
         if [ -z "$OWNER" ] || [ -z "$REPO" ] || [ -z "$RETENTION_DAYS" ]; then
         cat <<EOF
-          Usage: `basename $0` <repository> <retention_days> <owner>
+          Usage: `basename $0` <repository> <retention-days> <owner>
             where:
               <repository>       - Name of the repository (e.g., sample-csharp)
-              <retention_days>   - Number of days to retain artifacts (default: 5)
+              <retention-days>   - Number of days to retain artifacts (default: 5)
               <owner>            - GitHub organization or user name (default: altimetrik-digital-enablement-demo-hub)
             
             Examples: `basename $0` sample-csharp 7  (Deletes artifacts older than 7 days in altimetrik-digital-enablement-demo-hub/sample-csharp)
@@ -42,7 +42,7 @@ runs:
         fi
 
         echo "# Artifact Cleanup Summary" >> $GITHUB_STEP_SUMMARY
-        echo "Deleted artifacts in $OWNER/$REPO older than $RETENTION_DAYS days"  >> $GITHUB_STEP_SUMMARY
+        echo "Deleted artifacts in $OWNER/$REPO older than $retention-days days"  >> $GITHUB_STEP_SUMMARY
   
         CUTOFF_DATE=$(date -d "$RETENTION_DAYS days ago" +%s)
         
