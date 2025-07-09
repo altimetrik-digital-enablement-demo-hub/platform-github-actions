@@ -12,12 +12,16 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository (optional, if script is in repo)
-        uses: actions/checkout@v4
-
       - name: Install jq (if not on runner by default)
         run: sudo apt-get update && sudo apt-get install -y jq
-
+      - name: Checkout repository (optional, if script is in repo)
+        uses: actions/checkout@v4
+        with:
+          repository: altimetrik-digital-enablement-demo-hub/platform-github-actions
+          ref: feature/ddh-95-storage-limits
+          sparse-checkout: |
+            scripts/cleanup_artifacts.sh
+          sparse-checkout-cone-mode: false
       - name: Run artifact cleanup script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Or a PAT with repo scope
