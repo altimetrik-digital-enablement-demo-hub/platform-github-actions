@@ -2,7 +2,7 @@ name: On-Demand Artifact Cleanup
 on:
   workflow_call:
     inputs:
-      retention_days:
+      retention-days:
         description: 'Delete artifacts older than this many days. Default is 14 days.'
         required: true
         type: string
