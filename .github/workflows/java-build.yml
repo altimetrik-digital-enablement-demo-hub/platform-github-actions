@@ -58,7 +58,7 @@ on:
         type: boolean
 
       create-artifact:
-        description: "Create build artifact"
+        description: "Create build artifact (legacy mode)"
         required: false
         default: false
         type: boolean
@@ -150,10 +150,10 @@ jobs:
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@fix/java
 
   # This job builds and pushes Docker image (optimized mode - no artifacts needed)
-  docker-build-optimized:
+  docker-build:
     runs-on: ubuntu-latest
     needs: [versioning, build]
-    if: ${{ inputs.build-docker && !inputs.create-artifact }}
+    if: ${{ inputs.build-docker }}
     permissions:
       contents: read
       packages: write
@@ -182,32 +182,6 @@ jobs:
           version: ${{ needs.versioning.outputs.new-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
-  # Note: This job only runs when artifacts are created, as Docker build needs the built artifacts
-  docker-build-and-push:
-    runs-on: ubuntu-latest
-    needs: [versioning, build]
-    if: ${{ needs.versioning.outputs.new-tag != '' && inputs.create-artifact }}
-    permissions:
-      contents: read
-      packages: write  # Required to push to GHCR
-    outputs:
-      tag: ${{ steps.docker-tag.outputs.tag }}
-    steps:
-      # Download the packaged artifacts for Docker build (only if artifacts were created)
-      - name: Download Package Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact-name }}
-          path: target/
-      
-      # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - id: docker-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@fix/java
-        with:
-          version: ${{ needs.versioning.outputs.new-tag }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
   # Note: CodeQL is only available for public repos or private repos with GitHub Advanced Security
   security-scan:
@@ -229,27 +203,17 @@ jobs:
   # This job scans the Docker image for vulnerabilities using Trivy and Grype
   docker-scan:
     runs-on: ubuntu-latest
-    needs: [docker-build-optimized, docker-build-and-push]
-    if: ${{ (needs.docker-build-optimized.outputs.tag != '' || needs.docker-build-and-push.outputs.tag != '') }}
+    needs: [docker-build]
+    if: ${{ needs.docker-build.outputs.tag != '' }}
     permissions:
       contents: read
       packages: read 
     steps:
-      # Get the Docker tag from either job
-      - name: Set Docker Tag
-        id: docker-tag
-        run: |
-          if [[ "${{ needs.docker-build-optimized.outputs.tag }}" != "" ]]; then
-            echo "tag=${{ needs.docker-build-optimized.outputs.tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${{ needs.docker-build-and-push.outputs.tag }}" >> $GITHUB_OUTPUT
-          fi
-
       # This job scans the Docker image for vulnerabilities using Trivy
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@fix/java
         if: ${{ inputs.run_trivy == 'true' }}
         with:
-          version: ${{ steps.docker-tag.outputs.tag }}
+          version: ${{ needs.docker-build.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
@@ -267,7 +231,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@fix/java
         if: ${{ inputs.run_grype == 'true' }}
         with:
-          version: ${{ steps.docker-tag.outputs.tag }}
+          version: ${{ needs.docker-build.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
