@@ -24,6 +24,12 @@ inputs:
     description: Docker image tag
     required: true
     default: latest
+  ghcr-username:
+    description: GitHub Container Registry username
+    required: false
+  ghcr-pat:
+    description: GitHub Container Registry Personal Access Token
+    required: false
 
 runs:
   using: composite
@@ -38,6 +44,17 @@ runs:
       with:
         version: v3.14.0
 
+    - name: Create GHCR secret
+      if: inputs.ghcr-username != '' && inputs.ghcr-pat != ''
+      shell: bash
+      run: |
+        kubectl create secret docker-registry ghcr-secret \
+          --docker-server=ghcr.io \
+          --docker-username=${{ inputs.ghcr-username }} \
+          --docker-password=${{ inputs.ghcr-pat }} \
+          --namespace=${{ inputs.namespace }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+
     - name: Deploy via Helm
       shell: bash
       run: |
@@ -45,4 +62,5 @@ runs:
           --namespace ${{ inputs.namespace }} \
           --create-namespace \
           --set image.repository=${{ inputs.repository }} \
-          --set image.tag=${{ inputs.tag }}
+          --set image.tag=${{ inputs.tag }} \
+          ${{ inputs.ghcr-username != '' && inputs.ghcr-pat != '' && '--set imagePullSecrets[0].name=ghcr-secret' || '' }}

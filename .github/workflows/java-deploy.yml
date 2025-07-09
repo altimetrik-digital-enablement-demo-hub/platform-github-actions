@@ -53,4 +53,6 @@ jobs:
           chart-path: ${{ inputs.chart-path }}
           repository: ${{ inputs.repository }}
           namespace: ${{ inputs.namespace }}
-          kubeconfig: ${{ secrets.KUBECONFIG }} 
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+          ghcr-username: ${{ secrets.GHCR_USERNAME }}
+          ghcr-pat: ${{ secrets.GHCR_PAT }} 
