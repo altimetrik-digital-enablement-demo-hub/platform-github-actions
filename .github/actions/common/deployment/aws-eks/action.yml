@@ -66,18 +66,33 @@ runs:
         fi
         
         # Verify AWS credentials
+        echo "=== AWS Identity ==="
         aws sts get-caller-identity
         
+        # Check EKS cluster status
+        echo "=== EKS Cluster Status ==="
+        aws eks describe-cluster --region ${{ inputs.region }} --name ${{ inputs.cluster-name }} --query 'cluster.status'
+        
         # Update kubeconfig for EKS cluster
+        echo "=== Updating kubeconfig ==="
         aws eks update-kubeconfig --region ${{ inputs.region }} --name ${{ inputs.cluster-name }}
         
-        # Verify cluster access
-        kubectl cluster-info
-        kubectl get nodes
+        # Try to access cluster with more debugging
+        echo "=== Testing cluster access ==="
+        kubectl cluster-info || echo "Failed to get cluster info"
+        kubectl get nodes || echo "Failed to get nodes"
+        
+        # Check if we can list namespaces
+        echo "=== Testing namespace access ==="
+        kubectl get namespaces || echo "Failed to get namespaces"
+        
+        # Check EKS cluster authentication
+        echo "=== EKS Authentication Debug ==="
+        aws eks get-token --cluster-name ${{ inputs.cluster-name }} --region ${{ inputs.region }} || echo "Failed to get EKS token"
       shell: bash
 
-    # Create GHCR secret for image pull
-    - name: Create GHCR secret
+    # Create namespace and GHCR secret
+    - name: Create namespace and GHCR secret
       if: inputs.ghcr-username != '' && inputs.ghcr-pat != ''
       shell: bash
       run: |
@@ -88,6 +103,10 @@ runs:
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
         
+        # Create namespace if it doesn't exist
+        kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Create GHCR secret
         kubectl create secret docker-registry ghcr-secret \
           --docker-server=ghcr.io \
           --docker-username=${{ inputs.ghcr-username }} \
