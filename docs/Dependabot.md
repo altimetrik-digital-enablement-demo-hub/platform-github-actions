@@ -15,35 +15,15 @@ This guide walks you through setting up GitHub Dependabot in a way that works fo
 
 ## Create a GitHub PAT (Personal Access Token)
 
-1. Go to: [https://github.com/settings/tokens](https://github.com/settings/tokens)
-2. Click **"Fine-grained tokens"** and then click on **"Create new token"**
-3. Select **Repository Access**: `All repositories`
-4. **Select Permission**:
-   - ✅ `Actions` (Read and Write)
-   -  ✅ `Contents` (Read and Write)
-   -  ✅ `Dependabot secrets` (Read and Write)
-   -  ✅ `Pull requests` (Read and Write)
-   -  ✅ `Secrets` (Read Only)
-   -  ✅ `Workflows` (Read and Write)
-5. Save the generated token securely (you won’t see it again).
+1. Go to: [https://github.com/your-organization/settings/security_analysis](https://github.com/your-organization/settings/security_analysis)
+2. Under **"Security"** and click on **"Global Settings"**
+3. Scroll to the bottom of the page till section `Grant Dependabot access to repositories`.
+4. For `Select Repositories` select all the repositories.
 
 ---
 
-## Add the Token as a GitHub Secret
 
-In the repository that uses Dependabot:
-
-1. Go to **Settings > Secrets and variables > Actions**
-2. Click **“New repository secret”**
-3. Add:
-   - **Name**: `GHCR_PAT`
-   - **Value**: *your personal access token*
-
-> ⚠️ The user who owns the token **must have at least read access** to all private repositories Dependabot will access.
-
----
-
-## 3⃣ Add or Update `dependabot.yml`
+## Add or Update `dependabot.yml`
 
 Place the following file in `.github/dependabot.yml` in your repo:
 
@@ -55,15 +35,6 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
-    registries:
-      - github-actions-private
-
-registries:
-  github-actions-private:
-    type: "git"
-    url: "https://github.com"
-    username: "x-access-token"
-    password: "${{ secrets.GHCR_PAT }}"
 ```
 
 ---
