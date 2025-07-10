@@ -8,12 +8,12 @@ This guide walks you through setting up GitHub Dependabot in a way that works fo
 ## ✅ Prerequisites
 
 1. **GitHub repository** (must exist).
-2. **Personal Access Token (PAT)** with the correct scopes.
+2. Properly configured Dependabot access settings.
 3. **.github/dependabot.yml** configuration file.
 
 ---
 
-## Create a GitHub PAT (Personal Access Token)
+## 🔐 Configure Dependabot Access to Private Repositories
 
 1. Go to: [https://github.com/your-organization/settings/security_analysis](https://github.com/your-organization/settings/security_analysis)
 2. Under **"Security"** and click on **"Global Settings"**
