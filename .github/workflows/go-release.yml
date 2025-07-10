@@ -1,16 +1,32 @@
-name: Go Build Pipeline
+name: Go Release Pipeline
 
 on:
+  workflow_dispatch:
+    inputs:
+      release-bump:
+        description: 'Release bump (ignored if version_override is provided)'
+        required: true
+        default: 'Minor'
+        type: choice
+        options:
+          - Major
+          - Minor
+          - Patch
+      version_override:
+        description: 'Optional: manually specify version (e.g., v1.3.0)'
+        required: false
+        type: string
+
   workflow_call:
     inputs:
       app-name:
-        description: 'Name of the application (used for binary name, image name, etc.)'
         required: true
+        description: 'Name of the application'
         type: string
       go-version:
-        description: 'Go version to use'
         required: false
         type: string
+        description: 'Go version to use'
         default: '1.24'
       main-package-path:
         description: 'Path to the main package (where main.go is located)'
@@ -19,7 +35,7 @@ on:
       registry:
         required: false
         type: string
-        description: 'Container registry URL (e.g., ghcr.io, AWS ECR)'
+        description: 'Container registry URL'
         default: 'ghcr.io'
       docker-context:
         description: 'Context for Docker build'
@@ -31,11 +47,15 @@ on:
         required: false
         type: string
         default: './Dockerfile'
-      docker-push:
-        description: 'Push the Docker image to the registry'
+      release_bump:
+        description: 'Release bump type (ignored if version_override is provided)'
         required: false
-        type: boolean
-        default: true
+        default: 'Minor'
+        type: string
+      version_override:
+        description: 'Optional: manually specify version (e.g., v1.3.0)'
+        required: false
+        type: string
       run-trivy:
         description: 'Run Trivy Scan'
         required: false
@@ -46,59 +66,43 @@ on:
         required: false
         default: 'true'
         type: string
-      continue-on-error:
-        description: 'Continue on error for security scans'
-        required: false
-        default: 'true'
-        type: string
+  
 
 permissions:
-  actions: read
   contents: write
-  security-events: write
-  checks: write          
-  pull-requests: write
-  issues: write
-  packages: write    
-  id-token: write    
+  packages: write
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Lint Go code
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@v0
-        with:
-          go-version: ${{ inputs.go-version }}
-
-  unit-test:
-    runs-on: ubuntu-latest
-    needs: [lint]
-    steps:
-      - name: Run unit tests
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/unit-test@v0
-        with:
-          go-version: ${{ inputs.go-version }}
-
+  # Calculate version and create release
   version:
     runs-on: ubuntu-latest
-    needs: [unit-test]
     outputs:
-      image-tag: ${{ steps.version.outputs.image-tag }}
-      version-tag: ${{ steps.version.outputs.tag }}
+      new-version: ${{ steps.release.outputs.tag }}
+      changelog: ${{ steps.release.outputs.changelog }}
+      upload-url: ${{ steps.release.outputs.upload-url }}
     steps:
-      - name: Generate version and image tag
-        id: version
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/image-tag@v0
+      - name: Create release
+        id: release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/release@v0
+        with:
+          release_bump: ${{ inputs.release_bump }}
+          version_override: ${{ inputs.version_override }}
+          go-version: ${{ inputs.go-version }}
+          app-name: ${{ inputs.app-name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
+  # Push Docker image with semantic version
   docker-build-and-push:
     runs-on: ubuntu-latest
     needs: [version]
     outputs:
-      full-image-name: ${{ steps.package.outputs.full-image-name }}
+      image-tag: ${{ steps.build-push.outputs.image-tag }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Build and push Docker image
-        id: package
+        id: build-push
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/package@v0
         with:
           app-name: ${{ inputs.app-name }}
@@ -106,11 +110,22 @@ jobs:
           main-package-path: ${{ inputs.main-package-path }}
           context: ${{ inputs.docker-context }}
           docker-file: ${{ inputs.docker-file }}
-          image-tag: ${{ needs.version.outputs.image-tag }}
+          image-tag: ${{ needs.version.outputs.new-version }}
           registry: ${{ inputs.registry }}
-          push: ${{ inputs.docker-push }}
+          push: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload binary to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.version.outputs.upload-url }}
+          asset_path: ./${{ inputs.app-name }}
+          asset_name: ${{ inputs.app-name }}
+          asset_content_type: application/octet-stream
+
+  # Security scan the Docker image
   docker-scan:
     runs-on: ubuntu-latest
     needs: [version, docker-build-and-push]
@@ -120,58 +135,40 @@ jobs:
       contents: read
       packages: read
     steps:
-      - name: Trivy scan
+      - name: Scan Docker image with Trivy
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run-trivy == 'true' }}
-        continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+        continue-on-error: true
         with:
-          version: ${{ needs.version.outputs.image-tag }}
+          version: ${{ needs.docker-build-and-push.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
-
+      
       - name: Generate Trivy dashboard report
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
         if: ${{ inputs.run-trivy == 'true' }}
-        continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+        continue-on-error: true
         with:
           tool: 'Trivy'
           report: 'trivy-report.txt'
           critical_keyword: 'CRITICAL'
           high_keyword: 'HIGH'
-
-      - name: Grype scan
+      
+      - name: Scan Docker image with Grype
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run-grype == 'true' }}
-        continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+        continue-on-error: true
         with:
-          version: ${{ needs.version.outputs.image-tag }}
+          version: ${{ needs.docker-build-and-push.outputs.image-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
-
+      
       - name: Generate Grype dashboard report
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
         if: ${{ inputs.run-grype == 'true' }}
-        continue-on-error: ${{ inputs.continue-on-error == 'true' }}
+        continue-on-error: true
         with:
           tool: 'Grype'
           report: 'grype-report.txt'
           critical-keyword: 'CRITICAL'
           high-keyword: 'HIGH'
           
-
-  security-scan:
-    runs-on: ubuntu-latest
-    needs: [lint]
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-    steps:
-      - name: Set up Go
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v0
-        with:
-          go-version: ${{ inputs.go-version }}
-      
-      - name: Run CodeQL security analysis
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v0
-        with:
-          languages: go 

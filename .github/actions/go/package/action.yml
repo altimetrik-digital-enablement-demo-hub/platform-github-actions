@@ -1,10 +1,17 @@
 name: Package Go Application into Docker Image
 description: |
-  This action packages a .Go application into a Docker image.
+  This action builds a Go application and packages it into a Docker image.
   
 inputs:
   app-name:
     description: Application name
+    required: true
+  go-version:
+    description: 'Go version to use for building'
+    default: '1.24'
+    required: false
+  main-package-path:
+    description: 'Path to the main package (where main.go is located)'
     required: true
   context:
     description: 'Context for docker build'
@@ -30,6 +37,20 @@ inputs:
     description: 'A Github PAT'
     required: true    
 
+outputs:
+  image-digest:
+    description: 'The digest of the built image'
+    value: ${{ steps.push.outputs.digest }}
+  image-tags:
+    description: 'The tags of the built image'
+    value: ${{ steps.meta.outputs.tags }}
+  pushed:
+    description: 'Whether the image was pushed to registry'
+    value: ${{ inputs.push }}
+  image-tag:
+    description: 'The processed image tag (stripped of v prefix)'
+    value: ${{ steps.docker-tag.outputs.docker-tag }}
+
 runs:
   using: composite
   steps:
@@ -38,17 +59,41 @@ runs:
       with:
         fetch-depth: 0
         fetch-tags: true  
+
+    # First, build the Go application
+    - name: Build Go application
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@v0
+      with:
+        app-name: ${{ inputs.app-name }}
+        go-version: ${{ inputs.go-version }}
+        main-package-path: ${{ inputs.main-package-path }}
+
+    # Download the binary artifact created by the build step
+    - name: Download binary
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.app-name }}
+        path: .
+
+    - name: Prepare Docker tag
+      id: docker-tag
+      shell: bash
+      run: |
+        # Strip 'v' prefix from version for Docker tag (v0.8.0 -> 0.8.0)
+        version="${{ inputs.image-tag }}"
+        docker_tag="${version#v}"
+        echo "docker-tag=$docker_tag" >> $GITHUB_OUTPUT
+        echo "Input tag: $version"
+        echo "Docker tag: $docker_tag"
+        
     - name: Extract metadata (tags, labels) for Docker
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ inputs.registry }}/${{ github.actor }}/${{ inputs.app-name }}
+        images: ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.app-name }}
         tags: |
-          # type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}},value=${{ inputs.image-tag }}
-          type=semver,pattern={{major}}.{{minor}}
-          
+          ${{ steps.docker-tag.outputs.docker-tag }}
+
     - name: Log in to the Container registry
       uses: docker/login-action@v3
       with:

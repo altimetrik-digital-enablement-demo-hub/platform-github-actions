@@ -1,18 +1,35 @@
-name: Go Semantic Release
-description: Builds a Go application and uploads the binary as an artifact
+name: Go Release Action
+description: Calculates version, generates changelog, creates git tag and GitHub release
 
 inputs:
+  release_bump:
+    description: 'Release bump type (Major/Minor/Patch)'
+    required: false
+    default: 'Minor'
+  version_override:
+    description: 'Optional: manually specify version (e.g., v1.3.0)'
+    required: false
   go-version:
-    description: Go version to use
+    description: 'Go version to use'
     required: false
     default: '1.24'
   token:
-    description: 'A Github API token with permissions to create releases and push changes'
+    description: 'A Github API token with permissions to read repository'
     required: true
+  app-name:
+    description: 'Name of the application (used in changelog)'
+    required: true
+
 outputs:
-    app-version:
-      description: The version of the application as determined by Versionize 
-      value: ${{ steps.semantic-release.outputs.version }}
+  tag:
+    description: The calculated semantic version tag
+    value: ${{ steps.version.outputs.new-version }}
+  changelog:
+    description: Generated changelog for the release
+    value: ${{ steps.changelog.outputs.changelog }}
+  upload-url:
+    description: Upload URL for the created GitHub release
+    value: ${{ steps.create-release.outputs.upload_url }}
 
 runs:
   using: 'composite'  
@@ -23,12 +40,106 @@ runs:
         go-version: ${{ inputs.go-version }}
         git-fetch-depth: 0
         git-fetch-tags: true
+        
+    - name: Get latest tag
+      id: get_latest_tag
+      shell: bash
+      run: |
+        git fetch --tags
+        latest_tag=$(git tag -l --sort=-version:refname | head -1)
+        if [ -z "$latest_tag" ]; then
+          latest_tag="v0.0.0"
+        fi
+        echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
+        echo "Latest tag: $latest_tag"
 
-    - name: Run GoReleaser
-      uses: go-semantic-release/action@v1
-      id: semantic-release
-      with:
-        # hooks: goreleaser
-        changelog-generator-opt: "emojis=true"
+    - name: Calculate new version
+      id: version
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.version_override }}" ]; then
+          new_version=${{ inputs.version_override }}
+        else
+          current_version=${LATEST_TAG#v}
+          IFS='.' read -r major minor patch <<< "$current_version"
+          case "${{ inputs.release_bump }}" in
+            "Major")
+              new_version="v$((major + 1)).0.0"
+              ;;
+            "Minor")
+              new_version="v${major}.$((minor + 1)).0"
+              ;;
+            "Patch")
+              new_version="v${major}.${minor}.$((patch + 1))"
+              ;;
+          esac
+        fi
+        echo "NEW_VERSION=$new_version" >> $GITHUB_ENV
+        echo "Calculated new version: $new_version"
+        echo "new-version=$new_version" >> $GITHUB_OUTPUT
+
+    - name: Generate changelog
+      id: changelog
+      shell: bash
+      run: |
+        echo "## 📋 Changelog" > changelog.md
+        echo "" >> changelog.md
+        
+        # Get commits since last tag
+        if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+          last_tag=$(git describe --tags --abbrev=0)
+          echo "### Changes since $last_tag:" >> changelog.md
+          echo "" >> changelog.md
+          
+          # Parse conventional commits
+          git log $last_tag..HEAD --pretty=format:"%s" | while IFS= read -r commit; do
+            if [[ "$commit" =~ ^feat(\(.+\))?: ]]; then
+              echo "- ✨ $commit" >> changelog.md
+            elif [[ "$commit" =~ ^fix(\(.+\))?: ]]; then
+              echo "- 🐛 $commit" >> changelog.md
+            elif [[ "$commit" =~ ^chore(\(.+\))?: ]]; then
+              echo "- 🔧 $commit" >> changelog.md
+            elif [[ "$commit" =~ ^docs(\(.+\))?: ]]; then
+              echo "- 📚 $commit" >> changelog.md
+            elif [[ "$commit" =~ ^refactor(\(.+\))?: ]]; then
+              echo "- ♻️ $commit" >> changelog.md
+            elif [[ "$commit" =~ ^perf(\(.+\))?: ]]; then
+              echo "- ⚡ $commit" >> changelog.md
+            else
+              echo "- 📝 $commit" >> changelog.md
+            fi
+          done
+        else
+          echo "### 🎉 Initial release" >> changelog.md
+          echo "This is the first release of ${{ inputs.app-name }}!" >> changelog.md
+        fi
+        
+        # Set output for use in workflows
+        {
+          echo "changelog<<EOTCHANGELOG123"
+          cat changelog.md
+          echo "EOTCHANGELOG123"
+        } >> $GITHUB_OUTPUT
+
+    - name: Create and push git tag
+      shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag ${{ env.NEW_VERSION }}
+        git push origin ${{ env.NEW_VERSION }}
+        echo "Created and pushed tag: ${{ env.NEW_VERSION }}"
+
+    - name: Create GitHub Release
+      id: create-release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      with:
+        tag_name: ${{ env.NEW_VERSION }}
+        release_name: "Release ${{ env.NEW_VERSION }}"
+        body: ${{ steps.changelog.outputs.changelog }}
+        draft: false
+        prerelease: false

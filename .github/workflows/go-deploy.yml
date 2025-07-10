@@ -31,16 +31,16 @@ on:
         required: false
         type: string
         default: 'app'
-      helm-version:
-        description: 'Version of Helm to use for deployment. Default helm3; can be helm2 or helm3'
-        required: false
-        type: string
-        default: 'helm3'
       target:
         required: false
         description: 'Deployment target platform. Default local-k8s; can be local-k8s, azure-webapp-svc, or azure-webapp-containter'
         type: string
         default: 'local-k8s'
+      helm-version:
+        description: 'Version of Helm to use for deployment. Default helm3; can be helm2 or helm3'
+        required: false
+        type: string
+        default: 'helm3'
 
 permissions:
   contents: read
@@ -51,14 +51,15 @@ jobs:
     name: Deploy release ${{ inputs.release-name }} to ${{ inputs.target }}/${{ inputs.namespace }}
     runs-on: ['self-hosted', 'macOS']
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Deploy to local Kubernetes cluster using Helm
         if: inputs.target == 'local-k8s'
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/deploy/local-k8s-helm@v0
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@v0
         with:
-          release-name: ${{ inputs.release-name }}
+          app-name: ${{ inputs.release-name }}
+          chart-path: ${{ inputs.chart }}
           namespace: ${{ inputs.namespace }}
-          registry: ${{ inputs.registry }}
-          image-name: ${{ inputs.image-name }}
-          image-tag: ${{ inputs.image-tag }}
-          chart: ${{ inputs.chart }}
-          helm-version: ${{ inputs.helm-version }}
+          repository: ${{ inputs.registry }}/${{ inputs.image-name }}
+          tag: ${{ inputs.image-tag }}
