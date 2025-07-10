@@ -3,6 +3,17 @@ name: Node.js Release Workflow
 on:
   workflow_call:
     inputs:
+      version-bump:
+        description: 'Version bump type (auto, major, minor, patch)'
+        required: false
+        type: string
+        default: auto
+        
+      manual-version:
+        description: 'Manual version (e.g., 1.2.3) - overrides version_bump'
+        required: false
+        type: string
+    
       registry:
         description: 'Docker registry to push the image (e.g., ghcr.io/org/app)'
         required: false

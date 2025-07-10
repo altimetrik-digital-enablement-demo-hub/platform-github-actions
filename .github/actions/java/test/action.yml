@@ -1,5 +1,5 @@
 name: Test Java Project
-description: 'Run Java unit tests with coverage and upload test results'
+description: 'Run Java unit tests with coverage and optionally upload test results'
 
 inputs:
   test-command:
@@ -22,6 +22,10 @@ inputs:
     description: 'Minimum code coverage percentage'
     required: false
     default: '80'
+  create-artifact:
+    description: 'Whether to create and upload test artifacts'
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -33,10 +37,10 @@ runs:
       continue-on-error: ${{ inputs.continue-on-error }}
       shell: bash
 
-    # Upload test results
+    # Upload test results (only if create-artifact is true)
     - name: Upload Test Results
+      if: inputs.create-artifact == 'true'
       uses: actions/upload-artifact@v4
-      if: always()
       with:
         name: test-results
         path: |
@@ -44,45 +48,98 @@ runs:
           target/failsafe-reports/
           target/site/jacoco/
 
-    # Upload coverage report
+    # Upload coverage report (only if create-artifact is true)
     - name: Upload Coverage Report
+      if: inputs.create-artifact == 'true'
       uses: actions/upload-artifact@v4
-      if: always()
       with:
         name: coverage-report
         path: target/site/jacoco/
 
-    # Generate test summary
+    # Generate test summary without artifacts
     - name: Generate Test Summary
       run: |
-        echo "## 🧪 Java Test Report" > summary.md
+        echo "## 🧪 Java Test Report" > test-summary.md
         
         # Check for test results
         if [[ -d "target/surefire-reports" ]]; then
-          echo "- ✅ Test results generated" >> summary.md
+          echo "- ✅ Test results generated" >> test-summary.md
+          
+          # Count test results
+          TOTAL_TESTS=0
+          FAILED_TESTS=0
+          SKIPPED_TESTS=0
+          
+          for report in target/surefire-reports/*.xml; do
+            if [[ -f "$report" ]]; then
+              TESTS=$(grep -o 'tests="[^"]*"' "$report" | grep -o '[0-9]*' | head -1 || echo "0")
+              FAILURES=$(grep -o 'failures="[^"]*"' "$report" | grep -o '[0-9]*' | head -1 || echo "0")
+              SKIPPED=$(grep -o 'skipped="[^"]*"' "$report" | grep -o '[0-9]*' | head -1 || echo "0")
+              
+              TOTAL_TESTS=$((TOTAL_TESTS + TESTS))
+              FAILED_TESTS=$((FAILED_TESTS + FAILURES))
+              SKIPPED_TESTS=$((SKIPPED_TESTS + SKIPPED))
+            fi
+          done
+          
+          echo "- 📊 Test Statistics:" >> test-summary.md
+          echo "  - Total Tests: $TOTAL_TESTS" >> test-summary.md
+          echo "  - Failed Tests: $FAILED_TESTS" >> test-summary.md
+          echo "  - Skipped Tests: $SKIPPED_TESTS" >> test-summary.md
+          
+          if [[ $FAILED_TESTS -eq 0 ]]; then
+            echo "- ✅ All tests passed" >> test-summary.md
+          else
+            echo "- ❌ $FAILED_TESTS test(s) failed" >> test-summary.md
+          fi
         else
-          echo "- ⚠️ No test results found" >> summary.md
+          echo "- ⚠️ No test results found" >> test-summary.md
         fi
         
         # Check for coverage report
         if [[ -d "target/site/jacoco" ]]; then
-          echo "- 📊 Coverage report generated" >> summary.md
+          echo "- 📊 Coverage report generated" >> test-summary.md
           
           # Try to extract coverage percentage if available
           if [[ -f "target/site/jacoco/index.html" ]]; then
-            echo "- 📈 Coverage details available in artifacts" >> summary.md
+            echo "- 📈 Coverage details available" >> test-summary.md
+            
+            # Try to parse coverage from CSV if available
+            if [[ -f "target/site/jacoco/jacoco.csv" ]]; then
+              COVERAGE_LINE=$(tail -n +2 target/site/jacoco/jacoco.csv | head -1)
+              if [[ -n "$COVERAGE_LINE" ]]; then
+                IFS=',' read -ra COVERAGE_DATA <<< "$COVERAGE_LINE"
+                if [[ ${#COVERAGE_DATA[@]} -ge 9 ]]; then
+                  LINE_COVERED=${COVERAGE_DATA[8]}
+                  LINE_MISSED=${COVERAGE_DATA[7]}
+                  TOTAL_LINES=$((LINE_COVERED + LINE_MISSED))
+                  if [[ $TOTAL_LINES -gt 0 ]]; then
+                    COVERAGE_PERCENT=$(( (LINE_COVERED * 100) / TOTAL_LINES ))
+                    echo "- 📊 Line Coverage: ${COVERAGE_PERCENT}% (${LINE_COVERED}/${TOTAL_LINES} lines)" >> test-summary.md
+                  fi
+                fi
+              fi
+            fi
           fi
         else
-          echo "- ⚠️ No coverage report found" >> summary.md
+          echo "- ⚠️ No coverage report found" >> test-summary.md
         fi
         
-        echo "- 📦 Test artifacts uploaded" >> summary.md
+        if [[ "${{ inputs.create-artifact }}" == "true" ]]; then
+          echo "- 📦 Test artifacts uploaded" >> test-summary.md
+        else
+          echo "- 💾 Test artifacts not uploaded (storage optimization)" >> test-summary.md
+        fi
+        
+        # Write to GITHUB_STEP_SUMMARY
+        cat test-summary.md >> $GITHUB_STEP_SUMMARY
       shell: bash
       working-directory: ${{ inputs.working-directory }}
 
-    # Upload test summary
+    # Upload test summary (only if create-artifact is true)
     - name: Upload Test Summary
+      if: inputs.create-artifact == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: test-summary
-        path: summary.md 
+        path: test-summary.md 

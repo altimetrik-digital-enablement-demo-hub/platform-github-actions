@@ -1,5 +1,5 @@
 name: Build Java Project
-description: 'Build a Java project and upload build artifacts'
+description: 'Build a Java project and optionally upload build artifacts'
 
 inputs:
   build-command:
@@ -18,6 +18,10 @@ inputs:
     description: 'Name of the uploaded build artifact'
     required: false
     default: 'build-artifacts'
+  create-artifact:
+    description: 'Whether to create and upload build artifacts'
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -28,11 +32,52 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
 
-    # This step uploads the build artifacts
+    # This step uploads the build artifacts (only if create-artifact is true)
     - name: Upload Build Artifacts
+      if: inputs.create-artifact == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.artifact-name }}
         path: |
           target/*.jar
-          target/*.war 
+          target/*.war
+
+    # Generate build summary without artifacts
+    - name: Generate Build Summary
+      run: |
+        echo "## 📦 Java Build Report" > build-summary.md
+        
+        # Check for generated artifacts
+        if [[ -d "target" ]]; then
+          JAR_COUNT=$(find target -name "*.jar" -type f | wc -l)
+          WAR_COUNT=$(find target -name "*.war" -type f | wc -l)
+          EAR_COUNT=$(find target -name "*.ear" -type f | wc -l)
+          TOTAL_ARTIFACTS=$((JAR_COUNT + WAR_COUNT + EAR_COUNT))
+          
+          echo "- ✅ Build completed successfully" >> build-summary.md
+          echo "- 📦 Generated artifacts: $TOTAL_ARTIFACTS" >> build-summary.md
+          
+          if [[ $JAR_COUNT -gt 0 ]]; then
+            echo "  - JAR files: $JAR_COUNT" >> build-summary.md
+          fi
+          if [[ $WAR_COUNT -gt 0 ]]; then
+            echo "  - WAR files: $WAR_COUNT" >> build-summary.md
+          fi
+          if [[ $EAR_COUNT -gt 0 ]]; then
+            echo "  - EAR files: $EAR_COUNT" >> build-summary.md
+          fi
+          
+          # List artifact names and sizes
+          echo "- 📋 Artifact details:" >> build-summary.md
+          find target -name "*.jar" -o -name "*.war" -o -name "*.ear" | while read file; do
+            SIZE=$(du -h "$file" | cut -f1)
+            echo "  - \`$(basename "$file")\` ($SIZE)" >> build-summary.md
+          done
+        else
+          echo "- ❌ Build failed or no target directory found" >> build-summary.md
+        fi
+        
+        # Write to GITHUB_STEP_SUMMARY
+        cat build-summary.md >> $GITHUB_STEP_SUMMARY
+      shell: bash
+      working-directory: ${{ inputs.working-directory }} 

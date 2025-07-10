@@ -58,9 +58,15 @@ on:
         type: boolean
 
       create-artifact:
-        description: "Create build artifact"
+        description: "Create build artifact (legacy mode)"
         required: false
-        default: true
+        default: false
+        type: boolean
+
+      build-docker:
+        description: "Build and push Docker image"
+        required: false
+        default: false
         type: boolean
 
 permissions:
@@ -87,6 +93,7 @@ jobs:
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
           continue-on-error: ${{ inputs.contine-on-error }}
+          create-artifact: ${{ inputs.create-artifact }}
 
   # This job executes unit tests
   unit-test:
@@ -106,12 +113,14 @@ jobs:
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
           continue-on-error: ${{ inputs.contine-on-error }}
-          # create-artifact: ${{ inputs.create-artifact }}
+          create-artifact: ${{ inputs.create-artifact }}
 
-  # This job builds and packages the Java project (combines build + package)
+  # This job builds the Java project and optionally creates Docker image
   build:
     needs: unit-test
     runs-on: ubuntu-latest
+    outputs:
+      docker-tag: ${{ steps.docker-tag.outputs.tag }}
     steps:
       # This step sets up the Java environment
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@v0
@@ -126,12 +135,25 @@ jobs:
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
           artifact-name: ${{ inputs.artifact-name }}
-          # create-artifact: ${{ inputs.create-artifact }}
+          create-artifact: ${{ inputs.create-artifact }}
+
+      # Generate version tag if Docker build is requested
+      - id: generate-tag
+        if: ${{ inputs.build-docker }}
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v0
+
+      # Build and push Docker image if requested
+      - id: docker-tag
+        if: ${{ inputs.build-docker }}
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
+        with:
+          version: ${{ steps.generate-tag.outputs.tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
   # Note: CodeQL is only available for public repos or private repos with GitHub Advanced Security
   security-scan:
-    needs: build
+    needs: lint
     runs-on: ubuntu-latest
     if: ${{ github.repository_visibility == 'public' }}
     permissions:
@@ -146,49 +168,11 @@ jobs:
           languages: java
         continue-on-error: true
 
-  # This job handles versioning by generating a new tag based on the commit history
-  versioning:
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      contents: write
-    outputs:
-      new-tag: ${{ steps.generate-tag.outputs.tag }}
-    steps:
-      # This step checks out the code from the repository
-      - id: generate-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v0
-
-  # This job publishes the Docker image to GitHub Container Registry (GHCR) if a new tag is generated
-  docker-build-and-push:
-    runs-on: ubuntu-latest
-    needs: [versioning, build]
-    if: ${{ needs.versioning.outputs.new-tag != '' }}
-    permissions:
-      contents: read
-      packages: write  # Required to push to GHCR
-    outputs:
-      tag: ${{ steps.docker-tag.outputs.tag }}
-    steps:
-      # Download the packaged artifacts for Docker build
-      - name: Download Package Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact-name }}
-          path: target/
-      
-      # This job builds and publishes a Docker image to GitHub Container Registry (GHCR)
-      - id: docker-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
-        with:
-          version: ${{ needs.versioning.outputs.new-tag }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   # This job scans the Docker image for vulnerabilities using Trivy and Grype
   docker-scan:
     runs-on: ubuntu-latest
-    needs: [docker-build-and-push]
-    if: ${{ needs.docker-build-and-push.outputs.tag != '' }}
+    needs: [build]
+    if: ${{ needs.build.outputs.docker-tag != '' }}
     permissions:
       contents: read
       packages: read 
@@ -197,7 +181,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
         if: ${{ inputs.run_trivy == 'true' }}
         with:
-          version: ${{ needs.docker-build-and-push.outputs.tag }}
+          version: ${{ needs.build.outputs.docker-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
           severity: 'CRITICAL,HIGH'
 
@@ -215,7 +199,7 @@ jobs:
       - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
         if: ${{ inputs.run_grype == 'true' }}
         with:
-          version: ${{ needs.docker-build-and-push.outputs.tag }}
+          version: ${{ needs.build.outputs.docker-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
@@ -225,20 +209,4 @@ jobs:
           tool: Grype
           title: Grype Vulnerability Report
           report: grype-report.txt
-          max-lines: 100
-
-  # This job generates a concise inline summary for the Java CI/CD pipeline
-  java-summary:
-    runs-on: ubuntu-latest
-    needs: [lint, unit-test, docker-scan]
-    if: always()
-    steps:
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      
-      # This job generates a concise inline summary of the Java CI/CD results
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/summary@v0
-        with:
-          working-directory: ${{ inputs.working-directory }} 
+          max-lines: 100 
