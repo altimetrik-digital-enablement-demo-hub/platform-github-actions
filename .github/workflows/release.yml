@@ -3,13 +3,13 @@ name: Node.js Release Workflow
 on:
   workflow_call:
     inputs:
-      version_bump:
+      version-bump:
         description: 'Version bump type (auto, major, minor, patch)'
         required: false
         type: string
         default: auto
         
-      manual_version:
+      manual-version:
         description: 'Manual version (e.g., 1.2.3) - overrides version_bump'
         required: false
         type: string
