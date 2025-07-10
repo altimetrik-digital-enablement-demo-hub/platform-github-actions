@@ -43,17 +43,6 @@ inputs:
 runs:
   using: composite
   steps:
-    # Configure AWS credentials
-    - name: Configure AWS credentials
-      if: inputs.aws-access-key-id != ''
-      run: |
-        aws configure set aws_access_key_id ${{ inputs.aws-access-key-id }}
-        aws configure set aws_secret_access_key ${{ inputs.aws-secret-access-key }}
-        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
-          aws configure set aws_session_token ${{ inputs.aws-session-token }}
-        fi
-      shell: bash
-
     # Set up kubectl
     - name: Set up kubectl
       uses: azure/setup-kubectl@v3
@@ -66,25 +55,23 @@ runs:
       with:
         version: v3.14.0
 
-    # Update kubeconfig for EKS cluster with AWS credentials
-    - name: Update kubeconfig
+    # Configure AWS credentials and update kubeconfig
+    - name: Configure AWS and EKS access
       run: |
+        # Set AWS credentials
         export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
         export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
         if [[ -n "${{ inputs.aws-session-token }}" ]]; then
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
+        
+        # Verify AWS credentials
+        aws sts get-caller-identity
+        
+        # Update kubeconfig for EKS cluster
         aws eks update-kubeconfig --region ${{ inputs.region }} --name ${{ inputs.cluster-name }}
-      shell: bash
-
-    # Verify cluster connectivity
-    - name: Verify cluster connectivity
-      run: |
-        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
-        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
-        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
-          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
-        fi
+        
+        # Verify cluster access
         kubectl cluster-info
         kubectl get nodes
       shell: bash
@@ -94,11 +81,13 @@ runs:
       if: inputs.ghcr-username != '' && inputs.ghcr-pat != ''
       shell: bash
       run: |
+        # Set AWS credentials
         export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
         export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
         if [[ -n "${{ inputs.aws-session-token }}" ]]; then
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
+        
         kubectl create secret docker-registry ghcr-secret \
           --docker-server=ghcr.io \
           --docker-username=${{ inputs.ghcr-username }} \
@@ -110,11 +99,13 @@ runs:
     - name: Deploy via Helm
       shell: bash
       run: |
+        # Set AWS credentials
         export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
         export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
         if [[ -n "${{ inputs.aws-session-token }}" ]]; then
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
+        
         helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart-path }} \
           --namespace ${{ inputs.namespace }} \
           --create-namespace \
@@ -125,11 +116,13 @@ runs:
     # Verify deployment
     - name: Verify deployment
       run: |
+        # Set AWS credentials
         export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
         export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
         if [[ -n "${{ inputs.aws-session-token }}" ]]; then
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
+        
         echo "Checking deployment status..."
         kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }}
         kubectl get services -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }}
@@ -141,11 +134,13 @@ runs:
     # Generate deployment summary
     - name: Generate deployment summary
       run: |
+        # Set AWS credentials
         export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
         export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
         if [[ -n "${{ inputs.aws-session-token }}" ]]; then
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
+        
         echo "## 🚀 AWS EKS Deployment Report" > deployment-summary.md
         
         # Get deployment status
