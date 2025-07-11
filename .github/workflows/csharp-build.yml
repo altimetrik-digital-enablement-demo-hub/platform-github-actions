@@ -72,7 +72,7 @@ jobs:
     steps:
       - name: csharpier
         if: ${{ inputs.dotnet-linter-csharpier == true }}
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/csharpier@v0
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/lint/csharpier@v1
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
           git-fetch-depth: 1
@@ -82,12 +82,12 @@ jobs:
     needs: lint
     runs-on: 'ubuntu-latest'     
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v1
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
           git-fetch-depth: 1
           git-fetch-tags: false 
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/test@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/test@v1
         with:
           verbosity: ${{ inputs.dotnet-test-verbosity }}
 
@@ -101,14 +101,14 @@ jobs:
       contents: read
     steps:
       # This step sets up the .NET environment for CodeQL analysis
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/setup@v1
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
           git-fetch-depth: 1
           git-fetch-tags: false 
       
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v1
         with:
           languages: 'csharp'
           working-directory: ${{ inputs.working-directory }}
@@ -121,7 +121,7 @@ jobs:
     outputs:
       image-tag: ${{ steps.generate-tag.outputs.image-tag }}
     steps:
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/image-tag@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/dotnet/image-tag@v1
         id: generate-tag
 
   docker-build-and-push:
@@ -133,7 +133,7 @@ jobs:
       packages: write  # Required to push to GHCR
     steps:
       # This step builds the .NET application
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v1
         id: build
         with:
           version: ${{ needs.version.outputs.image-tag }}
@@ -152,7 +152,7 @@ jobs:
       packages: read  
     steps:
         # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v1
         if: ${{ inputs.run-trivy == true }}
         with:
           version: ${{ needs.version.outputs.image-tag }}
@@ -160,7 +160,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
   
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v1
         if: ${{ inputs.run-grype == true }}
         with:
           version: ${{ needs.version.outputs.image-tag }}

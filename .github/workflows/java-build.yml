@@ -81,13 +81,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This step sets up the Java environment
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@v1
         with:
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
 
       # This job sets up Java and runs the lint command
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/lint@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/lint@v1
         with:
           lint-command: ${{ inputs.lint-command }}
           java-version: ${{ inputs.java-version }}
@@ -101,13 +101,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This step sets up the Java environment
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@v1
         with:
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
           
       # This step runs the unit tests using the new Java test action
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/test@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/test@v1
         with:
           test-command: ${{ inputs.test-command }}
           java-version: ${{ inputs.java-version }}
@@ -123,13 +123,13 @@ jobs:
       docker-tag: ${{ steps.docker-tag.outputs.tag }}
     steps:
       # This step sets up the Java environment
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/setup@v1
         with:
           java-version: ${{ inputs.java-version }}
           working-directory: ${{ inputs.working-directory }}
 
       # This step builds and packages the Java project
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/build@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/java/build@v1
         with:
           build-command: ${{ inputs.build-command }}
           java-version: ${{ inputs.java-version }}
@@ -140,12 +140,12 @@ jobs:
       # Generate version tag if Docker build is requested
       - id: generate-tag
         if: ${{ inputs.build-docker }}
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v0
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v1
 
       # Build and push Docker image if requested
       - id: docker-tag
         if: ${{ inputs.build-docker }}
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v0
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/docker-build-push@v1
         with:
           version: ${{ steps.generate-tag.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -163,7 +163,7 @@ jobs:
     steps:
       # This job runs CodeQL analysis to identify security vulnerabilities and code quality issues
       - name: Run CodeQL Analysis
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/codeql@v0
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/codeql@v1
         with:
           languages: java
         continue-on-error: true
@@ -178,7 +178,7 @@ jobs:
       packages: read 
     steps:
       # This job scans the Docker image for vulnerabilities using Trivy
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/trivy-scan@v1
         if: ${{ inputs.run_trivy == 'true' }}
         with:
           version: ${{ needs.build.outputs.docker-tag }}
@@ -186,7 +186,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       # This job summarizes the Trivy report and writes it to GITHUB_STEP_SUMMARY
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v1
         if: ${{ inputs.run_trivy == 'true' }}
         with:
           tool: Trivy
@@ -196,14 +196,14 @@ jobs:
           max-lines: 100
 
       # This job scans the Docker image for vulnerabilities using Grype
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/security-scanner/grype-scan@v1
         if: ${{ inputs.run_grype == 'true' }}
         with:
           version: ${{ needs.build.outputs.docker-tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # This job summarizes the Grype report and writes it to GITHUB_STEP_SUMMARY
-      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v0
+      - uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-dashboard@v1
         if: ${{ inputs.run_grype == 'true' }}
         with:
           tool: Grype
