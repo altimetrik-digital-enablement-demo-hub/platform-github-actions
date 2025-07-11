@@ -62,7 +62,7 @@ runs:
 
     # First, build the Go application
     - name: Build Go application
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@v0
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/build@v1
       with:
         app-name: ${{ inputs.app-name }}
         go-version: ${{ inputs.go-version }}
