@@ -21,5 +21,4 @@ jobs:
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          conventional-commit: 'true'  
-          create-release: 'true'
+          conventional-commit: 'true'
