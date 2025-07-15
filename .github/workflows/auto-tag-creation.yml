@@ -17,16 +17,9 @@ jobs:
       tag: ${{ steps.generate-tag.outputs.tag }}
     steps:
       # This step checks out the code from the repository
-      - name: Semantic version release
-        id: release
-        uses: huggingface/semver-release-action@latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Use release outputs
-        run: |
-          echo "Released version: ${{ steps.release.outputs.version }}"
-          echo "Tag: ${{ steps.release.outputs.tag }}"
-          echo "Was a release created? ${{ steps.release.outputs.released }}"
-          echo "Changelog:"
-          echo "${{ steps.release.outputs.changelog }}"
+      - id: generate-tag
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@releaseTesting
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          conventional-commit: 'true'  
+          create-release: 'true'
