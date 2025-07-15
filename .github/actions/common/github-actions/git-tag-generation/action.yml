@@ -166,15 +166,16 @@ runs:
 
     # Create a GitHub release if conventional commits are used
     - name: Create GitHub Release
-      uses: GitTools/actions@v4.0.1
+      uses: actions/create-release@v1
       if: ${{ inputs.conventional-commit == 'true' && inputs.create-release == 'true' }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
       with:
-        action: release
-        owner: ${{ github.repository_owner }}
-        repository: ${{ github.event.repository.name }}
-        token: ${{ inputs.token }}
-        tagName: ${{ steps.set-tag.outputs.tag }}
-        logFilePath: changelog.txt
+        tag_name: ${{ steps.set-tag.outputs.tag }}
+        release_name: Release ${{ steps.set-tag.outputs.tag }}
+        body_path: changelog.txt
+        draft: false
+        prerelease: false
 
     # Set the final output tag, prioritizing the conventional commit tag if available
     - name: Set final output tag
