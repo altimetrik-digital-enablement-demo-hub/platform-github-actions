@@ -272,7 +272,18 @@ runs:
             echo "Deleting webhook service to prevent further issues..."
             kubectl delete service aws-load-balancer-webhook-service -n kube-system 2>/dev/null || echo "Failed to delete webhook service"
             
-            echo "Webhooks disabled and service deleted. Deployment should proceed now."
+            # Delete the webhook configurations entirely since they reference the deleted service
+            echo "Deleting webhook configurations to prevent further issues..."
+            for webhook in $WEBHOOK_CONFIGS; do
+              echo "Deleting validating webhook: $webhook"
+              kubectl delete $webhook 2>/dev/null || echo "Failed to delete $webhook"
+            done
+            for webhook in $MUTATING_WEBHOOK_CONFIGS; do
+              echo "Deleting mutating webhook: $webhook"
+              kubectl delete $webhook 2>/dev/null || echo "Failed to delete $webhook"
+            done
+            
+            echo "Webhooks disabled, service deleted, and configurations removed. Deployment should proceed now."
           else
             echo "Webhook service is healthy with endpoints. No action needed."
           fi
@@ -292,6 +303,17 @@ runs:
             for webhook in $MUTATING_WEBHOOK_CONFIGS; do
               echo "Disabling mutating webhook: $webhook"
               kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' 2>/dev/null || echo "Failed to patch $webhook"
+            done
+            
+            # Also delete the webhook configurations entirely
+            echo "Deleting webhook configurations entirely..."
+            for webhook in $WEBHOOK_CONFIGS; do
+              echo "Deleting validating webhook: $webhook"
+              kubectl delete $webhook 2>/dev/null || echo "Failed to delete $webhook"
+            done
+            for webhook in $MUTATING_WEBHOOK_CONFIGS; do
+              echo "Deleting mutating webhook: $webhook"
+              kubectl delete $webhook 2>/dev/null || echo "Failed to delete $webhook"
             done
           fi
           
