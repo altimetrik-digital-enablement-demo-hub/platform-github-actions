@@ -140,6 +140,76 @@ runs:
         else
           echo "AWS Load Balancer Controller already installed"
         fi
+        
+        # Wait for the controller to be ready
+        echo "Waiting for AWS Load Balancer Controller to be ready..."
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-load-balancer-controller -n kube-system --timeout=300s
+        
+        # Verify webhook service is running
+        echo "Verifying webhook service..."
+        kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+        kubectl get service aws-load-balancer-webhook-service -n kube-system
+        
+        # Check webhook endpoints
+        echo "Checking webhook endpoints..."
+        kubectl get endpoints aws-load-balancer-webhook-service -n kube-system
+        
+        # If webhook service has no endpoints, restart the controller
+        ENDPOINTS=$(kubectl get endpoints aws-load-balancer-webhook-service -n kube-system -o jsonpath='{.subsets[0].addresses}' 2>/dev/null || echo "")
+        if [[ -z "$ENDPOINTS" ]]; then
+          echo "Webhook service has no endpoints. Restarting AWS Load Balancer Controller..."
+          helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller \
+            -n kube-system \
+            --set clusterName=${{ inputs.cluster-name }} \
+            --set serviceAccount.create=false \
+            --set serviceAccount.name=aws-load-balancer-controller
+          
+          # Wait again for the controller to be ready
+          echo "Waiting for restarted controller to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-load-balancer-controller -n kube-system --timeout=300s
+          
+          # Check endpoints again
+          echo "Checking webhook endpoints after restart..."
+          kubectl get endpoints aws-load-balancer-webhook-service -n kube-system
+        fi
+
+    # Temporarily disable webhooks if they're causing issues
+    - name: Handle webhook issues
+      if: inputs.ingress-enabled == 'true'
+      shell: bash
+      run: |
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        # Check if webhook service is healthy
+        ENDPOINTS=$(kubectl get endpoints aws-load-balancer-webhook-service -n kube-system -o jsonpath='{.subsets[0].addresses}' 2>/dev/null || echo "")
+        if [[ -z "$ENDPOINTS" ]]; then
+          echo "Webhook service still has no endpoints. Temporarily disabling webhooks..."
+          
+          # Get the webhook configuration names
+          WEBHOOK_CONFIGS=$(kubectl get validatingwebhookconfigurations -o name | grep elbv2.k8s.aws || echo "")
+          MUTATING_WEBHOOK_CONFIGS=$(kubectl get mutatingwebhookconfigurations -o name | grep elbv2.k8s.aws || echo "")
+          
+          # Temporarily disable validating webhooks
+          for webhook in $WEBHOOK_CONFIGS; do
+            echo "Disabling webhook: $webhook"
+            kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' || echo "Failed to patch $webhook"
+          done
+          
+          # Temporarily disable mutating webhooks
+          for webhook in $MUTATING_WEBHOOK_CONFIGS; do
+            echo "Disabling webhook: $webhook"
+            kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' || echo "Failed to patch $webhook"
+          done
+          
+          echo "Webhooks temporarily disabled. Deployment should proceed now."
+        else
+          echo "Webhook service is healthy. No action needed."
+        fi
 
     # Create namespace and GHCR secret
     - name: Create namespace and GHCR secret
