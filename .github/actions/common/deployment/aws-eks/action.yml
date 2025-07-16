@@ -445,22 +445,38 @@ runs:
           echo "=== Ingress Information ==="
           kubectl get ingress -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }}
           
-          # Wait for Ingress to get external IP
-          echo "Waiting for Ingress to get external IP..."
-          kubectl wait --for=condition=ready ingress -l app.kubernetes.io/name=${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s || echo "Ingress ready check completed"
+          # Check if AWS Load Balancer Controller is running
+          CONTROLLER_PODS=$(kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller --no-headers 2>/dev/null | wc -l || echo "0")
+          if [[ "$CONTROLLER_PODS" -eq 0 ]]; then
+            CONTROLLER_PODS=$(kubectl get pods -n kube-system -l app=aws-load-balancer-controller --no-headers 2>/dev/null | wc -l || echo "0")
+          fi
           
-          # Get Ingress external IP
-          INGRESS_HOSTNAME=$(kubectl get ingress -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
-          
-          if [[ "$INGRESS_HOSTNAME" != "N/A" ]]; then
-            echo "✅ Ingress external hostname: $INGRESS_HOSTNAME"
-            echo "- 🌐 External URL: https://$INGRESS_HOSTNAME" >> deployment-summary.md
-            if [[ -n "${{ inputs.ingress-host }}" ]]; then
-              echo "- 🌐 Custom Host: https://${{ inputs.ingress-host }}" >> deployment-summary.md
+          if [[ "$CONTROLLER_PODS" -gt 0 ]]; then
+            echo "AWS Load Balancer Controller is running. Waiting for Ingress to get external IP..."
+            # Wait for Ingress to get external IP
+            kubectl wait --for=condition=ready ingress -l app.kubernetes.io/name=${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s || echo "Ingress ready check completed"
+            
+            # Get Ingress external IP
+            INGRESS_HOSTNAME=$(kubectl get ingress -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
+            
+            if [[ "$INGRESS_HOSTNAME" != "N/A" ]]; then
+              echo "✅ Ingress external hostname: $INGRESS_HOSTNAME"
+              echo "- 🌐 External URL: https://$INGRESS_HOSTNAME" >> deployment-summary.md
+              if [[ -n "${{ inputs.ingress-host }}" ]]; then
+                echo "- 🌐 Custom Host: https://${{ inputs.ingress-host }}" >> deployment-summary.md
+              fi
+            else
+              echo "⏳ Ingress external hostname pending..."
+              echo "- ⏳ Ingress hostname pending..." >> deployment-summary.md
             fi
           else
-            echo "⏳ Ingress external hostname pending..."
-            echo "- ⏳ Ingress hostname pending..." >> deployment-summary.md
+            echo "⚠️ AWS Load Balancer Controller is not running. Ingress will not get external IP."
+            echo "- ⚠️ AWS Load Balancer Controller disabled during deployment" >> deployment-summary.md
+            echo "- 🔧 To enable external access, restart the controller:" >> deployment-summary.md
+            echo "  kubectl delete pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller" >> deployment-summary.md
+            echo "- 🔗 Internal access via port-forward:" >> deployment-summary.md
+            echo "  kubectl port-forward -n ${{ inputs.namespace }} svc/${{ inputs.app-name }} 8080:8080" >> deployment-summary.md
+            echo "- 🌐 Then access at: http://localhost:8080" >> deployment-summary.md
           fi
         elif [[ "$SERVICE_TYPE" == "LoadBalancer" ]]; then
           # Wait for LoadBalancer to get external IP
