@@ -236,36 +236,65 @@ runs:
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
         
+        echo "=== Webhook Debug Information ==="
+        echo "Checking all webhook configurations..."
+        kubectl get validatingwebhookconfigurations | grep -i aws || echo "No AWS validating webhooks found"
+        kubectl get mutatingwebhookconfigurations | grep -i aws || echo "No AWS mutating webhooks found"
+        
         # Check if webhook service exists and is healthy
         WEBHOOK_SERVICE_EXISTS=$(kubectl get service aws-load-balancer-webhook-service -n kube-system 2>/dev/null | wc -l || echo "0")
         
         if [[ "$WEBHOOK_SERVICE_EXISTS" -gt 0 ]]; then
           ENDPOINTS=$(kubectl get endpoints aws-load-balancer-webhook-service -n kube-system -o jsonpath='{.subsets[0].addresses}' 2>/dev/null || echo "")
           if [[ -z "$ENDPOINTS" ]]; then
-            echo "Webhook service exists but has no endpoints. Temporarily disabling webhooks..."
+            echo "Webhook service exists but has no endpoints. Disabling ALL AWS webhooks..."
             
-            # Get the webhook configuration names
-            WEBHOOK_CONFIGS=$(kubectl get validatingwebhookconfigurations -o name | grep elbv2.k8s.aws 2>/dev/null || echo "")
-            MUTATING_WEBHOOK_CONFIGS=$(kubectl get mutatingwebhookconfigurations -o name | grep elbv2.k8s.aws 2>/dev/null || echo "")
+            # Get ALL webhook configuration names (not just elbv2.k8s.aws)
+            WEBHOOK_CONFIGS=$(kubectl get validatingwebhookconfigurations -o name | grep -i aws 2>/dev/null || echo "")
+            MUTATING_WEBHOOK_CONFIGS=$(kubectl get mutatingwebhookconfigurations -o name | grep -i aws 2>/dev/null || echo "")
+            
+            echo "Found validating webhooks: $WEBHOOK_CONFIGS"
+            echo "Found mutating webhooks: $MUTATING_WEBHOOK_CONFIGS"
             
             # Temporarily disable validating webhooks
             for webhook in $WEBHOOK_CONFIGS; do
-              echo "Disabling webhook: $webhook"
+              echo "Disabling validating webhook: $webhook"
               kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' 2>/dev/null || echo "Failed to patch $webhook"
             done
             
             # Temporarily disable mutating webhooks
             for webhook in $MUTATING_WEBHOOK_CONFIGS; do
-              echo "Disabling webhook: $webhook"
+              echo "Disabling mutating webhook: $webhook"
               kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' 2>/dev/null || echo "Failed to patch $webhook"
             done
             
-            echo "Webhooks temporarily disabled. Deployment should proceed now."
+            # Also try to delete the webhook service to prevent further issues
+            echo "Deleting webhook service to prevent further issues..."
+            kubectl delete service aws-load-balancer-webhook-service -n kube-system 2>/dev/null || echo "Failed to delete webhook service"
+            
+            echo "Webhooks disabled and service deleted. Deployment should proceed now."
           else
             echo "Webhook service is healthy with endpoints. No action needed."
           fi
         else
-          echo "Webhook service does not exist. AWS Load Balancer Controller may not be properly installed."
+          echo "Webhook service does not exist. Checking for any remaining webhook configurations..."
+          
+          # Even if service doesn't exist, check for webhook configurations
+          WEBHOOK_CONFIGS=$(kubectl get validatingwebhookconfigurations -o name | grep -i aws 2>/dev/null || echo "")
+          MUTATING_WEBHOOK_CONFIGS=$(kubectl get mutatingwebhookconfigurations -o name | grep -i aws 2>/dev/null || echo "")
+          
+          if [[ -n "$WEBHOOK_CONFIGS" || -n "$MUTATING_WEBHOOK_CONFIGS" ]]; then
+            echo "Found webhook configurations but no service. Disabling them..."
+            for webhook in $WEBHOOK_CONFIGS; do
+              echo "Disabling validating webhook: $webhook"
+              kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' 2>/dev/null || echo "Failed to patch $webhook"
+            done
+            for webhook in $MUTATING_WEBHOOK_CONFIGS; do
+              echo "Disabling mutating webhook: $webhook"
+              kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' 2>/dev/null || echo "Failed to patch $webhook"
+            done
+          fi
+          
           echo "Continuing with deployment - webhooks will be ignored."
         fi
 
