@@ -75,37 +75,7 @@ runs:
       with:
         version: v3.14.0
 
-    # Install AWS Load Balancer Controller (if not exists)
-    - name: Install AWS Load Balancer Controller
-      if: inputs.ingress-enabled == 'true'
-      shell: bash
-      run: |
-        # Set AWS credentials
-        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
-        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
-        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
-          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
-        fi
-        
-        # Check if AWS Load Balancer Controller is already installed
-        if ! helm list -n kube-system | grep -q aws-load-balancer-controller; then
-          echo "Installing AWS Load Balancer Controller..."
-          
-          # Add the AWS Load Balancer Controller Helm repository
-          helm repo add eks https://aws.github.io/eks-charts
-          helm repo update
-          
-          # Install the AWS Load Balancer Controller
-          helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-            -n kube-system \
-            --set clusterName=${{ inputs.cluster-name }} \
-            --set serviceAccount.create=false \
-            --set serviceAccount.name=aws-load-balancer-controller
-        else
-          echo "AWS Load Balancer Controller already installed"
-        fi
-
-    # Configure AWS credentials and update kubeconfig
+    # Configure AWS credentials and update kubeconfig FIRST
     - name: Configure AWS and EKS access
       run: |
         # Set AWS credentials
@@ -140,6 +110,36 @@ runs:
         echo "=== EKS Authentication Debug ==="
         aws eks get-token --cluster-name ${{ inputs.cluster-name }} --region ${{ inputs.region }} || echo "Failed to get EKS token"
       shell: bash
+
+    # Install AWS Load Balancer Controller (if not exists) - AFTER kubeconfig is set
+    - name: Install AWS Load Balancer Controller
+      if: inputs.ingress-enabled == 'true'
+      shell: bash
+      run: |
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        # Check if AWS Load Balancer Controller is already installed
+        if ! helm list -n kube-system | grep -q aws-load-balancer-controller; then
+          echo "Installing AWS Load Balancer Controller..."
+          
+          # Add the AWS Load Balancer Controller Helm repository
+          helm repo add eks https://aws.github.io/eks-charts
+          helm repo update
+          
+          # Install the AWS Load Balancer Controller
+          helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+            -n kube-system \
+            --set clusterName=${{ inputs.cluster-name }} \
+            --set serviceAccount.create=false \
+            --set serviceAccount.name=aws-load-balancer-controller
+        else
+          echo "AWS Load Balancer Controller already installed"
+        fi
 
     # Create namespace and GHCR secret
     - name: Create namespace and GHCR secret
