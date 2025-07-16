@@ -138,7 +138,8 @@ runs:
             helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
               -n kube-system \
               --set clusterName=${{ inputs.cluster-name }} \
-              --set serviceAccount.create=true
+              --set serviceAccount.create=true \
+              --set awsRegion=${{ inputs.region }}
           else
             echo "Failed to add eks repository. Skipping controller installation."
           fi
@@ -196,8 +197,8 @@ runs:
             helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller \
               -n kube-system \
               --set clusterName=${{ inputs.cluster-name }} \
-              --set serviceAccount.create=false \
-              --set serviceAccount.name=aws-load-balancer-controller
+              --set serviceAccount.create=true \
+              --set awsRegion=${{ inputs.region }}
           else
             echo "Failed to add eks repository. Trying alternative approach..."
             # Try to reinstall instead of upgrade
@@ -206,8 +207,8 @@ runs:
             helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
               -n kube-system \
               --set clusterName=${{ inputs.cluster-name }} \
-              --set serviceAccount.create=false \
-              --set serviceAccount.name=aws-load-balancer-controller
+              --set serviceAccount.create=true \
+              --set awsRegion=${{ inputs.region }}
           fi
           
           # Wait again for the controller to be ready
