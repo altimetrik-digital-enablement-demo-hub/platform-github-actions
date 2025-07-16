@@ -42,11 +42,23 @@ inputs:
   service-type:
     description: 'Kubernetes service type (ClusterIP, LoadBalancer, NodePort)'
     required: false
-    default: 'LoadBalancer'
-  external-access:
-    description: 'Enable external access to the application'
+    default: 'ClusterIP'
+  ingress-enabled:
+    description: 'Enable Ingress for external access'
     required: false
     default: 'true'
+  ingress-host:
+    description: 'Hostname for the Ingress (e.g., app.example.com)'
+    required: false
+    default: ''
+  ingress-path:
+    description: 'Path for the Ingress'
+    required: false
+    default: '/'
+  ingress-annotations:
+    description: 'Additional Ingress annotations (comma-separated key=value pairs)'
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -62,6 +74,36 @@ runs:
       uses: azure/setup-helm@v3
       with:
         version: v3.14.0
+
+    # Install AWS Load Balancer Controller (if not exists)
+    - name: Install AWS Load Balancer Controller
+      if: inputs.ingress-enabled == 'true'
+      shell: bash
+      run: |
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        # Check if AWS Load Balancer Controller is already installed
+        if ! helm list -n kube-system | grep -q aws-load-balancer-controller; then
+          echo "Installing AWS Load Balancer Controller..."
+          
+          # Add the AWS Load Balancer Controller Helm repository
+          helm repo add eks https://aws.github.io/eks-charts
+          helm repo update
+          
+          # Install the AWS Load Balancer Controller
+          helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+            -n kube-system \
+            --set clusterName=${{ inputs.cluster-name }} \
+            --set serviceAccount.create=false \
+            --set serviceAccount.name=aws-load-balancer-controller
+        else
+          echo "AWS Load Balancer Controller already installed"
+        fi
 
     # Configure AWS credentials and update kubeconfig
     - name: Configure AWS and EKS access
@@ -133,13 +175,52 @@ runs:
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
         
-        helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart-path }} \
-          --namespace ${{ inputs.namespace }} \
-          --create-namespace \
-          --set image.repository=${{ inputs.repository }} \
-          --set image.tag=${{ inputs.tag }} \
-          --set service.type=${{ inputs.service-type }} \
-          ${{ inputs.ghcr-username != '' && inputs.ghcr-pat != '' && '--set imagePullSecrets[0].name=ghcr-secret' || '' }}
+        # Build Helm command
+        HELM_CMD="helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart-path }}"
+        HELM_CMD="$HELM_CMD --namespace ${{ inputs.namespace }}"
+        HELM_CMD="$HELM_CMD --create-namespace"
+        HELM_CMD="$HELM_CMD --set image.repository=${{ inputs.repository }}"
+        HELM_CMD="$HELM_CMD --set image.tag=${{ inputs.tag }}"
+        HELM_CMD="$HELM_CMD --set service.type=${{ inputs.service-type }}"
+        
+        # Add Ingress configuration if enabled
+        if [[ "${{ inputs.ingress-enabled }}" == "true" ]]; then
+          HELM_CMD="$HELM_CMD --set ingress.enabled=true"
+          HELM_CMD="$HELM_CMD --set ingress.className=alb"
+          HELM_CMD="$HELM_CMD --set ingress.annotations.kubernetes\\.io/ingress\\.class=alb"
+          HELM_CMD="$HELM_CMD --set ingress.annotations.alb\\.ingress\\.kubernetes\\.io/scheme=internet-facing"
+          HELM_CMD="$HELM_CMD --set ingress.annotations.alb\\.ingress\\.kubernetes\\.io/target-type=ip"
+          HELM_CMD="$HELM_CMD --set ingress.annotations.alb\\.ingress\\.kubernetes\\.io/listen-ports='[{\"HTTP\": 80}, {\"HTTPS\":443}]'"
+          HELM_CMD="$HELM_CMD --set ingress.annotations.alb\\.ingress\\.kubernetes\\.io/ssl-redirect=443"
+          
+          # Add custom host if provided
+          if [[ -n "${{ inputs.ingress-host }}" ]]; then
+            HELM_CMD="$HELM_CMD --set ingress.hosts[0].host=${{ inputs.ingress-host }}"
+            HELM_CMD="$HELM_CMD --set ingress.hosts[0].paths[0].path=${{ inputs.ingress-path }}"
+            HELM_CMD="$HELM_CMD --set ingress.hosts[0].paths[0].pathType=Prefix"
+          fi
+          
+          # Add custom annotations if provided
+          if [[ -n "${{ inputs.ingress-annotations }}" ]]; then
+            IFS=',' read -ra ANNOTATIONS <<< "${{ inputs.ingress-annotations }}"
+            for annotation in "${ANNOTATIONS[@]}"; do
+              IFS='=' read -ra KEY_VALUE <<< "$annotation"
+              if [[ ${#KEY_VALUE[@]} -eq 2 ]]; then
+                HELM_CMD="$HELM_CMD --set ingress.annotations.${KEY_VALUE[0]}=${KEY_VALUE[1]}"
+              fi
+            done
+          fi
+        else
+          HELM_CMD="$HELM_CMD --set ingress.enabled=false"
+        fi
+        
+        # Add image pull secrets if provided
+        if [[ -n "${{ inputs.ghcr-username }}" && -n "${{ inputs.ghcr-pat }}" ]]; then
+          HELM_CMD="$HELM_CMD --set imagePullSecrets[0].name=ghcr-secret"
+        fi
+        
+        echo "Executing: $HELM_CMD"
+        eval $HELM_CMD
 
     # Verify deployment
     - name: Verify deployment
@@ -186,20 +267,61 @@ runs:
         SERVICE_TYPE=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.type}' 2>/dev/null || echo "N/A")
         SERVICE_PORT=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.ports[0].port}' 2>/dev/null || echo "N/A")
         
-        if [[ "$SERVICE_TYPE" == "LoadBalancer" ]]; then
+        # Check if Ingress is enabled
+        if [[ "${{ inputs.ingress-enabled }}" == "true" ]]; then
+          echo "=== Ingress Information ==="
+          kubectl get ingress -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }}
+          
+          # Wait for Ingress to get external IP
+          echo "Waiting for Ingress to get external IP..."
+          kubectl wait --for=condition=ready ingress -l app.kubernetes.io/name=${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s || echo "Ingress ready check completed"
+          
+          # Get Ingress external IP
+          INGRESS_HOSTNAME=$(kubectl get ingress -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
+          
+          if [[ "$INGRESS_HOSTNAME" != "N/A" ]]; then
+            echo "✅ Ingress external hostname: $INGRESS_HOSTNAME"
+            echo "- 🌐 External URL: https://$INGRESS_HOSTNAME" >> deployment-summary.md
+            if [[ -n "${{ inputs.ingress-host }}" ]]; then
+              echo "- 🌐 Custom Host: https://${{ inputs.ingress-host }}" >> deployment-summary.md
+            fi
+          else
+            echo "⏳ Ingress external hostname pending..."
+            echo "- ⏳ Ingress hostname pending..." >> deployment-summary.md
+          fi
+        elif [[ "$SERVICE_TYPE" == "LoadBalancer" ]]; then
           # Wait for LoadBalancer to get external IP
           echo "Waiting for LoadBalancer to get external IP..."
-          kubectl wait --for=condition=ready service -l app.kubernetes.io/name=${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s
           
-          EXTERNAL_IP=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
-          if [[ "$EXTERNAL_IP" == "N/A" ]]; then
-            EXTERNAL_IP=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "N/A")
-          fi
+          # Try to wait for service ready, but don't fail if it times out
+          kubectl wait --for=condition=ready service -l app.kubernetes.io/name=${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s || echo "Service ready check completed"
           
-          if [[ "$EXTERNAL_IP" != "N/A" ]]; then
+          # Show current service status
+          echo "=== Current Service Status ==="
+          kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o wide
+          
+          # Try to get external IP with retries
+          echo "Checking for external IP..."
+          for i in {1..5}; do
+            EXTERNAL_IP=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
+            if [[ "$EXTERNAL_IP" == "N/A" ]]; then
+              EXTERNAL_IP=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "N/A")
+            fi
+            
+            if [[ "$EXTERNAL_IP" != "N/A" && "$EXTERNAL_IP" != "<pending>" ]]; then
+              echo "✅ External IP found: $EXTERNAL_IP"
+              break
+            else
+              echo "⏳ Attempt $i/5: External IP not yet available, waiting 30 seconds..."
+              sleep 30
+            fi
+          done
+          
+          if [[ "$EXTERNAL_IP" != "N/A" && "$EXTERNAL_IP" != "<pending>" ]]; then
             echo "- 🌐 External URL: http://$EXTERNAL_IP:$SERVICE_PORT" >> deployment-summary.md
           else
             echo "- ⏳ LoadBalancer IP pending..." >> deployment-summary.md
+            echo "- 💡 Check manually: kubectl get service -n ${{ inputs.namespace }}" >> deployment-summary.md
           fi
         elif [[ "$SERVICE_TYPE" == "NodePort" ]]; then
           NODEPORT=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.ports[0].nodePort}' 2>/dev/null || echo "N/A")
