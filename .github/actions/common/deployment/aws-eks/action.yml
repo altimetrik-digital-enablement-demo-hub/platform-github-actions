@@ -186,12 +186,6 @@ runs:
         # Add Ingress configuration if enabled
         if [[ "${{ inputs.ingress-enabled }}" == "true" ]]; then
           HELM_CMD="$HELM_CMD --set ingress.enabled=true"
-          HELM_CMD="$HELM_CMD --set ingress.className=alb"
-          HELM_CMD="$HELM_CMD --set ingress.annotations.kubernetes\\.io/ingress\\.class=alb"
-          HELM_CMD="$HELM_CMD --set ingress.annotations.alb\\.ingress\\.kubernetes\\.io/scheme=internet-facing"
-          HELM_CMD="$HELM_CMD --set ingress.annotations.alb\\.ingress\\.kubernetes\\.io/target-type=ip"
-          HELM_CMD="$HELM_CMD --set ingress.annotations.alb\\.ingress\\.kubernetes\\.io/listen-ports='[{\"HTTP\": 80}, {\"HTTPS\":443}]'"
-          HELM_CMD="$HELM_CMD --set ingress.annotations.alb\\.ingress\\.kubernetes\\.io/ssl-redirect=443"
           
           # Add custom host if provided
           if [[ -n "${{ inputs.ingress-host }}" ]]; then
