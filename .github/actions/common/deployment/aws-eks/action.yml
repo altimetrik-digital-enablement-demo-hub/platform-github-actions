@@ -138,8 +138,7 @@ runs:
             helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
               -n kube-system \
               --set clusterName=${{ inputs.cluster-name }} \
-              --set serviceAccount.create=false \
-              --set serviceAccount.name=aws-load-balancer-controller
+              --set serviceAccount.create=true
           else
             echo "Failed to add eks repository. Skipping controller installation."
           fi
@@ -472,11 +471,27 @@ runs:
           else
             echo "⚠️ AWS Load Balancer Controller is not running. Ingress will not get external IP."
             echo "- ⚠️ AWS Load Balancer Controller disabled during deployment" >> deployment-summary.md
-            echo "- 🔧 To enable external access, restart the controller:" >> deployment-summary.md
-            echo "  kubectl delete pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller" >> deployment-summary.md
-            echo "- 🔗 Internal access via port-forward:" >> deployment-summary.md
+            
+            # Check for existing ALBs that might have been created before controller was disabled
+            echo "Checking for existing AWS Load Balancers..."
+            EXISTING_ALB=$(aws elbv2 describe-load-balancers --region ${{ inputs.region }} --query 'LoadBalancers[?contains(LoadBalancerName, `k8s`) && contains(LoadBalancerName, `java-apps`)].DNSName' --output text 2>/dev/null || echo "")
+            
+            if [[ -n "$EXISTING_ALB" ]]; then
+              echo "✅ Found existing ALB: $EXISTING_ALB"
+              echo "- 🌐 Existing ALB URL: http://$EXISTING_ALB" >> deployment-summary.md
+              echo "- 🌐 Health Check: http://$EXISTING_ALB/actuator/health" >> deployment-summary.md
+            else
+              echo "No existing ALB found for this namespace."
+              echo "- 🔧 To create ALB and get external access:" >> deployment-summary.md
+              echo "  1. Restart AWS Load Balancer Controller:" >> deployment-summary.md
+              echo "     kubectl delete pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller" >> deployment-summary.md
+              echo "  2. Wait for controller to restart and create ALB" >> deployment-summary.md
+              echo "  3. Check ALB creation: kubectl get ingress -n ${{ inputs.namespace }}" >> deployment-summary.md
+            fi
+            
+            echo "- 🔗 For immediate testing (local access):" >> deployment-summary.md
             echo "  kubectl port-forward -n ${{ inputs.namespace }} svc/${{ inputs.app-name }} 8080:8080" >> deployment-summary.md
-            echo "- 🌐 Then access at: http://localhost:8080" >> deployment-summary.md
+            echo "  Then access at: http://localhost:8080" >> deployment-summary.md
           fi
         elif [[ "$SERVICE_TYPE" == "LoadBalancer" ]]; then
           # Wait for LoadBalancer to get external IP
