@@ -1,0 +1,44 @@
+name: Simple Kind Cluster Test
+description: Create a Kind cluster and test basic functionality
+
+inputs:
+  app-name:
+    description: 'Application name for cluster naming'
+    required: true
+    default: 'test-app'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create Kind cluster
+      uses: helm/kind-action@v1
+      with:
+        cluster_name: ${{ inputs.app-name }}-test
+        wait: 60s
+
+    - name: Test cluster
+      shell: bash
+      run: |
+        echo "🎯 Testing Kind cluster..."
+        
+        # Test cluster is working
+        kubectl cluster-info
+        kubectl get nodes
+        
+        # Create a simple test pod
+        kubectl run test-pod --image=nginx:alpine --restart=Never
+        
+        # Wait for pod to be ready
+        kubectl wait --for=condition=Ready pod/test-pod --timeout=60s
+        
+        # Check pod status
+        kubectl get pods
+        
+        echo "✅ Kind cluster test completed successfully!"
+
+    - name: Cleanup test resources
+      shell: bash
+      if: always()
+      run: |
+        echo "🧹 Cleaning up test resources..."
+        kubectl delete pod test-pod --ignore-not-found=true 
