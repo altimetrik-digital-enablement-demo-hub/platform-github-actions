@@ -18,8 +18,7 @@ jobs:
     steps:
       # This step checks out the code from the repository
       - id: generate-tag
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@v1
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/git-tag-generation@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          conventional-commit: 'true'  
-          create-release: 'true'
+          conventional-commit: 'true'
