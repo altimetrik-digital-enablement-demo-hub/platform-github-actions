@@ -42,23 +42,7 @@ inputs:
   service-type:
     description: 'Kubernetes service type (ClusterIP, LoadBalancer, NodePort)'
     required: false
-    default: 'ClusterIP'
-  ingress-enabled:
-    description: 'Enable Ingress for external access'
-    required: false
-    default: 'true'
-  ingress-host:
-    description: 'Hostname for the Ingress (e.g., app.example.com)'
-    required: false
-    default: ''
-  ingress-path:
-    description: 'Path for the Ingress'
-    required: false
-    default: '/'
-  ingress-annotations:
-    description: 'Additional Ingress annotations (comma-separated key=value pairs)'
-    required: false
-    default: ''
+    default: 'LoadBalancer'
 
 runs:
   using: composite
@@ -75,7 +59,7 @@ runs:
       with:
         version: v3.14.0
 
-    # Configure AWS credentials and update kubeconfig FIRST
+    # Configure AWS credentials and update kubeconfig
     - name: Configure AWS and EKS access
       run: |
         # Set AWS credentials
@@ -97,228 +81,11 @@ runs:
         echo "=== Updating kubeconfig ==="
         aws eks update-kubeconfig --region ${{ inputs.region }} --name ${{ inputs.cluster-name }}
         
-        # Try to access cluster with more debugging
+        # Test cluster access
         echo "=== Testing cluster access ==="
-        kubectl cluster-info || echo "Failed to get cluster info"
-        kubectl get nodes || echo "Failed to get nodes"
-        
-        # Check if we can list namespaces
-        echo "=== Testing namespace access ==="
-        kubectl get namespaces || echo "Failed to get namespaces"
-        
-        # Check EKS cluster authentication
-        echo "=== EKS Authentication Debug ==="
-        aws eks get-token --cluster-name ${{ inputs.cluster-name }} --region ${{ inputs.region }} || echo "Failed to get EKS token"
+        kubectl cluster-info
+        kubectl get nodes
       shell: bash
-
-    # Install AWS Load Balancer Controller (if not exists) - AFTER kubeconfig is set
-    - name: Install AWS Load Balancer Controller
-      if: inputs.ingress-enabled == 'true'
-      shell: bash
-      run: |
-        # Set AWS credentials
-        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
-        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
-        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
-          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
-        fi
-        
-        # Check if AWS Load Balancer Controller is already installed
-        if ! helm list -n kube-system | grep -q aws-load-balancer-controller; then
-          echo "Installing AWS Load Balancer Controller..."
-          
-          # Add the AWS Load Balancer Controller Helm repository
-          echo "Adding eks repository..."
-          helm repo add eks https://aws.github.io/eks-charts
-          helm repo update
-          
-          # Verify repository was added
-          if helm repo list | grep -q eks; then
-            echo "EKS repository added successfully. Installing controller..."
-            helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-              -n kube-system \
-              --set clusterName=${{ inputs.cluster-name }} \
-              --set serviceAccount.create=true \
-              --set awsRegion=${{ inputs.region }}
-          else
-            echo "Failed to add eks repository. Skipping controller installation."
-          fi
-        else
-          echo "AWS Load Balancer Controller already installed"
-        fi
-        
-        # Wait for the controller to be ready
-        echo "Waiting for AWS Load Balancer Controller to be ready..."
-        
-        # Check if controller pods exist with different label selectors
-        CONTROLLER_PODS=$(kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller --no-headers 2>/dev/null | wc -l || echo "0")
-        if [[ "$CONTROLLER_PODS" -eq 0 ]]; then
-          # Try alternative label selector
-          CONTROLLER_PODS=$(kubectl get pods -n kube-system -l app=aws-load-balancer-controller --no-headers 2>/dev/null | wc -l || echo "0")
-        fi
-        if [[ "$CONTROLLER_PODS" -eq 0 ]]; then
-          # Try component label
-          CONTROLLER_PODS=$(kubectl get pods -n kube-system -l component=aws-load-balancer-controller --no-headers 2>/dev/null | wc -l || echo "0")
-        fi
-        
-        if [[ "$CONTROLLER_PODS" -gt 0 ]]; then
-          echo "Found $CONTROLLER_PODS controller pods. Waiting for them to be ready..."
-          # Try different label selectors for waiting
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-load-balancer-controller -n kube-system --timeout=300s 2>/dev/null || \
-          kubectl wait --for=condition=ready pod -l app=aws-load-balancer-controller -n kube-system --timeout=300s 2>/dev/null || \
-          kubectl wait --for=condition=ready pod -l component=aws-load-balancer-controller -n kube-system --timeout=300s 2>/dev/null || \
-          echo "Could not wait for specific pods, but continuing..."
-        else
-          echo "No AWS Load Balancer Controller pods found. Controller may not be properly installed."
-        fi
-        
-        # Verify webhook service is running
-        echo "Verifying webhook service..."
-        kubectl get pods -n kube-system | grep aws-load-balancer || echo "No aws-load-balancer pods found"
-        kubectl get service aws-load-balancer-webhook-service -n kube-system 2>/dev/null || echo "Webhook service not found"
-        
-        # Check webhook endpoints
-        echo "Checking webhook endpoints..."
-        kubectl get endpoints aws-load-balancer-webhook-service -n kube-system 2>/dev/null || echo "Webhook endpoints not found"
-        
-        # If webhook service has no endpoints, restart the controller
-        ENDPOINTS=$(kubectl get endpoints aws-load-balancer-webhook-service -n kube-system -o jsonpath='{.subsets[0].addresses}' 2>/dev/null || echo "")
-        if [[ -z "$ENDPOINTS" ]]; then
-          echo "Webhook service has no endpoints. Restarting AWS Load Balancer Controller..."
-          
-          # Ensure eks repo is available
-          echo "Adding eks repository..."
-          helm repo add eks https://aws.github.io/eks-charts
-          helm repo update
-          
-          # Check if repo was added successfully
-          if helm repo list | grep -q eks; then
-            echo "EKS repository added successfully. Upgrading controller..."
-            helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller \
-              -n kube-system \
-              --set clusterName=${{ inputs.cluster-name }} \
-              --set serviceAccount.create=true \
-              --set awsRegion=${{ inputs.region }}
-          else
-            echo "Failed to add eks repository. Trying alternative approach..."
-            # Try to reinstall instead of upgrade
-            helm uninstall aws-load-balancer-controller -n kube-system 2>/dev/null || echo "No existing installation to uninstall"
-            sleep 10
-            helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-              -n kube-system \
-              --set clusterName=${{ inputs.cluster-name }} \
-              --set serviceAccount.create=true \
-              --set awsRegion=${{ inputs.region }}
-          fi
-          
-          # Wait again for the controller to be ready
-          echo "Waiting for restarted controller to be ready..."
-          sleep 30
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-load-balancer-controller -n kube-system --timeout=300s 2>/dev/null || \
-          kubectl wait --for=condition=ready pod -l app=aws-load-balancer-controller -n kube-system --timeout=300s 2>/dev/null || \
-          kubectl wait --for=condition=ready pod -l component=aws-load-balancer-controller -n kube-system --timeout=300s 2>/dev/null || \
-          echo "Could not wait for restarted pods, but continuing..."
-          
-          # Check endpoints again
-          echo "Checking webhook endpoints after restart..."
-          kubectl get endpoints aws-load-balancer-webhook-service -n kube-system 2>/dev/null || echo "Webhook endpoints still not found"
-        fi
-
-    # Temporarily disable webhooks if they're causing issues
-    - name: Handle webhook issues
-      if: inputs.ingress-enabled == 'true'
-      shell: bash
-      run: |
-        # Set AWS credentials
-        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
-        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
-        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
-          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
-        fi
-        
-        echo "=== Webhook Debug Information ==="
-        echo "Checking all webhook configurations..."
-        kubectl get validatingwebhookconfigurations | grep -i aws || echo "No AWS validating webhooks found"
-        kubectl get mutatingwebhookconfigurations | grep -i aws || echo "No AWS mutating webhooks found"
-        
-        # Check if webhook service exists and is healthy
-        WEBHOOK_SERVICE_EXISTS=$(kubectl get service aws-load-balancer-webhook-service -n kube-system 2>/dev/null | wc -l || echo "0")
-        
-        if [[ "$WEBHOOK_SERVICE_EXISTS" -gt 0 ]]; then
-          ENDPOINTS=$(kubectl get endpoints aws-load-balancer-webhook-service -n kube-system -o jsonpath='{.subsets[0].addresses}' 2>/dev/null || echo "")
-          if [[ -z "$ENDPOINTS" ]]; then
-            echo "Webhook service exists but has no endpoints. Disabling ALL AWS webhooks..."
-            
-            # Get ALL webhook configuration names (not just elbv2.k8s.aws)
-            WEBHOOK_CONFIGS=$(kubectl get validatingwebhookconfigurations -o name | grep -i aws 2>/dev/null || echo "")
-            MUTATING_WEBHOOK_CONFIGS=$(kubectl get mutatingwebhookconfigurations -o name | grep -i aws 2>/dev/null || echo "")
-            
-            echo "Found validating webhooks: $WEBHOOK_CONFIGS"
-            echo "Found mutating webhooks: $MUTATING_WEBHOOK_CONFIGS"
-            
-            # Temporarily disable validating webhooks
-            for webhook in $WEBHOOK_CONFIGS; do
-              echo "Disabling validating webhook: $webhook"
-              kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' 2>/dev/null || echo "Failed to patch $webhook"
-            done
-            
-            # Temporarily disable mutating webhooks
-            for webhook in $MUTATING_WEBHOOK_CONFIGS; do
-              echo "Disabling mutating webhook: $webhook"
-              kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' 2>/dev/null || echo "Failed to patch $webhook"
-            done
-            
-            # Also try to delete the webhook service to prevent further issues
-            echo "Deleting webhook service to prevent further issues..."
-            kubectl delete service aws-load-balancer-webhook-service -n kube-system 2>/dev/null || echo "Failed to delete webhook service"
-            
-            # Delete the webhook configurations entirely since they reference the deleted service
-            echo "Deleting webhook configurations to prevent further issues..."
-            for webhook in $WEBHOOK_CONFIGS; do
-              echo "Deleting validating webhook: $webhook"
-              kubectl delete $webhook 2>/dev/null || echo "Failed to delete $webhook"
-            done
-            for webhook in $MUTATING_WEBHOOK_CONFIGS; do
-              echo "Deleting mutating webhook: $webhook"
-              kubectl delete $webhook 2>/dev/null || echo "Failed to delete $webhook"
-            done
-            
-            echo "Webhooks disabled, service deleted, and configurations removed. Deployment should proceed now."
-          else
-            echo "Webhook service is healthy with endpoints. No action needed."
-          fi
-        else
-          echo "Webhook service does not exist. Checking for any remaining webhook configurations..."
-          
-          # Even if service doesn't exist, check for webhook configurations
-          WEBHOOK_CONFIGS=$(kubectl get validatingwebhookconfigurations -o name | grep -i aws 2>/dev/null || echo "")
-          MUTATING_WEBHOOK_CONFIGS=$(kubectl get mutatingwebhookconfigurations -o name | grep -i aws 2>/dev/null || echo "")
-          
-          if [[ -n "$WEBHOOK_CONFIGS" || -n "$MUTATING_WEBHOOK_CONFIGS" ]]; then
-            echo "Found webhook configurations but no service. Disabling them..."
-            for webhook in $WEBHOOK_CONFIGS; do
-              echo "Disabling validating webhook: $webhook"
-              kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' 2>/dev/null || echo "Failed to patch $webhook"
-            done
-            for webhook in $MUTATING_WEBHOOK_CONFIGS; do
-              echo "Disabling mutating webhook: $webhook"
-              kubectl patch $webhook --type='json' -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value": "Ignore"}]' 2>/dev/null || echo "Failed to patch $webhook"
-            done
-            
-            # Also delete the webhook configurations entirely
-            echo "Deleting webhook configurations entirely..."
-            for webhook in $WEBHOOK_CONFIGS; do
-              echo "Deleting validating webhook: $webhook"
-              kubectl delete $webhook 2>/dev/null || echo "Failed to delete $webhook"
-            done
-            for webhook in $MUTATING_WEBHOOK_CONFIGS; do
-              echo "Deleting mutating webhook: $webhook"
-              kubectl delete $webhook 2>/dev/null || echo "Failed to delete $webhook"
-            done
-          fi
-          
-          echo "Continuing with deployment - webhooks will be ignored."
-        fi
 
     # Create namespace and GHCR secret
     - name: Create namespace and GHCR secret
@@ -361,31 +128,6 @@ runs:
         HELM_CMD="$HELM_CMD --set image.repository=${{ inputs.repository }}"
         HELM_CMD="$HELM_CMD --set image.tag=${{ inputs.tag }}"
         HELM_CMD="$HELM_CMD --set service.type=${{ inputs.service-type }}"
-        
-        # Add Ingress configuration if enabled
-        if [[ "${{ inputs.ingress-enabled }}" == "true" ]]; then
-          HELM_CMD="$HELM_CMD --set ingress.enabled=true"
-          
-          # Add custom host if provided
-          if [[ -n "${{ inputs.ingress-host }}" ]]; then
-            HELM_CMD="$HELM_CMD --set ingress.hosts[0].host=${{ inputs.ingress-host }}"
-            HELM_CMD="$HELM_CMD --set ingress.hosts[0].paths[0].path=${{ inputs.ingress-path }}"
-            HELM_CMD="$HELM_CMD --set ingress.hosts[0].paths[0].pathType=Prefix"
-          fi
-          
-          # Add custom annotations if provided
-          if [[ -n "${{ inputs.ingress-annotations }}" ]]; then
-            IFS=',' read -ra ANNOTATIONS <<< "${{ inputs.ingress-annotations }}"
-            for annotation in "${ANNOTATIONS[@]}"; do
-              IFS='=' read -ra KEY_VALUE <<< "$annotation"
-              if [[ ${#KEY_VALUE[@]} -eq 2 ]]; then
-                HELM_CMD="$HELM_CMD --set ingress.annotations.${KEY_VALUE[0]}=${KEY_VALUE[1]}"
-              fi
-            done
-          fi
-        else
-          HELM_CMD="$HELM_CMD --set ingress.enabled=false"
-        fi
         
         # Add image pull secrets if provided
         if [[ -n "${{ inputs.ghcr-username }}" && -n "${{ inputs.ghcr-pat }}" ]]; then
@@ -440,74 +182,13 @@ runs:
         SERVICE_TYPE=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.type}' 2>/dev/null || echo "N/A")
         SERVICE_PORT=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.ports[0].port}' 2>/dev/null || echo "N/A")
         
-        # Check if Ingress is enabled
-        if [[ "${{ inputs.ingress-enabled }}" == "true" ]]; then
-          echo "=== Ingress Information ==="
-          kubectl get ingress -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }}
-          
-          # Check if AWS Load Balancer Controller is running
-          CONTROLLER_PODS=$(kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller --no-headers 2>/dev/null | wc -l || echo "0")
-          if [[ "$CONTROLLER_PODS" -eq 0 ]]; then
-            CONTROLLER_PODS=$(kubectl get pods -n kube-system -l app=aws-load-balancer-controller --no-headers 2>/dev/null | wc -l || echo "0")
-          fi
-          
-          if [[ "$CONTROLLER_PODS" -gt 0 ]]; then
-            echo "AWS Load Balancer Controller is running. Waiting for Ingress to get external IP..."
-            # Wait for Ingress to get external IP
-            kubectl wait --for=condition=ready ingress -l app.kubernetes.io/name=${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s || echo "Ingress ready check completed"
-            
-            # Get Ingress external IP
-            INGRESS_HOSTNAME=$(kubectl get ingress -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
-            
-            if [[ "$INGRESS_HOSTNAME" != "N/A" ]]; then
-              echo "✅ Ingress external hostname: $INGRESS_HOSTNAME"
-              echo "- 🌐 External URL: https://$INGRESS_HOSTNAME" >> deployment-summary.md
-              if [[ -n "${{ inputs.ingress-host }}" ]]; then
-                echo "- 🌐 Custom Host: https://${{ inputs.ingress-host }}" >> deployment-summary.md
-              fi
-            else
-              echo "⏳ Ingress external hostname pending..."
-              echo "- ⏳ Ingress hostname pending..." >> deployment-summary.md
-            fi
-          else
-            echo "⚠️ AWS Load Balancer Controller is not running. Ingress will not get external IP."
-            echo "- ⚠️ AWS Load Balancer Controller disabled during deployment" >> deployment-summary.md
-            
-            # Check for existing ALBs that might have been created before controller was disabled
-            echo "Checking for existing AWS Load Balancers..."
-            EXISTING_ALB=$(aws elbv2 describe-load-balancers --region ${{ inputs.region }} --query 'LoadBalancers[?contains(LoadBalancerName, `k8s`) && contains(LoadBalancerName, `java-apps`)].DNSName' --output text 2>/dev/null || echo "")
-            
-            if [[ -n "$EXISTING_ALB" ]]; then
-              echo "✅ Found existing ALB: $EXISTING_ALB"
-              echo "- 🌐 Existing ALB URL: http://$EXISTING_ALB" >> deployment-summary.md
-              echo "- 🌐 Health Check: http://$EXISTING_ALB/actuator/health" >> deployment-summary.md
-            else
-              echo "No existing ALB found for this namespace."
-              echo "- 🔧 To create ALB and get external access:" >> deployment-summary.md
-              echo "  1. Restart AWS Load Balancer Controller:" >> deployment-summary.md
-              echo "     kubectl delete pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller" >> deployment-summary.md
-              echo "  2. Wait for controller to restart and create ALB" >> deployment-summary.md
-              echo "  3. Check ALB creation: kubectl get ingress -n ${{ inputs.namespace }}" >> deployment-summary.md
-            fi
-            
-            echo "- 🔗 For immediate testing (local access):" >> deployment-summary.md
-            echo "  kubectl port-forward -n ${{ inputs.namespace }} svc/${{ inputs.app-name }} 8080:8080" >> deployment-summary.md
-            echo "  Then access at: http://localhost:8080" >> deployment-summary.md
-          fi
-        elif [[ "$SERVICE_TYPE" == "LoadBalancer" ]]; then
-          # Wait for LoadBalancer to get external IP
+        # Wait for LoadBalancer to get external IP
+        if [[ "$SERVICE_TYPE" == "LoadBalancer" ]]; then
           echo "Waiting for LoadBalancer to get external IP..."
-          
-          # Try to wait for service ready, but don't fail if it times out
-          kubectl wait --for=condition=ready service -l app.kubernetes.io/name=${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s || echo "Service ready check completed"
-          
-          # Show current service status
-          echo "=== Current Service Status ==="
-          kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o wide
           
           # Try to get external IP with retries
           echo "Checking for external IP..."
-          for i in {1..5}; do
+          for i in {1..10}; do
             EXTERNAL_IP=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
             if [[ "$EXTERNAL_IP" == "N/A" ]]; then
               EXTERNAL_IP=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "N/A")
@@ -515,16 +196,16 @@ runs:
             
             if [[ "$EXTERNAL_IP" != "N/A" && "$EXTERNAL_IP" != "<pending>" ]]; then
               echo "✅ External IP found: $EXTERNAL_IP"
+              echo "- 🌐 External URL: http://$EXTERNAL_IP:$SERVICE_PORT" >> deployment-summary.md
+              echo "- 🌐 Health Check: http://$EXTERNAL_IP:$SERVICE_PORT/actuator/health" >> deployment-summary.md
               break
             else
-              echo "⏳ Attempt $i/5: External IP not yet available, waiting 30 seconds..."
+              echo "⏳ Attempt $i/10: External IP not yet available, waiting 30 seconds..."
               sleep 30
             fi
           done
           
-          if [[ "$EXTERNAL_IP" != "N/A" && "$EXTERNAL_IP" != "<pending>" ]]; then
-            echo "- 🌐 External URL: http://$EXTERNAL_IP:$SERVICE_PORT" >> deployment-summary.md
-          else
+          if [[ "$EXTERNAL_IP" == "N/A" || "$EXTERNAL_IP" == "<pending>" ]]; then
             echo "- ⏳ LoadBalancer IP pending..." >> deployment-summary.md
             echo "- 💡 Check manually: kubectl get service -n ${{ inputs.namespace }}" >> deployment-summary.md
           fi
