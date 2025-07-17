@@ -89,22 +89,8 @@ runs:
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
         
-        # Verify AWS credentials
-        echo "=== AWS Identity ==="
-        aws sts get-caller-identity
-        
-        # Check EKS cluster status
-        echo "=== EKS Cluster Status ==="
-        aws eks describe-cluster --region ${{ inputs.region }} --name ${{ inputs.cluster-name }} --query 'cluster.status'
-
         # Update kubeconfig for EKS cluster
-        echo "=== Updating kubeconfig ==="
         aws eks update-kubeconfig --region ${{ inputs.region }} --name ${{ inputs.cluster-name }}
-
-        # Test cluster access
-        echo "=== Testing cluster access ==="
-        kubectl cluster-info
-        kubectl get nodes
       shell: bash
 
     # Create namespace and registry secrets
@@ -121,9 +107,8 @@ runs:
         # Create namespace if it doesn't exist
         kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
         
-        # Always create GHCR secret if credentials are provided
+        # Create GHCR secret if credentials are provided
         if [[ -n "${{ inputs.ghcr-username }}" && -n "${{ inputs.ghcr-pat }}" ]]; then
-          echo "Creating GHCR secret..."
           kubectl create secret docker-registry ghcr-secret \
             --docker-server=ghcr.io \
             --docker-username=${{ inputs.ghcr-username }} \
@@ -174,25 +159,17 @@ runs:
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
         
-        echo "Setting up ECR repository and pushing image from GHCR..."
-        
         # Create ECR repository if it doesn't exist
         aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} 2>/dev/null || \
         aws ecr create-repository --region ${{ inputs.region }} --repository-name ${{ inputs.ecr-repository-name }}
         
         # Get ECR registry URI
         ECR_REGISTRY=$(aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "${{ inputs.repository }}")
-        echo "ECR Registry: $ECR_REGISTRY"
         
         # Login to ECR
-        echo "Logging into ECR..."
         aws ecr get-login-password --region ${{ inputs.region }} | docker login --username AWS --password-stdin $ECR_REGISTRY
         
         # Login to GHCR to pull the image
-        echo "Logging into GHCR..."
-        echo "GHCR Username: ${{ inputs.ghcr-username }}"
-        
-        # Test GHCR authentication
         if ! echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u "${{ inputs.ghcr-username }}" --password-stdin; then
           echo "❌ Failed to login to GHCR. Please check your credentials."
           echo "Make sure GHCR_PAT has the correct permissions (read:packages)"
@@ -200,9 +177,6 @@ runs:
         fi
         
         # Pull image from GHCR
-        echo "Pulling image from GHCR: ${{ inputs.repository }}:${{ inputs.tag }}"
-        
-        # Check if image exists in GHCR
         if ! docker pull ${{ inputs.repository }}:${{ inputs.tag }}; then
           echo "❌ Failed to pull image from GHCR: ${{ inputs.repository }}:${{ inputs.tag }}"
           echo "Please ensure:"
@@ -214,13 +188,8 @@ runs:
         fi
         
         # Tag for ECR and push
-        echo "Tagging image for ECR: $ECR_REGISTRY:${{ inputs.tag }}"
         docker tag ${{ inputs.repository }}:${{ inputs.tag }} $ECR_REGISTRY:${{ inputs.tag }}
-        
-        echo "Pushing image to ECR..."
         docker push $ECR_REGISTRY:${{ inputs.tag }}
-        
-        echo "Image pushed to ECR successfully"
 
     # Validate ECR push requirements
     - name: Validate ECR push requirements
@@ -279,7 +248,6 @@ runs:
           HELM_CMD="$HELM_CMD --set imagePullSecrets[0].name=$IMAGE_PULL_SECRET"
         fi
         
-        echo "Executing: $HELM_CMD"
         eval $HELM_CMD
 
     # Verify deployment
@@ -292,7 +260,6 @@ runs:
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
         
-        echo "Checking deployment status..."
         kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }}
         kubectl get services -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }}
         
@@ -339,20 +306,16 @@ runs:
         
         # Simple LoadBalancer URL generation
         if [[ "$SERVICE_TYPE" == "LoadBalancer" ]]; then
-          echo "Waiting for LoadBalancer to get external hostname..."
-          
           # Wait for external hostname with retries
           for i in {1..10}; do
             EXTERNAL_HOSTNAME=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
             
             if [[ "$EXTERNAL_HOSTNAME" != "N/A" && "$EXTERNAL_HOSTNAME" != "<pending>" ]]; then
-              echo "✅ External hostname found: $EXTERNAL_HOSTNAME"
               echo "- 🌐 External URL: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT" >> deployment-summary.md
               echo "- 🌐 Health Check: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT/actuator/health" >> deployment-summary.md
               echo "- ⏳ Note: DNS may take a few minutes to propagate" >> deployment-summary.md
               break
             else
-              echo "⏳ Attempt $i/10: External hostname not yet available, waiting 30 seconds..."
               sleep 30
             fi
           done
