@@ -1,5 +1,5 @@
 name: Deploy to AWS EKS
-description: 'Deploy application to AWS EKS cluster using Helm with direct GHCR image pull'
+description: 'Deploy application to AWS EKS cluster using Helm with support for GHCR or ECR image registries'
 
 inputs:
   app-name:
@@ -12,7 +12,7 @@ inputs:
     description: 'Path to the Helm chart'
     required: true
   repository:
-    description: 'Docker image repository (e.g., ghcr.io/org/app)'
+    description: 'Docker image repository (e.g., ghcr.io/org/app or 123456789012.dkr.ecr.region.amazonaws.com/app)'
     required: true
   namespace:
     description: 'Kubernetes namespace'
@@ -33,12 +33,27 @@ inputs:
   aws-session-token:
     description: 'AWS Session Token'
     required: false
+  registry-type:
+    description: 'Container registry type (ghcr or ecr)'
+    required: false
+    default: 'ghcr'
   ghcr-username:
     description: 'GitHub Container Registry username'
     required: false
   ghcr-pat:
     description: 'GitHub Container Registry Personal Access Token'
     required: false
+  push-to-ecr:
+    description: 'Whether to also push the image to ECR'
+    required: false
+    default: 'false'
+  ecr-repository-name:
+    description: 'ECR repository name (required if push-to-ecr is true)'
+    required: false
+  deploy-from-ecr:
+    description: 'Whether to deploy from ECR instead of GHCR'
+    required: false
+    default: 'false'
   service-type:
     description: 'Kubernetes service type (ClusterIP, LoadBalancer, NodePort)'
     required: false
@@ -58,6 +73,11 @@ runs:
       uses: azure/setup-helm@v3
       with:
         version: v3.14.0
+
+    # Set up Docker (needed for ECR operations)
+    - name: Set up Docker
+      if: inputs.push-to-ecr == 'true'
+      uses: docker/setup-buildx-action@v3
 
     # Configure AWS credentials and update kubeconfig
     - name: Configure AWS and EKS access
@@ -87,9 +107,8 @@ runs:
         kubectl get nodes
       shell: bash
 
-    # Create namespace and GHCR secret
-    - name: Create namespace and GHCR secret
-      if: inputs.ghcr-username != '' && inputs.ghcr-pat != ''
+    # Create namespace and registry secrets
+    - name: Create namespace and registry secrets
       shell: bash
       run: |
         # Set AWS credentials
@@ -102,13 +121,66 @@ runs:
         # Create namespace if it doesn't exist
         kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
         
-        # Create GHCR secret
-        kubectl create secret docker-registry ghcr-secret \
-          --docker-server=ghcr.io \
-          --docker-username=${{ inputs.ghcr-username }} \
-          --docker-password=${{ inputs.ghcr-pat }} \
-          --namespace=${{ inputs.namespace }} \
-          --dry-run=client -o yaml | kubectl apply -f -
+        # Always create GHCR secret if credentials are provided
+        if [[ -n "${{ inputs.ghcr-username }}" && -n "${{ inputs.ghcr-pat }}" ]]; then
+          echo "Creating GHCR secret..."
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ inputs.ghcr-username }} \
+            --docker-password=${{ inputs.ghcr-pat }} \
+            --namespace=${{ inputs.namespace }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+        fi
+        
+        # Create ECR secret if we're deploying from ECR
+        if [[ "${{ inputs.deploy-from-ecr }}" == "true" ]]; then
+          echo "Setting up ECR authentication..."
+          # Get ECR login token and create secret
+          ECR_LOGIN_TOKEN=$(aws ecr get-login-password --region ${{ inputs.region }})
+          ECR_REGISTRY=$(aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "${{ inputs.repository }}")
+          
+          # Create ECR secret
+          kubectl create secret docker-registry ecr-secret \
+            --docker-server=$ECR_REGISTRY \
+            --docker-username=AWS \
+            --docker-password=$ECR_LOGIN_TOKEN \
+            --namespace=${{ inputs.namespace }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+        fi
+
+    # Push image from GHCR to ECR if needed
+    - name: Push image from GHCR to ECR
+      if: inputs.push-to-ecr == 'true' && inputs.ecr-repository-name != ''
+      shell: bash
+      run: |
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        echo "Setting up ECR repository and pushing image from GHCR..."
+        
+        # Create ECR repository if it doesn't exist
+        aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} 2>/dev/null || \
+        aws ecr create-repository --region ${{ inputs.region }} --repository-name ${{ inputs.ecr-repository-name }}
+        
+        # Get ECR login token
+        aws ecr get-login-password --region ${{ inputs.region }} | docker login --username AWS --password-stdin ${{ inputs.repository }}
+        
+        # Login to GHCR to pull the image
+        echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u ${{ inputs.ghcr-username }} --password-stdin
+        
+        # Pull image from GHCR
+        docker pull ${{ inputs.repository }}:${{ inputs.tag }}
+        
+        # Tag for ECR and push
+        ECR_REGISTRY=$(aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "${{ inputs.repository }}")
+        docker tag ${{ inputs.repository }}:${{ inputs.tag }} $ECR_REGISTRY:${{ inputs.tag }}
+        docker push $ECR_REGISTRY:${{ inputs.tag }}
+        
+        echo "Image pushed to ECR successfully"
 
     # Deploy via Helm
     - name: Deploy via Helm
@@ -121,17 +193,29 @@ runs:
           export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
         fi
         
+        # Determine which registry to deploy from
+        if [[ "${{ inputs.deploy-from-ecr }}" == "true" ]]; then
+          # Deploy from ECR
+          ECR_REGISTRY=$(aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "${{ inputs.repository }}")
+          DEPLOY_REPOSITORY=$ECR_REGISTRY
+          IMAGE_PULL_SECRET="ecr-secret"
+        else
+          # Deploy from GHCR
+          DEPLOY_REPOSITORY=${{ inputs.repository }}
+          IMAGE_PULL_SECRET="ghcr-secret"
+        fi
+        
         # Build Helm command
         HELM_CMD="helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart-path }}"
         HELM_CMD="$HELM_CMD --namespace ${{ inputs.namespace }}"
         HELM_CMD="$HELM_CMD --create-namespace"
-        HELM_CMD="$HELM_CMD --set image.repository=${{ inputs.repository }}"
+        HELM_CMD="$HELM_CMD --set image.repository=$DEPLOY_REPOSITORY"
         HELM_CMD="$HELM_CMD --set image.tag=${{ inputs.tag }}"
         HELM_CMD="$HELM_CMD --set service.type=${{ inputs.service-type }}"
         
-        # Add image pull secrets if provided
-        if [[ -n "${{ inputs.ghcr-username }}" && -n "${{ inputs.ghcr-pat }}" ]]; then
-          HELM_CMD="$HELM_CMD --set imagePullSecrets[0].name=ghcr-secret"
+        # Add image pull secrets
+        if [[ -n "$IMAGE_PULL_SECRET" ]]; then
+          HELM_CMD="$HELM_CMD --set imagePullSecrets[0].name=$IMAGE_PULL_SECRET"
         fi
         
         echo "Executing: $HELM_CMD"
@@ -175,6 +259,16 @@ runs:
         echo "- 📦 Release: ${{ inputs.app-name }}" >> deployment-summary.md
         echo "- 🏷️ Namespace: ${{ inputs.namespace }}" >> deployment-summary.md
         echo "- 🐳 Image: ${{ inputs.repository }}:${{ inputs.tag }}" >> deployment-summary.md
+        # Determine deployment registry for summary
+        if [[ "${{ inputs.deploy-from-ecr }}" == "true" ]]; then
+          DEPLOY_REGISTRY="ECR"
+        else
+          DEPLOY_REGISTRY="GHCR"
+        fi
+        echo "- 📦 Deploy Registry: $DEPLOY_REGISTRY" >> deployment-summary.md
+        if [[ "${{ inputs.push-to-ecr }}" == "true" ]]; then
+          echo "- 📤 Also pushed to ECR: Yes" >> deployment-summary.md
+        fi
         echo "- 🌍 Region: ${{ inputs.region }}" >> deployment-summary.md
         echo "- 📊 Pods: $READY_PODS/$PODS ready" >> deployment-summary.md
         
