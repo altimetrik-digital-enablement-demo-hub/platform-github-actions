@@ -148,11 +148,25 @@ runs:
             --dry-run=client -o yaml | kubectl apply -f -
         fi
 
-    # Push image from GHCR to ECR if needed
+    # Push image from GHCR to ECR
     - name: Push image from GHCR to ECR
       if: inputs.push-to-ecr == 'true' && inputs.ecr-repository-name != ''
       shell: bash
       run: |
+        # Validate GHCR credentials are provided
+        if [[ -z "${{ inputs.ghcr-username }}" || -z "${{ inputs.ghcr-pat }}" ]]; then
+          echo "❌ Cannot push to ECR: GHCR credentials are required to pull the source image."
+          echo ""
+          echo "To push to ECR, you need to provide:"
+          echo "1. ghcr-username: Your GitHub username"
+          echo "2. ghcr-pat: A GitHub Personal Access Token with 'read:packages' permission"
+          echo ""
+          echo "Please add these inputs to your workflow:"
+          echo "  ghcr-username: \${{ secrets.GHCR_USERNAME }}"
+          echo "  ghcr-pat: \${{ secrets.GHCR_PAT }}"
+          exit 1
+        fi
+        
         # Set AWS credentials
         export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
         export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
@@ -166,21 +180,69 @@ runs:
         aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} 2>/dev/null || \
         aws ecr create-repository --region ${{ inputs.region }} --repository-name ${{ inputs.ecr-repository-name }}
         
-        # Get ECR login token
-        aws ecr get-login-password --region ${{ inputs.region }} | docker login --username AWS --password-stdin ${{ inputs.repository }}
+        # Get ECR registry URI
+        ECR_REGISTRY=$(aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "${{ inputs.repository }}")
+        echo "ECR Registry: $ECR_REGISTRY"
+        
+        # Login to ECR
+        echo "Logging into ECR..."
+        aws ecr get-login-password --region ${{ inputs.region }} | docker login --username AWS --password-stdin $ECR_REGISTRY
         
         # Login to GHCR to pull the image
-        echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u ${{ inputs.ghcr-username }} --password-stdin
+        echo "Logging into GHCR..."
+        echo "GHCR Username: ${{ inputs.ghcr-username }}"
+        echo "GHCR PAT length: ${#inputs.ghcr-pat}"
+        
+        # Test GHCR authentication
+        if ! echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u ${{ inputs.ghcr-username }} --password-stdin; then
+          echo "❌ Failed to login to GHCR. Please check your credentials."
+          echo "Make sure GHCR_PAT has the correct permissions (read:packages)"
+          exit 1
+        fi
         
         # Pull image from GHCR
-        docker pull ${{ inputs.repository }}:${{ inputs.tag }}
+        echo "Pulling image from GHCR: ${{ inputs.repository }}:${{ inputs.tag }}"
+        
+        # Check if image exists in GHCR
+        if ! docker pull ${{ inputs.repository }}:${{ inputs.tag }}; then
+          echo "❌ Failed to pull image from GHCR: ${{ inputs.repository }}:${{ inputs.tag }}"
+          echo "Please ensure:"
+          echo "1. The image exists in GHCR"
+          echo "2. The repository path is correct"
+          echo "3. The tag exists"
+          echo "4. Your GHCR_PAT has read:packages permission"
+          exit 1
+        fi
         
         # Tag for ECR and push
-        ECR_REGISTRY=$(aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "${{ inputs.repository }}")
+        echo "Tagging image for ECR: $ECR_REGISTRY:${{ inputs.tag }}"
         docker tag ${{ inputs.repository }}:${{ inputs.tag }} $ECR_REGISTRY:${{ inputs.tag }}
+        
+        echo "Pushing image to ECR..."
         docker push $ECR_REGISTRY:${{ inputs.tag }}
         
         echo "Image pushed to ECR successfully"
+
+    # Validate ECR push requirements
+    - name: Validate ECR push requirements
+      if: inputs.push-to-ecr == 'true' && inputs.ecr-repository-name != '' && (inputs.ghcr-username == '' || inputs.ghcr-pat == '')
+      shell: bash
+      run: |
+        echo "❌ Cannot push to ECR: GHCR credentials are required to pull the source image."
+        echo ""
+        echo "To push to ECR, you need to provide:"
+        echo "1. ghcr-username: Your GitHub username"
+        echo "2. ghcr-pat: A GitHub Personal Access Token with 'read:packages' permission"
+        echo ""
+        echo "The action needs these credentials to:"
+        echo "1. Pull the image from GHCR"
+        echo "2. Tag it for ECR"
+        echo "3. Push it to ECR"
+        echo ""
+        echo "Please add these inputs to your workflow:"
+        echo "  ghcr-username: \${{ secrets.GHCR_USERNAME }}"
+        echo "  ghcr-pat: \${{ secrets.GHCR_PAT }}"
+        exit 1
 
     # Deploy via Helm
     - name: Deploy via Helm
