@@ -76,11 +76,11 @@ runs:
         # Check EKS cluster status
         echo "=== EKS Cluster Status ==="
         aws eks describe-cluster --region ${{ inputs.region }} --name ${{ inputs.cluster-name }} --query 'cluster.status'
-        
+
         # Update kubeconfig for EKS cluster
         echo "=== Updating kubeconfig ==="
         aws eks update-kubeconfig --region ${{ inputs.region }} --name ${{ inputs.cluster-name }}
-        
+
         # Test cluster access
         echo "=== Testing cluster access ==="
         kubectl cluster-info
@@ -182,63 +182,28 @@ runs:
         SERVICE_TYPE=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.type}' 2>/dev/null || echo "N/A")
         SERVICE_PORT=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.ports[0].port}' 2>/dev/null || echo "N/A")
         
-        # Wait for LoadBalancer to get external IP
+        # Simple LoadBalancer URL generation
         if [[ "$SERVICE_TYPE" == "LoadBalancer" ]]; then
-          echo "Waiting for LoadBalancer to get external IP..."
+          echo "Waiting for LoadBalancer to get external hostname..."
           
-          # Try to get external IP with retries
-          echo "Checking for external IP..."
+          # Wait for external hostname with retries
           for i in {1..10}; do
             EXTERNAL_HOSTNAME=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
-            EXTERNAL_IP=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "N/A")
             
             if [[ "$EXTERNAL_HOSTNAME" != "N/A" && "$EXTERNAL_HOSTNAME" != "<pending>" ]]; then
               echo "✅ External hostname found: $EXTERNAL_HOSTNAME"
-              
-              # Extract LoadBalancer name from hostname
-              LB_NAME=$(echo "$EXTERNAL_HOSTNAME" | cut -d'.' -f1)
-              echo "🔍 Looking up LoadBalancer: $LB_NAME"
-              
-              # Get LoadBalancer details from AWS
-              LB_ARN=$(aws elbv2 describe-load-balancers --region ${{ inputs.region }} --query "LoadBalancers[?contains(LoadBalancerName, '$LB_NAME')].LoadBalancerArn" --output text 2>/dev/null)
-              
-              if [[ -n "$LB_ARN" && "$LB_ARN" != "None" ]]; then
-                echo "✅ LoadBalancer found in AWS: $LB_ARN"
-                
-                # Get LoadBalancer state
-                LB_STATE=$(aws elbv2 describe-load-balancers --load-balancer-arns "$LB_ARN" --region ${{ inputs.region }} --query 'LoadBalancers[0].State.Code' --output text 2>/dev/null)
-                
-                if [[ "$LB_STATE" == "active" ]]; then
-                  echo "✅ LoadBalancer is active"
-                  echo "- 🌐 External URL: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT" >> deployment-summary.md
-                  echo "- 🌐 Health Check: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT/actuator/health" >> deployment-summary.md
-                  echo "- ⏳ Note: DNS may take a few minutes to propagate. If URL doesn't work, try again in 2-3 minutes." >> deployment-summary.md
-                else
-                  echo "⏳ LoadBalancer state: $LB_STATE"
-                  echo "- 🌐 External URL: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT" >> deployment-summary.md
-                  echo "- 🌐 Health Check: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT/actuator/health" >> deployment-summary.md
-                  echo "- ⏳ Note: LoadBalancer is still provisioning. Please wait a few minutes." >> deployment-summary.md
-                fi
-              else
-                echo "⏳ LoadBalancer not yet available in AWS"
-                echo "- 🌐 External URL: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT" >> deployment-summary.md
-                echo "- 🌐 Health Check: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT/actuator/health" >> deployment-summary.md
-                echo "- ⏳ Note: LoadBalancer is being created. Please wait a few minutes." >> deployment-summary.md
-              fi
-              break
-            elif [[ "$EXTERNAL_IP" != "N/A" && "$EXTERNAL_IP" != "<pending>" ]]; then
-              echo "✅ External IP found: $EXTERNAL_IP"
-              echo "- 🌐 External URL: http://$EXTERNAL_IP:$SERVICE_PORT" >> deployment-summary.md
-              echo "- 🌐 Health Check: http://$EXTERNAL_IP:$SERVICE_PORT/actuator/health" >> deployment-summary.md
+              echo "- 🌐 External URL: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT" >> deployment-summary.md
+              echo "- 🌐 Health Check: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT/actuator/health" >> deployment-summary.md
+              echo "- ⏳ Note: DNS may take a few minutes to propagate" >> deployment-summary.md
               break
             else
-              echo "⏳ Attempt $i/10: External IP not yet available, waiting 30 seconds..."
+              echo "⏳ Attempt $i/10: External hostname not yet available, waiting 30 seconds..."
               sleep 30
             fi
           done
           
-          if [[ "$EXTERNAL_HOSTNAME" == "N/A" || "$EXTERNAL_HOSTNAME" == "<pending>" ]] && [[ "$EXTERNAL_IP" == "N/A" || "$EXTERNAL_IP" == "<pending>" ]]; then
-            echo "- ⏳ LoadBalancer IP pending..." >> deployment-summary.md
+          if [[ "$EXTERNAL_HOSTNAME" == "N/A" || "$EXTERNAL_HOSTNAME" == "<pending>" ]]; then
+            echo "- ⏳ LoadBalancer hostname pending..." >> deployment-summary.md
             echo "- 💡 Check manually: kubectl get service -n ${{ inputs.namespace }}" >> deployment-summary.md
           fi
         elif [[ "$SERVICE_TYPE" == "NodePort" ]]; then
