@@ -162,8 +162,8 @@ runs:
           echo "2. ghcr-pat: A GitHub Personal Access Token with 'read:packages' permission"
           echo ""
           echo "Please add these inputs to your workflow:"
-          echo "  ghcr-username: \${{ secrets.GHCR_USERNAME }}"
-          echo "  ghcr-pat: \${{ secrets.GHCR_PAT }}"
+          echo "  ghcr-username: your-ghcr-username"
+          echo "  ghcr-pat: your-ghcr-pat"
           exit 1
         fi
         
@@ -240,8 +240,8 @@ runs:
         echo "3. Push it to ECR"
         echo ""
         echo "Please add these inputs to your workflow:"
-        echo "  ghcr-username: \${{ secrets.GHCR_USERNAME }}"
-        echo "  ghcr-pat: \${{ secrets.GHCR_PAT }}"
+        echo "  ghcr-username: your-ghcr-username"
+        echo "  ghcr-pat: your-ghcr-pat"
         exit 1
 
     # Deploy via Helm
