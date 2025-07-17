@@ -190,11 +190,10 @@ runs:
         
         # Login to GHCR to pull the image
         echo "Logging into GHCR..."
-        echo "GHCR Username: $INPUT_GHCR_USERNAME"
-        echo "GHCR PAT length: ${#INPUT_GHCR_PAT}"
+        echo "GHCR Username: ${{ inputs.ghcr-username }}"
         
         # Test GHCR authentication
-        if ! echo "$INPUT_GHCR_PAT" | docker login ghcr.io -u "$INPUT_GHCR_USERNAME" --password-stdin; then
+        if ! echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u "${{ inputs.ghcr-username }}" --password-stdin; then
           echo "❌ Failed to login to GHCR. Please check your credentials."
           echo "Make sure GHCR_PAT has the correct permissions (read:packages)"
           exit 1
