@@ -1,0 +1,341 @@
+name: Deploy to AWS EKS
+description: 'Deploy application to AWS EKS cluster using Helm with support for GHCR or ECR image registries'
+
+inputs:
+  app-name:
+    description: 'Name of the application to deploy'
+    required: true
+  tag:
+    description: 'Docker image tag'
+    required: true
+  chart-path:
+    description: 'Path to the Helm chart'
+    required: true
+  repository:
+    description: 'Docker image repository (e.g., ghcr.io/org/app or 123456789012.dkr.ecr.region.amazonaws.com/app)'
+    required: true
+  namespace:
+    description: 'Kubernetes namespace'
+    required: false
+    default: 'default'
+  region:
+    description: 'AWS region'
+    required: true
+  cluster-name:
+    description: 'EKS cluster name'
+    required: true
+  aws-access-key-id:
+    description: 'AWS Access Key ID'
+    required: false
+  aws-secret-access-key:
+    description: 'AWS Secret Access Key'
+    required: false
+  aws-session-token:
+    description: 'AWS Session Token'
+    required: false
+  registry-type:
+    description: 'Container registry type (ghcr or ecr)'
+    required: false
+    default: 'ghcr'
+  ghcr-username:
+    description: 'GitHub Container Registry username'
+    required: false
+  ghcr-pat:
+    description: 'GitHub Container Registry Personal Access Token'
+    required: false
+  push-to-ecr:
+    description: 'Whether to also push the image to ECR'
+    required: false
+    default: 'false'
+  ecr-repository-name:
+    description: 'ECR repository name (required if push-to-ecr is true)'
+    required: false
+  deploy-from-ecr:
+    description: 'Whether to deploy from ECR instead of GHCR'
+    required: false
+    default: 'false'
+  service-type:
+    description: 'Kubernetes service type (ClusterIP, LoadBalancer, NodePort)'
+    required: false
+    default: 'LoadBalancer'
+
+runs:
+  using: composite
+  steps:
+    # Set up kubectl
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: v1.29.0
+
+    # Set up Helm
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: v3.14.0
+
+    # Set up Docker (needed for ECR operations)
+    - name: Set up Docker
+      if: inputs.push-to-ecr == 'true'
+      uses: docker/setup-buildx-action@v3
+
+    # Configure AWS credentials and update kubeconfig
+    - name: Configure AWS and EKS access
+      run: |
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        # Update kubeconfig for EKS cluster
+        aws eks update-kubeconfig --region ${{ inputs.region }} --name ${{ inputs.cluster-name }}
+      shell: bash
+
+    # Create namespace and registry secrets
+    - name: Create namespace and registry secrets
+      shell: bash
+      run: |
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        # Create namespace if it doesn't exist
+        kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Create GHCR secret if credentials are provided
+        if [[ -n "${{ inputs.ghcr-username }}" && -n "${{ inputs.ghcr-pat }}" ]]; then
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ inputs.ghcr-username }} \
+            --docker-password=${{ inputs.ghcr-pat }} \
+            --namespace=${{ inputs.namespace }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+        fi
+        
+        # Create ECR secret if we're deploying from ECR
+        if [[ "${{ inputs.deploy-from-ecr }}" == "true" ]]; then
+          echo "Setting up ECR authentication..."
+          # Get ECR login token and create secret
+          ECR_LOGIN_TOKEN=$(aws ecr get-login-password --region ${{ inputs.region }})
+          ECR_REGISTRY=$(aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "${{ inputs.repository }}")
+          
+          # Create ECR secret
+          kubectl create secret docker-registry ecr-secret \
+            --docker-server=$ECR_REGISTRY \
+            --docker-username=AWS \
+            --docker-password=$ECR_LOGIN_TOKEN \
+            --namespace=${{ inputs.namespace }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+        fi
+
+    # Push image from GHCR to ECR
+    - name: Push image from GHCR to ECR
+      if: inputs.push-to-ecr == 'true' && inputs.ecr-repository-name != ''
+      shell: bash
+      run: |
+        # Validate GHCR credentials are provided
+        if [[ -z "${{ inputs.ghcr-username }}" || -z "${{ inputs.ghcr-pat }}" ]]; then
+          echo "❌ Cannot push to ECR: GHCR credentials are required to pull the source image."
+          echo ""
+          echo "To push to ECR, you need to provide:"
+          echo "1. ghcr-username: Your GitHub username"
+          echo "2. ghcr-pat: A GitHub Personal Access Token with 'read:packages' permission"
+          echo ""
+          echo "Please add these inputs to your workflow:"
+          echo "  ghcr-username: your-ghcr-username"
+          echo "  ghcr-pat: your-ghcr-pat"
+          exit 1
+        fi
+        
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        # Create ECR repository if it doesn't exist
+        aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} 2>/dev/null || \
+        aws ecr create-repository --region ${{ inputs.region }} --repository-name ${{ inputs.ecr-repository-name }}
+        
+        # Get ECR registry URI
+        ECR_REGISTRY=$(aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "${{ inputs.repository }}")
+        
+        # Login to ECR
+        aws ecr get-login-password --region ${{ inputs.region }} | docker login --username AWS --password-stdin $ECR_REGISTRY
+        
+        # Login to GHCR to pull the image
+        if ! echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u "${{ inputs.ghcr-username }}" --password-stdin; then
+          echo "❌ Failed to login to GHCR. Please check your credentials."
+          echo "Make sure GHCR_PAT has the correct permissions (read:packages)"
+          exit 1
+        fi
+        
+        # Pull image from GHCR
+        if ! docker pull ${{ inputs.repository }}:${{ inputs.tag }}; then
+          echo "❌ Failed to pull image from GHCR: ${{ inputs.repository }}:${{ inputs.tag }}"
+          echo "Please ensure:"
+          echo "1. The image exists in GHCR"
+          echo "2. The repository path is correct"
+          echo "3. The tag exists"
+          echo "4. Your GHCR_PAT has read:packages permission"
+          exit 1
+        fi
+        
+        # Tag for ECR and push
+        docker tag ${{ inputs.repository }}:${{ inputs.tag }} $ECR_REGISTRY:${{ inputs.tag }}
+        docker push $ECR_REGISTRY:${{ inputs.tag }}
+
+    # Validate ECR push requirements
+    - name: Validate ECR push requirements
+      if: inputs.push-to-ecr == 'true' && inputs.ecr-repository-name != '' && (inputs.ghcr-username == '' || inputs.ghcr-pat == '')
+      shell: bash
+      run: |
+        echo "❌ Cannot push to ECR: GHCR credentials are required to pull the source image."
+        echo ""
+        echo "To push to ECR, you need to provide:"
+        echo "1. ghcr-username: Your GitHub username"
+        echo "2. ghcr-pat: A GitHub Personal Access Token with 'read:packages' permission"
+        echo ""
+        echo "The action needs these credentials to:"
+        echo "1. Pull the image from GHCR"
+        echo "2. Tag it for ECR"
+        echo "3. Push it to ECR"
+        echo ""
+        echo "Please add these inputs to your workflow:"
+        echo "  ghcr-username: your-ghcr-username"
+        echo "  ghcr-pat: your-ghcr-pat"
+        exit 1
+
+    # Deploy via Helm
+    - name: Deploy via Helm
+      shell: bash
+      run: |
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        # Determine which registry to deploy from
+        if [[ "${{ inputs.deploy-from-ecr }}" == "true" ]]; then
+          # Deploy from ECR
+          ECR_REGISTRY=$(aws ecr describe-repositories --region ${{ inputs.region }} --repository-names ${{ inputs.ecr-repository-name }} --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "${{ inputs.repository }}")
+          DEPLOY_REPOSITORY=$ECR_REGISTRY
+          IMAGE_PULL_SECRET="ecr-secret"
+        else
+          # Deploy from GHCR
+          DEPLOY_REPOSITORY=${{ inputs.repository }}
+          IMAGE_PULL_SECRET="ghcr-secret"
+        fi
+        
+        # Build Helm command
+        HELM_CMD="helm upgrade --install ${{ inputs.app-name }} ${{ inputs.chart-path }}"
+        HELM_CMD="$HELM_CMD --namespace ${{ inputs.namespace }}"
+        HELM_CMD="$HELM_CMD --create-namespace"
+        HELM_CMD="$HELM_CMD --set image.repository=$DEPLOY_REPOSITORY"
+        HELM_CMD="$HELM_CMD --set image.tag=${{ inputs.tag }}"
+        HELM_CMD="$HELM_CMD --set service.type=${{ inputs.service-type }}"
+        
+        # Add image pull secrets
+        if [[ -n "$IMAGE_PULL_SECRET" ]]; then
+          HELM_CMD="$HELM_CMD --set imagePullSecrets[0].name=$IMAGE_PULL_SECRET"
+        fi
+        
+        eval $HELM_CMD
+
+    # Verify deployment
+    - name: Verify deployment
+      run: |
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }}
+        kubectl get services -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }}
+        
+        # Wait for pods to be ready
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=300s
+      shell: bash
+
+    # Generate deployment summary
+    - name: Generate deployment summary
+      run: |
+        # Set AWS credentials
+        export AWS_ACCESS_KEY_ID=${{ inputs.aws-access-key-id }}
+        export AWS_SECRET_ACCESS_KEY=${{ inputs.aws-secret-access-key }}
+        if [[ -n "${{ inputs.aws-session-token }}" ]]; then
+          export AWS_SESSION_TOKEN=${{ inputs.aws-session-token }}
+        fi
+        
+        echo "## 🚀 AWS EKS Deployment Report" > deployment-summary.md
+        
+        # Get deployment status
+        PODS=$(kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} --no-headers | wc -l)
+        READY_PODS=$(kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} --no-headers | grep -c "Running")
+        
+        echo "- ✅ Deployment completed successfully" >> deployment-summary.md
+        echo "- 📦 Release: ${{ inputs.app-name }}" >> deployment-summary.md
+        echo "- 🏷️ Namespace: ${{ inputs.namespace }}" >> deployment-summary.md
+        echo "- 🐳 Image: ${{ inputs.repository }}:${{ inputs.tag }}" >> deployment-summary.md
+        # Determine deployment registry for summary
+        if [[ "${{ inputs.deploy-from-ecr }}" == "true" ]]; then
+          DEPLOY_REGISTRY="ECR"
+        else
+          DEPLOY_REGISTRY="GHCR"
+        fi
+        echo "- 📦 Deploy Registry: $DEPLOY_REGISTRY" >> deployment-summary.md
+        if [[ "${{ inputs.push-to-ecr }}" == "true" ]]; then
+          echo "- 📤 Also pushed to ECR: Yes" >> deployment-summary.md
+        fi
+        echo "- 🌍 Region: ${{ inputs.region }}" >> deployment-summary.md
+        echo "- 📊 Pods: $READY_PODS/$PODS ready" >> deployment-summary.md
+        
+        # Get service details
+        SERVICE_TYPE=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.type}' 2>/dev/null || echo "N/A")
+        SERVICE_PORT=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.ports[0].port}' 2>/dev/null || echo "N/A")
+        
+        # Simple LoadBalancer URL generation
+        if [[ "$SERVICE_TYPE" == "LoadBalancer" ]]; then
+          # Wait for external hostname with retries
+          for i in {1..10}; do
+            EXTERNAL_HOSTNAME=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "N/A")
+            
+            if [[ "$EXTERNAL_HOSTNAME" != "N/A" && "$EXTERNAL_HOSTNAME" != "<pending>" ]]; then
+              echo "- 🌐 External URL: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT" >> deployment-summary.md
+              echo "- 🌐 Health Check: http://$EXTERNAL_HOSTNAME:$SERVICE_PORT/actuator/health" >> deployment-summary.md
+              echo "- ⏳ Note: DNS may take a few minutes to propagate" >> deployment-summary.md
+              break
+            else
+              sleep 30
+            fi
+          done
+          
+          if [[ "$EXTERNAL_HOSTNAME" == "N/A" || "$EXTERNAL_HOSTNAME" == "<pending>" ]]; then
+            echo "- ⏳ LoadBalancer hostname pending..." >> deployment-summary.md
+            echo "- 💡 Check manually: kubectl get service -n ${{ inputs.namespace }}" >> deployment-summary.md
+          fi
+        elif [[ "$SERVICE_TYPE" == "NodePort" ]]; then
+          NODEPORT=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.ports[0].nodePort}' 2>/dev/null || echo "N/A")
+          if [[ "$NODEPORT" != "N/A" ]]; then
+            echo "- 🔗 NodePort: $NODEPORT" >> deployment-summary.md
+          fi
+        else
+          SERVICE_IP=$(kubectl get service -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath='{.items[0].spec.clusterIP}' 2>/dev/null || echo "N/A")
+          if [[ "$SERVICE_IP" != "N/A" ]]; then
+            echo "- 🔗 Internal Service: $SERVICE_IP:$SERVICE_PORT" >> deployment-summary.md
+          fi
+        fi
+        
+        # Write to GITHUB_STEP_SUMMARY
+        cat deployment-summary.md >> $GITHUB_STEP_SUMMARY
+      shell: bash 

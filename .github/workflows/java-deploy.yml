@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       app-name:
-        description: 'Name of the application to deploy'
+        description: 'Name of the Java application to deploy'
         required: true
         type: string
       tag:
@@ -18,6 +18,16 @@ on:
       repository:
         description: 'Docker image repository (e.g., ghcr.io/org/app)'
         required: true
+        type: string
+      namespace:
+        description: 'Kubernetes namespace for Java application'
+        required: false
+        default: 'java-apps'
+        type: string
+      helm-version:
+        description: 'Helm version to use for deployment'
+        required: false
+        default: '3.12.0'
         type: string
     secrets:
       GHCR_PAT:
@@ -41,4 +51,8 @@ jobs:
           app-name: ${{ inputs.app-name }}
           tag: ${{ inputs.tag }}
           chart-path: ${{ inputs.chart-path }}
-          repository: ${{ inputs.repository }} 
+          repository: ${{ inputs.repository }}
+          namespace: ${{ inputs.namespace }}
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+          ghcr-username: ${{ secrets.GHCR_USERNAME }}
+          ghcr-pat: ${{ secrets.GHCR_PAT }} 
