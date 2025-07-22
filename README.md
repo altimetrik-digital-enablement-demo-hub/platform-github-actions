@@ -27,6 +27,7 @@ This library aims to:
     │   ├── docker-build-publish.yml
     │   ├── git-package.yml
     │   ├── git-tag-generation.yml
+    │   ├── semantic-release.yml
     │   ├── github-dashboard.yml
     │   ├── grype-scan.yml
     │   ├── trivy-scan.yml
@@ -153,6 +154,20 @@ Before merging:
 - Create a test Workflow to test new Reusable Workflow and Composite Actions.
 - Provide a link to test Workflow in the PR.
 - Test deployments in local Kubernetes clusters using local GitHub Runners.
+
+## Semantic Release Feature
+
+The platform includes a comprehensive semantic release system that automatically creates GitHub releases based on conventional commits. This feature is available through the `semantic-release` action.
+
+### Key Features
+
+- **Automatic Version Calculation**: Analyzes commit messages to determine the next semantic version
+- **Conventional Commits Support**: Recognizes standard commit message formats (feat, fix, major, etc.)
+- **Manual Version Override**: Allows specifying custom versions that override automatic calculation
+- **CHANGELOG Generation**: Automatically generates release notes with commit history
+- **Flexible Inputs**: Supports draft releases, prereleases, and custom release notes
+
+For detailed documentation, see [Semantic Release Action](./.github/actions/common/github-actions/semantic-release/README.md).
 
 ## Using MkDocs to manage documentation
 
