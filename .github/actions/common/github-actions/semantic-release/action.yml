@@ -55,6 +55,8 @@ runs:
     - name: Semantic Release
       id: semantic-release
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
       run: |
         # Validate manual version if provided
         if [ -n "${{ inputs.manual-version }}" ]; then
