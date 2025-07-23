@@ -23,7 +23,7 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Go
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@v1
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/setup@feature/kind-test
       with:
         go-version: ${{ inputs.go-version }}
 
@@ -82,7 +82,7 @@ runs:
           test-results/coverage.txt
 
     - name: Publish Test Results
-      uses: dorny/test-reporter@v1 
+      uses: dorny/test-reporter@feature/kind-test 
       if: always()
       with:
         name: Go Test Results
