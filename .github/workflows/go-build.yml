@@ -175,3 +175,17 @@ jobs:
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/static-code-analysis/codeql@v1
         with:
           languages: go 
+
+  deploy-test:
+    runs-on: ubuntu-latest
+    needs: [docker-scan, security-scan]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test Kind cluster
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/kind-deployment-test@feature/kind-test
+        with:
+          app-name: ${{ inputs.app-name }}
