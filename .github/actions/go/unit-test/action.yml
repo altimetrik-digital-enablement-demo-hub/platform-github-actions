@@ -33,7 +33,7 @@ runs:
         sudo apt-get update
         sudo apt-get install -y bc jq
 
-    - name: Install gotestsum for better test reporting #
+    - name: Install gotestsum for better test reporting
       shell: bash
       run: go install gotest.tools/gotestsum@latest
 

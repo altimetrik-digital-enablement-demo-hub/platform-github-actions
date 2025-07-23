@@ -189,3 +189,7 @@ jobs:
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/kind-deployment-test@feature/kind-test
         with:
           app-name: ${{ inputs.app-name }}
+          registry: ${{ inputs.registry }}
+          image-tag: ${{ needs.version.outputs.image-tag }}
+          chart-path: ${{ inputs.chart-path }}
+          namespace: ${{ inputs.namespace }}

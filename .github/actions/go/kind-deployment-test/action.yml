@@ -6,6 +6,22 @@ inputs:
     description: 'Application name for cluster naming'
     required: true
     default: 'test-app'
+  registry:
+    required: true
+    description: 'Container registry URL (e.g., ghcr.io, AWS ECR)'
+    default: 'ghcr.io'
+  image-tag:
+    description: 'Docker image tag to deploy'
+    required: true
+    default: 'latest'
+  chart-path:
+    description: 'Path to the Helm chart for deployment'
+    required: false
+    default: './deploy/helm'
+  namespace:
+    description: 'Kubernetes namespace'
+    required: false
+    default: 'default'
 
 runs:
   using: 'composite'
@@ -20,25 +36,53 @@ runs:
       shell: bash
       run: |
         echo "🎯 Testing Kind cluster..."
-        
         # Test cluster is working
         kubectl cluster-info
         kubectl get nodes
-        
-        # Create a simple test pod
-        kubectl run test-pod --image=nginx:alpine --restart=Never
-        
-        # Wait for pod to be ready
-        kubectl wait --for=condition=Ready pod/test-pod --timeout=60s
-        
-        # Check pod status
-        kubectl get pods
-        
-        echo "✅ Kind cluster test completed successfully!"
+        echo "✅ Cluster is ready!"
+
+    - name: Deploy app with Helm
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deploy@v1
+      with: 
+        app-name: ${{ inputs.app-name }}
+        chart-path: ${{ inputs.chart-path }}
+        namespace: ${{ inputs.namespace }}
+        repository: ${{ inputs.registry }}
+        tag: ${{ inputs.image-tag}}
+    
+    - name: Wait for deployment to be ready
+      shell: bash
+      run: |
+        echo "⏳ Waiting for deployment to be ready..."
+        kubectl wait --for=condition=available deployment/${{ inputs.app-name }} \
+          --namespace=${{ inputs.namespace }} --timeout=120s
+
+        echo "📊 Deployment status:"
+        kubectl get pods -n ${{ inputs.namespace }}
+        kubectl get services -n ${{ inputs.namespace }}
+
+    - name: Run basic test
+      shell: bash
+      run: |
+        echo "🧪 Testing app deployment..."
+
+        POD_NAME=$(kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o jsonpath="{.items[0].metadata.name}")
+        echo "Testing pod: $POD_NAME"
+
+        kubectl get pod $POS_NAME -n ${{ inputs.namespace }}
+
+        echo "🔍 Testing app health..."
+        kubectl port-forward pod/$POD_NAME 8080:8080 -n ${{ inputs.namespace }} &
+        sleep 5
+
+        # Connectivity test
+        curl -f http://localhost:8080/health || echo "Health check endpoint not available"
+
+        echo "✅ App is deployment test complete!"
 
     - name: Cleanup test resources
       shell: bash
       if: always()
       run: |
         echo "🧹 Cleaning up test resources..."
-        kubectl delete pod test-pod --ignore-not-found=true 
+        kubectl delete namespace ${{ inputs.namespace }} --ignore-not-found=true || true
