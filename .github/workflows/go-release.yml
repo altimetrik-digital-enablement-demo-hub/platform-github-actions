@@ -113,7 +113,7 @@ jobs:
           image-tag: ${{ needs.version.outputs.new-version }}
           registry: ${{ inputs.registry }}
           push: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }} 
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2

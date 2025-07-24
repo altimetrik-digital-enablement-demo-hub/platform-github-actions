@@ -51,6 +51,16 @@ on:
         required: false
         default: 'true'
         type: string
+      chart-path:
+        description: 'Path to Helm chart'
+        type: string
+        required: false
+        default: './deploy/helm'
+      namespace:
+        description: 'Kubernetes namespace for testing'
+        type: string
+        required: false
+        default: 'default'
 
 permissions:
   actions: read
