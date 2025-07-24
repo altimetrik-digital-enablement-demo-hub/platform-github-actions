@@ -60,13 +60,14 @@ runs:
       run: |
         # Validate manual version if provided
         if [ -n "${{ inputs.manual-version }}" ]; then
-          if [[ ! "${{ inputs.manual-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
-            echo "Error: Manual version '${{ inputs.manual-version }}' does not comply with semantic versioning"
+          MANUAL_VERSION="${{ inputs.manual-version }}"
+          if [[ ! "$MANUAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            echo "Error: Manual version '$MANUAL_VERSION' does not comply with semantic versioning"
             exit 1
           fi
-          echo "Using manual version: ${{ inputs.manual-version }}"
-          NEW_VERSION="${{ inputs.manual-version }}"
-          NEW_TAG="v${{ inputs.manual-version }}"
+          echo "Using manual version: $MANUAL_VERSION"
+          NEW_VERSION="$MANUAL_VERSION"
+          NEW_TAG="v$MANUAL_VERSION"
         else
           # Get current version from git tags (fetch once at the beginning)
           git fetch --tags
