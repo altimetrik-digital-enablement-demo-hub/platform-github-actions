@@ -72,7 +72,7 @@ runs:
         echo "🔌 Service details:"
         kubectl get services -n ${{ inputs.namespace }}
         
-        echo "✅ Deployment verification complete!""
+        echo "✅ Deployment verification complete!"
 
     - name: Cleanup test resources
       shell: bash
