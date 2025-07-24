@@ -100,14 +100,14 @@ runs:
                 fi
                 
                 # Check for breaking change shorthand (!) in commit message
-                if [[ "$COMMIT" =~ ^[a-z]+(!|\([^)]*\)!): ]]; then
+                if [[ "$COMMIT" =~ ^[a-z]+! ]]; then
                   BUMP="major"
                   break
                 fi
                 
                 # Check for conventional commit types
                 LOWER=$(echo "$COMMIT" | tr '[:upper:]' '[:lower:]')
-                if [[ "$LOWER" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)([:[:space:]]|\([^)]*\):) ]]; then
+                if [[ "$LOWER" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert): ]]; then
                   FIRST_KEYWORD="${BASH_REMATCH[1]}"
                   case "$FIRST_KEYWORD" in
                     feat)
