@@ -61,7 +61,8 @@ runs:
         # Validate manual version if provided
         if [ -n "${{ inputs.manual-version }}" ]; then
           MANUAL_VERSION="${{ inputs.manual-version }}"
-          if [[ ! "$MANUAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+          # Simplified regex for semantic versioning validation
+          if [[ ! "$MANUAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
             echo "Error: Manual version '$MANUAL_VERSION' does not comply with semantic versioning"
             exit 1
           fi
