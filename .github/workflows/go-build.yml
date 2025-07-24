@@ -188,7 +188,7 @@ jobs:
 
   deploy-test:
     runs-on: ubuntu-latest
-    needs: [docker-scan, security-scan]
+    needs: [docker-scan, security-scan, version]
     permissions:
       contents: read
     steps:

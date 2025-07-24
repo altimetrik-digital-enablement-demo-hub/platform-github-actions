@@ -47,15 +47,15 @@ runs:
         app-name: ${{ inputs.app-name }}
         chart-path: ${{ inputs.chart-path }}
         namespace: ${{ inputs.namespace }}
-        repository: ${{ inputs.registry }}
-        tag: ${{ inputs.image-tag}}
+        repository: ${{ inputs.registry }}/${{ inputs.app-name }}
+        tag: ${{ inputs.image-tag }}
         args: >-
           --atomic
           --wait
           --timeout 2m 
           --wait-for-jobs
           --debug
-          
+
     - name: Verify deployment
       shell: bash
       run: |
