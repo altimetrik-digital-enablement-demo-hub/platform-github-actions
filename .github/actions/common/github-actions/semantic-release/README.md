@@ -18,7 +18,7 @@ A composite GitHub Action that creates semantic GitHub releases with automatic v
 | `token` | GitHub token for authentication | Yes | - |
 | `version-bump` | Version bump type (auto, major, minor, patch) | No | `auto` |
 | `manual-version` | Manual version (e.g., 1.2.3) - overrides version-bump | No | - |
-| `release-notes` | Additional release notes to append to the CHANGELOG | No | - |
+| `release-notes` | Additional release notes to append to the CHANGELOG (max 512 chars) | No | - |
 | `draft` | Create release as draft | No | `false` |
 | `prerelease` | Create release as prerelease | No | `false` |
 
@@ -89,6 +89,23 @@ When `manual-version` is provided, it overrides all automatic calculation and us
     draft: 'true'
 ```
 
+### Prerelease
+```yaml
+- uses: ./.github/actions/common/github-actions/semantic-release@v1
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+    prerelease: 'true'
+```
+
+### Draft Prerelease (Combined)
+```yaml
+- uses: ./.github/actions/common/github-actions/semantic-release@v1
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+    draft: 'true'
+    prerelease: 'true'
+```
+
 ## Conventional Commits
 
 The action recognizes the following conventional commit types:
@@ -137,9 +154,15 @@ Example:
 This release includes important security updates.
 ```
 
+## Character Limits
+
+- **Release Notes**: Maximum 512 characters
+- **Total CHANGELOG**: Maximum 1024 characters (automatically truncated if exceeded)
+
 ## Error Handling
 
 - If no valid semantic keywords are found in auto mode, the action skips the release
 - Invalid manual versions are rejected with an error
 - Invalid version-bump values result in an error
+- Release notes exceeding 512 characters are rejected with an error
 - The action gracefully handles repositories with no existing tags 

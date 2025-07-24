@@ -68,7 +68,7 @@ runs:
           NEW_VERSION="${{ inputs.manual-version }}"
           NEW_TAG="v${{ inputs.manual-version }}"
         else
-          # Get current version from git tags
+          # Get current version from git tags (fetch once at the beginning)
           git fetch --tags
           LATEST_TAG=$(git tag --sort=-v:refname | head -n 1)
           
@@ -154,6 +154,7 @@ runs:
         fi
         
         # Generate CHANGELOG
+        # Use the already fetched latest tag for changelog reference
         PREV_TAG="${LATEST_TAG:-initial commit}"
         REPO_URL="https://github.com/${{ github.repository }}"
         RELEASE_DATE=$(date -u +"%B %d, %Y")
@@ -183,12 +184,27 @@ runs:
           echo "**Full Changelog**: [$NEW_TAG ... $PREV_TAG]($REPO_URL/compare/$LATEST_TAG...$NEW_TAG)" >> changelog.md
         fi
         
-        # Add additional release notes if provided
+        # Add additional release notes if provided (limit to 512 chars)
         if [ -n "${{ inputs.release-notes }}" ]; then
+          RELEASE_NOTES="${{ inputs.release-notes }}"
+          if [ ${#RELEASE_NOTES} -gt 512 ]; then
+            echo "Warning: Release notes truncated to 512 characters"
+            RELEASE_NOTES="${RELEASE_NOTES:0:512}..."
+          fi
           echo "" >> changelog.md
           echo "### Additional Notes" >> changelog.md
           echo "" >> changelog.md
-          echo "${{ inputs.release-notes }}" >> changelog.md
+          echo "$RELEASE_NOTES" >> changelog.md
+        fi
+        
+        # Check total changelog length (limit to 1024 chars)
+        CHANGELOG_CONTENT=$(cat changelog.md)
+        if [ ${#CHANGELOG_CONTENT} -gt 1024 ]; then
+          echo "Warning: Total changelog content exceeds 1024 characters"
+          # Truncate the changelog content
+          head -c 1024 changelog.md > changelog_temp.md
+          echo "..." >> changelog_temp.md
+          mv changelog_temp.md changelog.md
         fi
         
         # Create git tag
@@ -196,22 +212,20 @@ runs:
         git push origin "$NEW_TAG"
         
         # Create GitHub release
-        DRAFT_FLAG=""
+        RELEASE_ARGS=("$NEW_TAG" "--title" "Release $NEW_TAG" "--notes-file" "changelog.md")
+        
+        # Add draft flag if specified
         if [ "${{ inputs.draft }}" = "true" ]; then
-          DRAFT_FLAG="--draft"
+          RELEASE_ARGS+=("--draft")
         fi
         
-        PRERELEASE_FLAG=""
+        # Add prerelease flag if specified (works with or without draft)
         if [ "${{ inputs.prerelease }}" = "true" ]; then
-          PRERELEASE_FLAG="--prerelease"
+          RELEASE_ARGS+=("--prerelease")
         fi
         
         # Create release using GitHub CLI
-        gh release create "$NEW_TAG" \
-          --title "Release $NEW_TAG" \
-          --notes-file changelog.md \
-          $DRAFT_FLAG \
-          $PRERELEASE_FLAG
+        gh release create "${RELEASE_ARGS[@]}"
         
         # Set outputs
         echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"

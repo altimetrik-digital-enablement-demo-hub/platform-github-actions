@@ -13,7 +13,7 @@ on:
         description: 'Manual version (e.g., 1.2.3) - overrides version_bump'
         required: false
         type: string
-
+    
       release-notes:
         description: 'Additional release notes to append to the CHANGELOG'
         required: false
