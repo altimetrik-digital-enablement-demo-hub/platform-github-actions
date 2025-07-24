@@ -42,7 +42,7 @@ runs:
         echo "✅ Cluster is ready!"
 
     - name: Deploy app with Helm
-      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deploy@v1
+      uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@v1
       with: 
         app-name: ${{ inputs.app-name }}
         chart-path: ${{ inputs.chart-path }}
