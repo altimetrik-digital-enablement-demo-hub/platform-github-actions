@@ -90,14 +90,24 @@ runs:
               BUMP=""
               
               while IFS= read -r COMMIT; do
+                # Check for breaking changes in commit body
+                COMMIT_BODY=$(git log --format=%B -n 1 "$COMMIT" 2>/dev/null || echo "")
+                if [[ "$COMMIT_BODY" =~ BREAKING[[:space:]]CHANGE ]]; then
+                  BUMP="major"
+                  break
+                fi
+                
+                # Check for breaking change shorthand (!) in commit message
+                if [[ "$COMMIT" =~ ^[a-z]+(!|\([^)]*\)!): ]]; then
+                  BUMP="major"
+                  break
+                fi
+                
+                # Check for conventional commit types
                 LOWER=$(echo "$COMMIT" | tr '[:upper:]' '[:lower:]')
-                if [[ "$LOWER" =~ (^|[^a-zA-Z0-9])(major|feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)([:[:space:]]|$) ]]; then
-                  FIRST_KEYWORD="${BASH_REMATCH[2]}"
+                if [[ "$LOWER" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)([:[:space:]]|\([^)]*\):) ]]; then
+                  FIRST_KEYWORD="${BASH_REMATCH[1]}"
                   case "$FIRST_KEYWORD" in
-                    major)
-                      BUMP="major"
-                      break
-                      ;;
                     feat)
                       [[ "$BUMP" != "major" ]] && BUMP="minor"
                       ;;

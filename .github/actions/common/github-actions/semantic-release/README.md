@@ -34,7 +34,9 @@ A composite GitHub Action that creates semantic GitHub releases with automatic v
 ### Auto Mode (Default)
 The action analyzes commit messages since the last tag to determine the appropriate version bump:
 
-- **Major**: Any commit containing "major" keyword
+- **Major**: Any commit with:
+  - `BREAKING CHANGE:` in the commit body
+  - `!` after type/scope (e.g., `feat!:`, `feat(api)!:`)
 - **Minor**: Any commit containing "feat" keyword (unless major bump is needed)
 - **Patch**: Any commit containing "fix", "docs", "style", "refactor", "perf", "test", "chore", "build", "ci", or "revert" keywords (unless major or minor bump is needed)
 
@@ -121,7 +123,12 @@ The action recognizes the following conventional commit types:
 - `build`: Build system changes (patch version bump)
 - `ci`: CI/CD changes (patch version bump)
 - `revert`: Reverting previous commits (patch version bump)
-- `major`: Breaking changes (major version bump)
+
+### Breaking Changes
+
+Breaking changes are detected using:
+- `BREAKING CHANGE:` in the commit body (major version bump)
+- `!` after type/scope (e.g., `feat!:`, `feat(api)!:`) (major version bump)
 
 ## CHANGELOG Format
 
