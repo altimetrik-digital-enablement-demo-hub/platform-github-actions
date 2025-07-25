@@ -240,9 +240,18 @@ runs:
         # Create release using GitHub CLI
         gh release create "${RELEASE_ARGS[@]}"
         
-        # Set outputs
-        echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+        # Set outputs with appropriate tag format based on release type
+        if [ "${{ inputs.draft }}" = "true" ]; then
+          DOCKER_TAG="${NEW_TAG}-draft"
+        elif [ "${{ inputs.prerelease }}" = "true" ]; then
+          DOCKER_TAG="${NEW_TAG}-prerelease"
+        else
+          DOCKER_TAG="$NEW_TAG"
+        fi
+        
+        echo "tag=$DOCKER_TAG" >> "$GITHUB_OUTPUT"
         echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
         
         echo "Created release: $NEW_TAG"
-        echo "Version: $NEW_VERSION" 
+        echo "Version: $NEW_VERSION"
+        echo "Docker tag: $DOCKER_TAG" 

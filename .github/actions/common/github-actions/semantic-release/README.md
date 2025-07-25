@@ -26,8 +26,15 @@ A composite GitHub Action that creates semantic GitHub releases with automatic v
 
 | Output | Description |
 |--------|-------------|
-| `tag` | The new semantic version tag (e.g., v1.2.3) |
+| `tag` | The Docker tag for the release (e.g., v1.2.3, v1.2.3-draft, v1.2.3-prerelease) |
 | `version` | The version number without 'v' prefix (e.g., 1.2.3) |
+
+### Docker Tag Format
+
+The `tag` output varies based on the release type:
+- **Regular Release**: `v1.2.3`
+- **Draft Release**: `v1.2.3-draft`
+- **Prerelease**: `v1.2.3-prerelease`
 
 ## Version Bump Logic
 
