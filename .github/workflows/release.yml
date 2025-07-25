@@ -60,7 +60,7 @@ jobs:
       version: ${{ steps.semantic-release.outputs.version }}
     steps:
       - id: semantic-release
-        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/semantic-release@fix/wf-release
+        uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/github-actions/semantic-release@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version-bump: ${{ inputs.version-bump }}
