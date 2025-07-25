@@ -26,6 +26,9 @@ inputs:
     description: 'GitHub username/organization for registry'
     required: false
     default: 'altimetrik-digital-enablement-demo-hub'
+  token:  # ← Add this!
+    description: 'GitHub token for registry authentication'
+    required: true
 
 runs:
   using: 'composite'
@@ -54,7 +57,7 @@ runs:
         kubectl create secret docker-registry ghcr-secret \
           --docker-server=ghcr.io \
           --docker-username=${{ github.actor }} \
-          --docker-password=${{ secrets.GITHUB_TOKEN }} \
+          --docker-password=${{ inputs.token }} \  # ← Use input instead of secrets
           --namespace=${{ inputs.namespace }} || true
         
         # Patch the default service account to use the secret

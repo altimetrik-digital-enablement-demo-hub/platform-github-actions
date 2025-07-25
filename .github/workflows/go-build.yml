@@ -74,7 +74,7 @@ permissions:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     steps:
       - name: Lint Go code
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/lint@v1
@@ -82,7 +82,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
   unit-test:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     needs: [lint]
     steps:
       - name: Run unit tests
@@ -91,7 +91,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
   version:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     needs: [unit-test]
     outputs:
       image-tag: ${{ steps.version.outputs.image-tag }}
@@ -102,7 +102,7 @@ jobs:
         uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/go/image-tag@v1
 
   docker-build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     needs: [version]
     outputs:
       full-image-name: ${{ steps.package.outputs.full-image-name }}
@@ -122,7 +122,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   docker-scan:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     needs: [version, docker-build-and-push]
     permissions:
       security-events: write
@@ -169,7 +169,7 @@ jobs:
           
 
   security-scan:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     needs: [lint]
     permissions:
       security-events: write
@@ -187,7 +187,7 @@ jobs:
           languages: go 
 
   deploy-test:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     needs: [docker-scan, security-scan, version]
     permissions:
       contents: read

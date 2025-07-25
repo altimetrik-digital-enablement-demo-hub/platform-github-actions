@@ -49,7 +49,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy release ${{ inputs.release-name }} to ${{ inputs.target }}/${{ inputs.namespace }}
-    runs-on: ['self-hosted', 'macOS']
+    runs-on: ['self-hosted', 'macOS'] # arc-runner-set
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

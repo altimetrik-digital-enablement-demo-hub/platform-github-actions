@@ -75,7 +75,7 @@ permissions:
 jobs:
   # Calculate version and create release
   version:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     outputs:
       new-version: ${{ steps.release.outputs.tag }}
       changelog: ${{ steps.release.outputs.changelog }}
@@ -93,7 +93,7 @@ jobs:
 
   # Push Docker image with semantic version
   docker-build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     needs: [version]
     outputs:
       image-tag: ${{ steps.build-push.outputs.image-tag }}
@@ -123,7 +123,7 @@ jobs:
 
   # Security scan the Docker image
   docker-scan:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     needs: [version, docker-build-and-push]
     permissions:
       security-events: write
