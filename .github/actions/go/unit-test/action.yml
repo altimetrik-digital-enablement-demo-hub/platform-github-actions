@@ -27,12 +27,6 @@ runs:
       with:
         go-version: ${{ inputs.go-version }}
 
-    - name: Install dependencies 
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y bc jq
-
     - name: Install gotestsum for better test reporting
       shell: bash
       run: go install gotest.tools/gotestsum@latest
@@ -119,9 +113,14 @@ runs:
         echo "Current coverage: ${COVERAGE}%"
         echo "Required threshold: ${THRESHOLD}%"
         
-        if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+        # Convert to integers for comparison (remove decimal points)
+        COVERAGE_INT=${COVERAGE%.*}
+        THRESHOLD_INT=${THRESHOLD%.*}
+        
+        if (( COVERAGE_INT < THRESHOLD_INT )); then
           echo "❌ Coverage $COVERAGE% is below threshold $THRESHOLD%"
           echo "🚨 Please add more tests to improve coverage!"
+          exit 1
         else
           echo "✅ Coverage $COVERAGE% meets threshold $THRESHOLD%"
           echo "🎉 Great job on maintaining good test coverage!"
