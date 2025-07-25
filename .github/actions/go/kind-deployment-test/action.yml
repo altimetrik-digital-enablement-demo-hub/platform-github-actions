@@ -22,6 +22,10 @@ inputs:
     description: 'Kubernetes namespace'
     required: false
     default: 'default'
+  registry-username:
+    description: 'GitHub username/organization for registry'
+    required: false
+    default: 'altimetrik-digital-enablement-demo-hub'
 
 runs:
   using: 'composite'
@@ -47,7 +51,7 @@ runs:
         app-name: ${{ inputs.app-name }}
         chart-path: ${{ inputs.chart-path }}
         namespace: ${{ inputs.namespace }}
-        repository: ${{ inputs.registry }}/${{ inputs.app-name }}
+        repository: ${{ inputs.registry }}/${{ inputs.registry-username }}/${{ inputs.app-name }}
         tag: ${{ inputs.image-tag }}
         args: >-
           --atomic
