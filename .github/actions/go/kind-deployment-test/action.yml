@@ -45,6 +45,22 @@ runs:
         kubectl get nodes
         echo "✅ Cluster is ready!"
 
+    - name: Configure Kind for GHCR
+      shell: bash
+      run: |
+        echo "🔐 Configuring Kind cluster for GHCR access..."
+        
+        # Create secret for GHCR authentication
+        kubectl create secret docker-registry ghcr-secret \
+          --docker-server=ghcr.io \
+          --docker-username=${{ github.actor }} \
+          --docker-password=${{ secrets.GITHUB_TOKEN }} \
+          --namespace=${{ inputs.namespace }} || true
+        
+        # Patch the default service account to use the secret
+        kubectl patch serviceaccount default -n ${{ inputs.namespace }} \
+          -p '{"imagePullSecrets": [{"name": "ghcr-secret"}]}' || true
+
     - name: Deploy app with Helm
       uses: altimetrik-digital-enablement-demo-hub/platform-github-actions/.github/actions/common/helm-deployment@v1
       with: 
