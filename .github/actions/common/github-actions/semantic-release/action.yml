@@ -166,8 +166,9 @@ runs:
         fi
         
         # Generate CHANGELOG
-        # Use the already fetched latest tag for changelog reference
-        PREV_TAG="${LATEST_TAG:-initial commit}"
+        # Get the last actual release (not draft/prerelease) for changelog reference
+        LAST_RELEASE_TAG=$(git tag --sort=-v:refname | grep -v -E '(-alpha|-beta|-rc|-pre|-draft)' | head -n 1)
+        PREV_TAG="${LAST_RELEASE_TAG:-initial commit}"
         REPO_URL="https://github.com/${{ github.repository }}"
         RELEASE_DATE=$(date -u +"%B %d, %Y")
         GIT_HASH=$(git rev-parse --short HEAD)
@@ -181,9 +182,9 @@ runs:
         echo "" >> changelog.md
         echo "### Changes" >> changelog.md
         
-        # Get commits since last tag
-        if [ -n "$RANGE" ]; then
-          COMMITS=$(git log $RANGE --pretty=format:"- %s (%h)" --reverse)
+        # Get commits since last actual release
+        if [ -n "$LAST_RELEASE_TAG" ]; then
+          COMMITS=$(git log "$LAST_RELEASE_TAG..HEAD" --pretty=format:"- %s (%h)" --reverse)
           if [ -n "$COMMITS" ]; then
             echo "" >> changelog.md
             echo "$COMMITS" >> changelog.md
@@ -191,9 +192,9 @@ runs:
         fi
         
         # Add full changelog link
-        if [ -n "$LATEST_TAG" ]; then
+        if [ -n "$LAST_RELEASE_TAG" ]; then
           echo "" >> changelog.md
-          echo "**Full Changelog**: [$NEW_TAG ... $PREV_TAG]($REPO_URL/compare/$LATEST_TAG...$NEW_TAG)" >> changelog.md
+          echo "**Full Changelog**: [$NEW_TAG ... $PREV_TAG]($REPO_URL/compare/$LAST_RELEASE_TAG...$NEW_TAG)" >> changelog.md
         fi
         
         # Add additional release notes if provided (limit to 512 chars)
