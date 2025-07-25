@@ -61,17 +61,40 @@ runs:
       run: |
         echo "🔍 Verifying deployment..."
         
+        # Wait for deployment to be ready
+        echo "⏳ Waiting for deployment rollout..."
+        kubectl rollout status deployment/${{ inputs.app-name }} -n ${{ inputs.namespace }} --timeout=2m || {
+          echo "❌ Deployment failed to roll out!"
+          echo "🔍 Debugging deployment issues:"
+          kubectl describe deployment ${{ inputs.app-name }} -n ${{ inputs.namespace }}
+          echo "�� Deployment events:"
+          kubectl get events -n ${{ inputs.namespace }} --sort-by='.lastTimestamp'
+          exit 1
+        }
+        
         # Get deployment status
+        echo "�� Deployment status:"
         kubectl get deployment -n ${{ inputs.namespace }} -l app.kubernetes.io/name=${{ inputs.app-name }} -o wide
         
         # Get pods with their images
         echo "📦 Pod details:"
-        kubectl get pods -n ${{ inputs.namespace }} -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,IMAGE:.spec.containers[0].image
+        kubectl get pods -n ${{ inputs.namespace }} -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,IMAGE:.spec.containers[0].image,READY:.status.containerStatuses[0].ready
+        
+        # Check if pods are stuck
+        if kubectl get pods -n ${{ inputs.namespace }} | grep -q "Pending\|Error\|CrashLoopBackOff"; then
+          echo "🔍 Debugging pod issues:"
+          kubectl describe pods -n ${{ inputs.namespace }}
+          echo "�� Pod events:"
+          kubectl get events -n ${{ inputs.namespace }} --sort-by='.lastTimestamp' | grep -E "(sample-go|Failed|Error)"
+          echo "�� Image pull issues:"
+          kubectl get pods -n ${{ inputs.namespace }} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].state.waiting.reason}{"\t"}{.status.containerStatuses[0].state.waiting.message}{"\n"}{end}'
+          exit 1
+        fi
         
         # Get services
-        echo "🔌 Service details:"
+        echo "�`� Service details:"
         kubectl get services -n ${{ inputs.namespace }}
-        
+      
         echo "✅ Deployment verification complete!"
 
     - name: Cleanup test resources
